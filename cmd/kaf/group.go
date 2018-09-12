@@ -12,7 +12,7 @@ import (
 
 	"encoding/hex"
 
-	sarama "github.com/bsm/sarama-1"
+	sarama "github.com/birdayz/sarama"
 	"github.com/infinimesh/kaf"
 	"github.com/spf13/cobra"
 )
@@ -48,28 +48,48 @@ var groupDescribeCmd = &cobra.Command{
 		config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
 		config.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 
-		client, err := sarama.NewClient([]string{"localhost:9092"}, config)
+		admin, err := sarama.NewClusterAdmin([]string{"localhost:9092"}, config)
 		if err != nil {
 			panic(err)
 		}
 
-		client.Brokers()[0].Open(config) // Ensure that we're connected
-
-		response, err := client.Brokers()[0].DescribeGroups(&sarama.DescribeGroupsRequest{
-			Groups: []string{args[0]},
-		})
-
-		if len(response.Groups) < 1 {
-			fmt.Println("Could't find data for group")
-			os.Exit(1)
+		group, err := admin.DescribeConsumerGroup(args[0])
+		if err != nil {
+			panic(err)
 		}
-		group := response.Groups[0]
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Group ID:\t%v\n", group.GroupId)
 		fmt.Fprintf(w, "State:\t%v\n", group.State)
 		fmt.Fprintf(w, "Protocol:\t%v\n", group.Protocol)
 		fmt.Fprintf(w, "Protocol Type:\t%v\n", group.ProtocolType)
+
+		// Committed offsets
+		// TODO get partitions
+		topicPartitions := make(map[string][]int32)
+		topicPartitions["public.delta.reported-state"] = []int32{0, 1, 2, 3} // TODO retrieve topics
+		offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
+		if err != nil {
+			panic(err)
+		}
+
+		// TODO: move offsets section below topics, as a group can have multiple topics assigned
+		fmt.Fprintf(w, "Offsets:\t\n")
+
+		w.Flush()
+		w.Init(os.Stdout, tabwriterMinWidthNested, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+
+		fmt.Fprintf(w, "\tPartition\tOffset\n")
+		fmt.Fprintf(w, "\t---------\t------")
+
+		for partition, offset := range offsetAndMetadata.Blocks["public.delta.reported-state"] {
+			fmt.Fprintf(w, "\n\t%v\t%v", partition, offset.Offset)
+		}
+
+		fmt.Fprintln(w)
+
+		// fmt.Println("O partition 0", offsetAndMetadata.GetBlock(args[0], 0))
+
 		fmt.Fprintf(w, "Members:\t\n")
 
 		w.Flush()
@@ -118,10 +138,7 @@ var groupDescribeCmd = &cobra.Command{
 				fmt.Fprintf(w, "\t\tUUID:\t%v\n", hex.EncodeToString(d.UUID))
 				fmt.Fprintf(w, "\t\tUserEndpoint:\t%v\n", d.UserEndpoint)
 			}
-			fmt.Fprintln(w, "\t------------------")
 		}
-
-		// Todo get offsets/assignments
 
 		w.Flush()
 
