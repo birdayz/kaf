@@ -18,7 +18,9 @@ import (
 )
 
 func init() {
-
+	rootCmd.AddCommand(groupCmd)
+	groupCmd.AddCommand(groupDescribeCmd)
+	groupCmd.AddCommand(groupGetCmd)
 }
 
 const (
@@ -35,20 +37,60 @@ var groupCmd = &cobra.Command{
 	Short: "Display information about consumer groups.",
 }
 
+var groupGetCmd = &cobra.Command{
+	Use:   "get",
+	Short: "List topics",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		admin, err := getClusterAdmin()
+		if err != nil {
+			panic(err)
+		}
+
+		grps, err := admin.ListConsumerGroups()
+		if err != nil {
+			panic(err)
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
+
+		for group, _ := range grps {
+			detail, err := admin.DescribeConsumerGroup(group)
+			if err != nil {
+				panic(err)
+			}
+
+			state := detail.State
+			consumers := len(detail.Members)
+
+			fmt.Fprintf(w, "%v\t%v\t%v\t\n", group, state, consumers)
+		}
+
+		w.Flush()
+
+		return
+	},
+}
+
+func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
+	config := sarama.NewConfig()
+	config.Version = sarama.V1_0_0_0
+	config.Consumer.Return.Errors = false
+	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	config.Producer.Return.Successes = true
+	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
+	config.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
+
+	return sarama.NewClusterAdmin([]string{"localhost:9092"}, config)
+}
+
 var groupDescribeCmd = &cobra.Command{
 	Use:   "describe",
 	Short: "Describe consumer group",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		config := sarama.NewConfig()
-		config.Version = sarama.V1_0_0_0
-		config.Consumer.Return.Errors = false
-		config.Consumer.Offsets.Initial = sarama.OffsetOldest
-		config.Producer.Return.Successes = true
-		config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-		config.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
-
-		admin, err := sarama.NewClusterAdmin([]string{"localhost:9092"}, config)
+		admin, err := getClusterAdmin()
 		if err != nil {
 			panic(err)
 		}
@@ -66,50 +108,78 @@ var groupDescribeCmd = &cobra.Command{
 
 		// Committed offsets
 		// TODO get partitions
-		topicPartitions := make(map[string][]int32)
-		topicPartitions["public.delta.reported-state"] = []int32{0, 1, 2, 3} // TODO retrieve topics
-		offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
-		if err != nil {
-			panic(err)
-		}
+		// topicPartitions := make(map[string][]int32)
+		// topicPartitions["public.delta.reported-state"] = []int32{0, 1, 2, 3} // TODO retrieve topics
+		// offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
+		// if err != nil {
+		// 	panic(err)
+		// }
 
 		// TODO: move offsets section below topics, as a group can have multiple topics assigned
-		fmt.Fprintf(w, "Offsets:\t\n")
+		// fmt.Fprintf(w, "Offsets:\t\n")
+
+		// w.Flush()
+		// w.Init(os.Stdout, tabwriterMinWidthNested, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+
+		// fmt.Fprintf(w, "\tPartition\tOffset\n")
+		// fmt.Fprintf(w, "\t---------\t------")
+
+		// for partition, offset := range offsetAndMetadata.Blocks["public.delta.reported-state"] {
+		// 	fmt.Fprintf(w, "\n\t%v\t%v", partition, offset.Offset)
+		// }
+
+		// fmt.Fprintln(w)
+
+		fmt.Fprintf(w, "Members:\t")
 
 		w.Flush()
-		w.Init(os.Stdout, tabwriterMinWidthNested, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-
-		fmt.Fprintf(w, "\tPartition\tOffset\n")
-		fmt.Fprintf(w, "\t---------\t------")
-
-		for partition, offset := range offsetAndMetadata.Blocks["public.delta.reported-state"] {
-			fmt.Fprintf(w, "\n\t%v\t%v", partition, offset.Offset)
-		}
+		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
 		fmt.Fprintln(w)
-
-		// fmt.Println("O partition 0", offsetAndMetadata.GetBlock(args[0], 0))
-
-		fmt.Fprintf(w, "Members:\t\n")
-
-		w.Flush()
-		w.Init(os.Stdout, tabwriterMinWidthNested, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-
 		for _, member := range group.Members {
-			fmt.Fprintf(w, "\tID:\t%v\n", member.ClientId)
-			fmt.Fprintf(w, "\tHost:\t%v\n", member.ClientHost)
+			fmt.Fprintf(w, "\t%v:\n", member.ClientId)
+			fmt.Fprintf(w, "\t\tHost:\t%v\n", member.ClientHost)
 
 			assignment, err := member.GetMemberAssignment()
 			if err != nil {
 				continue
 			}
 
-			fmt.Fprintf(w, "\tTopics:\t\n")
-			fmt.Fprintf(w, "\t\tName\tPartitions\n")
-			fmt.Fprintf(w, "\t\t----\t----------")
-			for key, value := range assignment.Topics {
-				fmt.Fprintf(w, "\n\t\t%v\t%v", key, value)
+			// offsetAndMetadata, err := admin.ListConsumerGroupOffsets("shadow", assignment.Topics)
+			// if err != nil {
+			// 	panic(err)
+			// }
+
+			fmt.Fprintf(w, "\t\tAssignments:\n")
+
+			// TODO offsets
+			// fmt.Fprintf(w, "\t\t----\t----------")
+			// for key, _ := range assignment.Topics {
+			// fmt.Fprintf(w, "\tName: %v\n", key)
+			// fmt.Fprintf(w, "\tOffsets:\t\n")
+
+			// w.Flush()
+			// w.Init(os.Stdout, tabwriterMinWidthNested, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+
+			fmt.Fprintf(w, "\t\t  Topic\tPartitions\t\n")
+			fmt.Fprintf(w, "\t\t  -----\t--------\t")
+
+			for topic, partitions := range assignment.Topics {
+				fmt.Fprintf(w, "\n\t\t  %v\t%v\t", topic, partitions)
 			}
+
+			// fmt.Fprintln(w)
+
+			// fmt.Fprintf(w, "\tPartition\tOffset\n")
+			// 	fmt.Fprintf(w, "\t---------\t------")
+
+			// 	for partition, offset := range offsetAndMetadata.Blocks["public.delta.reported-state"] {
+			// 		if offset.Offset != int64(-1) {
+			// 			fmt.Fprintf(w, "\n\t%v\t%v", partition, offset.Offset)
+			// 		}
+			// 	}
+
+			// }
 
 			metadata, err := member.GetMemberMetadata()
 			if err != nil {
@@ -119,24 +189,24 @@ var groupDescribeCmd = &cobra.Command{
 			// for _, topic := range metadata.Topics {
 			// 	fmt.Fprintf(w, "\n\t\t%v", topic)
 			// }
-			fmt.Fprintln(w)
+			// fmt.Fprintln(w)
 
 			decodedUserData, err := tryDecodeUserData(group.Protocol, metadata.UserData)
 			if err != nil {
-				if IsAsciiPrintable(string(metadata.UserData)) {
-					fmt.Fprintf(w, "\tMetadata:\t%v\n", string(metadata.UserData))
+				if IsASCIIPrintable(string(metadata.UserData)) {
+					fmt.Fprintf(w, "\f\t\tMetadata:\t%v\n", string(metadata.UserData))
 				} else {
 
-					fmt.Fprintf(w, "\tMetadata:\t%v\n", base64.StdEncoding.EncodeToString(metadata.UserData))
+					fmt.Fprintf(w, "\f\t\tMetadata:\t%v\n", base64.StdEncoding.EncodeToString(metadata.UserData))
 				}
 			}
 
 			switch d := decodedUserData.(type) {
 			case kaf.SubscriptionInfo:
 
-				fmt.Fprintf(w, "\tMetadata:\t\n")
-				fmt.Fprintf(w, "\t\tUUID:\t%v\n", hex.EncodeToString(d.UUID))
-				fmt.Fprintf(w, "\t\tUserEndpoint:\t%v\n", d.UserEndpoint)
+				fmt.Fprintf(w, "\f\t\tMetadata:\t\n")
+				fmt.Fprintf(w, "\t\t  UUID:\t0x%v\n", hex.EncodeToString(d.UUID))
+				fmt.Fprintf(w, "\t\t  UserEndpoint:\t%v\n", d.UserEndpoint)
 			}
 		}
 
@@ -145,7 +215,7 @@ var groupDescribeCmd = &cobra.Command{
 	},
 }
 
-func IsAsciiPrintable(s string) bool {
+func IsASCIIPrintable(s string) bool {
 	for _, r := range s {
 		if r > unicode.MaxASCII || !unicode.IsPrint(r) {
 			return false
@@ -169,9 +239,4 @@ func tryDecodeUserData(protocol string, raw []byte) (data interface{}, err error
 	default:
 		return nil, errors.New("unknown protocol")
 	}
-}
-
-func init() {
-	rootCmd.AddCommand(groupCmd)
-	groupCmd.AddCommand(groupDescribeCmd)
 }
