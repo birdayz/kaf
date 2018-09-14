@@ -55,7 +55,11 @@ var groupGetCmd = &cobra.Command{
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
 
+		found := false
 		for group, _ := range grps {
+			if len(args) > 0 && group != args[0] {
+				continue
+			}
 			detail, err := admin.DescribeConsumerGroup(group)
 			if err != nil {
 				panic(err)
@@ -65,9 +69,14 @@ var groupGetCmd = &cobra.Command{
 			consumers := len(detail.Members)
 
 			fmt.Fprintf(w, "%v\t%v\t%v\t\n", group, state, consumers)
+			found = true
 		}
 
-		w.Flush()
+		if found {
+			w.Flush()
+		} else {
+			fmt.Printf("Group %v not found\n", args[0])
+		}
 
 		return
 	},
