@@ -182,21 +182,7 @@ var groupDescribeCmd = &cobra.Command{
 				continue
 			}
 
-			// offsetAndMetadata, err := admin.ListConsumerGroupOffsets("shadow", assignment.Topics)
-			// if err != nil {
-			// 	panic(err)
-			// }
-
 			fmt.Fprintf(w, "\t\tAssignments:\n")
-
-			// TODO offsets
-			// fmt.Fprintf(w, "\t\t----\t----------")
-			// for key, _ := range assignment.Topics {
-			// fmt.Fprintf(w, "\tName: %v\n", key)
-			// fmt.Fprintf(w, "\tOffsets:\t\n")
-
-			// w.Flush()
-			// w.Init(os.Stdout, tabwriterMinWidthNested, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 
 			fmt.Fprintf(w, "\t\t  Topic\tPartitions\t\n")
 			fmt.Fprintf(w, "\t\t  -----\t--------\t")
@@ -205,28 +191,10 @@ var groupDescribeCmd = &cobra.Command{
 				fmt.Fprintf(w, "\n\t\t  %v\t%v\t", topic, partitions)
 			}
 
-			// fmt.Fprintln(w)
-
-			// fmt.Fprintf(w, "\tPartition\tOffset\n")
-			// 	fmt.Fprintf(w, "\t---------\t------")
-
-			// 	for partition, offset := range offsetAndMetadata.Blocks["public.delta.reported-state"] {
-			// 		if offset.Offset != int64(-1) {
-			// 			fmt.Fprintf(w, "\n\t%v\t%v", partition, offset.Offset)
-			// 		}
-			// 	}
-
-			// }
-
 			metadata, err := member.GetMemberMetadata()
 			if err != nil {
 				continue
 			}
-
-			// for _, topic := range metadata.Topics {
-			// 	fmt.Fprintf(w, "\n\t\t%v", topic)
-			// }
-			// fmt.Fprintln(w)
 
 			decodedUserData, err := tryDecodeUserData(group.Protocol, metadata.UserData)
 			if err != nil {
