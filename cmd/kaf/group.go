@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"unicode"
 
 	"text/tabwriter"
@@ -40,8 +41,9 @@ var groupCmd = &cobra.Command{
 var groupGetCmd = &cobra.Command{
 	Use:   "get",
 	Short: "List topics",
-	Args:  cobra.NoArgs,
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		// TODO: support 1 argument -> perform this task for specific group
 		admin, err := getClusterAdmin()
 		if err != nil {
 			panic(err)
@@ -94,6 +96,8 @@ var groupDescribeCmd = &cobra.Command{
 	Short: "Describe consumer group",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		// TODO List: This API can be used to find the current groups managed by a broker. To get a list of all groups in the cluster, you must send ListGroup to all brokers.
+		// same goes probably for topics
 		admin, err := getClusterAdmin()
 		if err != nil {
 			panic(err)
@@ -104,35 +108,63 @@ var groupDescribeCmd = &cobra.Command{
 			panic(err)
 		}
 
+		if group.State == "Dead" {
+			fmt.Printf("Group %v not found.\n", args[0])
+			return
+		}
+
+		topicsDedup := make(map[string]interface{}, 0)
+		for _, member := range group.Members {
+			assignment, err := member.GetMemberAssignment()
+			if err != nil {
+				panic(err)
+			}
+
+			for topic, _ := range assignment.Topics {
+				topicsDedup[topic] = struct{}{}
+			}
+		}
+
+		topics := make([]string, 0, len(topicsDedup))
+		for topic, _ := range topicsDedup {
+			topics = append(topics, topic)
+		}
+
+		topicMeta, _ := admin.DescribeTopic(topics)
+
+		topicPartitions := make(map[string][]int32)
+		for _, topic := range topicMeta {
+			topicPartitions[topic.Name] = make([]int32, 0, len(topic.Partitions))
+			for _, partition := range topic.Partitions {
+				topicPartitions[topic.Name] = append(topicPartitions[topic.Name], partition.ID)
+			}
+			sort.Slice(topicPartitions[topic.Name], func(i, j int) bool { return topicPartitions[topic.Name][i] < topicPartitions[topic.Name][j] })
+		}
+
+		offsetAndMetadata, _ := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
+
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Group ID:\t%v\n", group.GroupId)
 		fmt.Fprintf(w, "State:\t%v\n", group.State)
 		fmt.Fprintf(w, "Protocol:\t%v\n", group.Protocol)
 		fmt.Fprintf(w, "Protocol Type:\t%v\n", group.ProtocolType)
 
-		// Committed offsets
-		// TODO get partitions
-		// topicPartitions := make(map[string][]int32)
-		// topicPartitions["public.delta.reported-state"] = []int32{0, 1, 2, 3} // TODO retrieve topics
-		// offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
-		// if err != nil {
-		// 	panic(err)
-		// }
+		fmt.Fprintf(w, "Offsets:\t\n")
 
-		// TODO: move offsets section below topics, as a group can have multiple topics assigned
-		// fmt.Fprintf(w, "Offsets:\t\n")
+		w.Flush()
+		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
-		// w.Flush()
-		// w.Init(os.Stdout, tabwriterMinWidthNested, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		for topic, partitions := range topicPartitions {
+			fmt.Fprintf(w, "\t%v:\n", topic)
+			fmt.Fprintf(w, "\t\tPartition\tOffset\n")
+			fmt.Fprintf(w, "\t\t---------\t------\n")
 
-		// fmt.Fprintf(w, "\tPartition\tOffset\n")
-		// fmt.Fprintf(w, "\t---------\t------")
+			for _, partition := range partitions {
 
-		// for partition, offset := range offsetAndMetadata.Blocks["public.delta.reported-state"] {
-		// 	fmt.Fprintf(w, "\n\t%v\t%v", partition, offset.Offset)
-		// }
+				fmt.Fprintf(w, "\t\t%v\t%v\t\n", partition, offsetAndMetadata.GetBlock(topic, partition).Offset)
+			}
 
-		// fmt.Fprintln(w)
+		}
 
 		fmt.Fprintf(w, "Members:\t")
 
