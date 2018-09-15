@@ -21,7 +21,7 @@ import (
 func init() {
 	rootCmd.AddCommand(groupCmd)
 	groupCmd.AddCommand(groupDescribeCmd)
-	groupCmd.AddCommand(groupGetCmd)
+	groupCmd.AddCommand(groupLsCmd)
 }
 
 const (
@@ -38,12 +38,11 @@ var groupCmd = &cobra.Command{
 	Short: "Display information about consumer groups.",
 }
 
-var groupGetCmd = &cobra.Command{
-	Use:   "get",
+var groupLsCmd = &cobra.Command{
+	Use:   "ls",
 	Short: "List topics",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// TODO: support 1 argument -> perform this task for specific group
 		admin, err := getClusterAdmin()
 		if err != nil {
 			panic(err)
