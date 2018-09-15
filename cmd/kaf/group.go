@@ -85,11 +85,6 @@ var groupGetCmd = &cobra.Command{
 func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_0_0_0
-	config.Consumer.Return.Errors = false
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
-	config.Producer.Return.Successes = true
-	config.Producer.RequiredAcks = sarama.WaitForAll // Wait for all in-sync replicas to ack the message
-	config.Producer.Retry.Max = 10                   // Retry up to 10 times to produce the message
 
 	return sarama.NewClusterAdmin([]string{"localhost:9092"}, config)
 }
