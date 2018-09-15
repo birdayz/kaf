@@ -130,19 +130,6 @@ var groupDescribeCmd = &cobra.Command{
 			topics = append(topics, topic)
 		}
 
-		topicMeta, _ := admin.DescribeTopic(topics)
-
-		topicPartitions := make(map[string][]int32)
-		for _, topic := range topicMeta {
-			topicPartitions[topic.Name] = make([]int32, 0, len(topic.Partitions))
-			for _, partition := range topic.Partitions {
-				topicPartitions[topic.Name] = append(topicPartitions[topic.Name], partition.ID)
-			}
-			sort.Slice(topicPartitions[topic.Name], func(i, j int) bool { return topicPartitions[topic.Name][i] < topicPartitions[topic.Name][j] })
-		}
-
-		offsetAndMetadata, _ := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
-
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Group ID:\t%v\n", group.GroupId)
 		fmt.Fprintf(w, "State:\t%v\n", group.State)
@@ -154,14 +141,29 @@ var groupDescribeCmd = &cobra.Command{
 		w.Flush()
 		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
-		for topic, partitions := range topicPartitions {
-			fmt.Fprintf(w, "\t%v:\n", topic)
-			fmt.Fprintf(w, "\t\tPartition\tOffset\n")
-			fmt.Fprintf(w, "\t\t---------\t------\n")
+		if len(topics) > 0 {
+			topicMeta, _ := admin.DescribeTopic(topics)
 
-			for _, partition := range partitions {
+			topicPartitions := make(map[string][]int32)
+			for _, topic := range topicMeta {
+				topicPartitions[topic.Name] = make([]int32, 0, len(topic.Partitions))
+				for _, partition := range topic.Partitions {
+					topicPartitions[topic.Name] = append(topicPartitions[topic.Name], partition.ID)
+				}
+				sort.Slice(topicPartitions[topic.Name], func(i, j int) bool { return topicPartitions[topic.Name][i] < topicPartitions[topic.Name][j] })
+			}
 
-				fmt.Fprintf(w, "\t\t%v\t%v\t\n", partition, offsetAndMetadata.GetBlock(topic, partition).Offset)
+			offsetAndMetadata, _ := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
+			for topic, partitions := range topicPartitions {
+				fmt.Fprintf(w, "\t%v:\n", topic)
+				fmt.Fprintf(w, "\t\tPartition\tOffset\n")
+				fmt.Fprintf(w, "\t\t---------\t------\n")
+
+				for _, partition := range partitions {
+
+					fmt.Fprintf(w, "\t\t%v\t%v\t\n", partition, offsetAndMetadata.GetBlock(topic, partition).Offset)
+				}
+
 			}
 
 		}
