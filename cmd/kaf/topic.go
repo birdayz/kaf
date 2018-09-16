@@ -126,6 +126,10 @@ var describeTopicCmd = &cobra.Command{
 		}
 
 		c, _ := client.Controller()
+
+		// Create "fake" request which requests no payload, but contains
+		// the high watermark offset. This is as of Kafka 2.0.0 the only
+		// way to get the high watermark offset.
 		req := &sarama.FetchRequest{
 			MaxWaitTime: int32(0),
 			MinBytes:    int32(0),
