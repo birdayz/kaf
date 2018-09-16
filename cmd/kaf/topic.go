@@ -46,15 +46,32 @@ var lsTopicsCmd = &cobra.Command{
 			panic(err)
 		}
 
+		sortedTopics := make(
+			[]struct {
+				name string
+				sarama.TopicDetail
+			}, len(topics))
+
+		i := 0
+		for name, topic := range topics {
+			sortedTopics[i].name = name
+			sortedTopics[i].TopicDetail = topic
+			i++
+		}
+
+		sort.Slice(sortedTopics, func(i int, j int) bool {
+			return sortedTopics[i].name < sortedTopics[j].name
+		})
+
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\tINTERNAL\t\n")
 
-		for topic, detail := range topics {
-			moreDetail, err := admin.DescribeTopic([]string{topic})
+		for _, topic := range sortedTopics {
+			moreDetail, err := admin.DescribeTopic([]string{topic.name})
 			if err != nil {
 				panic(err)
 			}
-			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t\n", topic, detail.NumPartitions, detail.ReplicationFactor, moreDetail[0].IsInternal)
+			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor, moreDetail[0].IsInternal)
 		}
 		w.Flush()
 	},
