@@ -114,8 +114,34 @@ var describeTopicCmd = &cobra.Command{
 			panic(err)
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		detail := topicDetails[0]
+		sort.Slice(detail.Partitions, func(i, j int) bool { return detail.Partitions[i].ID < detail.Partitions[j].ID })
+
+		// Get High watermark
+		config := sarama.NewConfig()
+		config.Version = sarama.V1_0_0_0
+		client, err := sarama.NewClient([]string{"localhost:9092"}, config)
+		if err != nil {
+			panic(err)
+		}
+
+		c, _ := client.Controller()
+		req := &sarama.FetchRequest{
+			MaxWaitTime: int32(0),
+			MinBytes:    int32(0),
+			MaxBytes:    int32(0),
+		}
+
+		for _, partition := range detail.Partitions {
+			req.AddBlock(args[0], partition.ID, int64(0), int32(0))
+		}
+
+		resp, err := c.Fetch(req)
+		if err != nil {
+			panic(err)
+		}
+
+		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Name:\t%v\t\n", detail.Name)
 		fmt.Fprintf(w, "Internal:\t%v\t\n", detail.IsInternal)
 		fmt.Fprintf(w, "Compacted:\t%v\t\n", compacted)
@@ -124,13 +150,12 @@ var describeTopicCmd = &cobra.Command{
 		w.Flush()
 		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
-		fmt.Fprintf(w, "\tPartition\tLeader\tReplicas\tISR\t\n")
-		fmt.Fprintf(w, "\t---------\t------\t--------\t---\t\n")
-
-		sort.Slice(detail.Partitions, func(i, j int) bool { return detail.Partitions[i].ID < detail.Partitions[j].ID })
+		fmt.Fprintf(w, "\tPartition\tHighWatermark\tLeader\tReplicas\tISR\t\n")
+		fmt.Fprintf(w, "\t---------\t-------------\t------\t--------\t---\t\n")
 
 		for _, partition := range detail.Partitions {
-			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t\n", partition.ID, partition.Leader, partition.Replicas, partition.Isr)
+			wm := resp.GetBlock(args[0], partition.ID).HighWaterMarkOffset
+			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.ID, wm, partition.Leader, partition.Replicas, partition.Isr)
 		}
 		fmt.Fprintf(w, "Config:\n")
 		fmt.Fprintf(w, "\tName\tValue\tReadOnly\tSensitive\t\n")
