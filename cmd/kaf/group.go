@@ -114,15 +114,12 @@ var groupDescribeCmd = &cobra.Command{
 
 		topicsDedup := make(map[string]interface{}, 0)
 		for _, member := range group.Members {
-			if len(member.MemberAssignment) == 0 {
-				continue
-			}
 			assignment, err := member.GetMemberAssignment()
 			if err != nil {
-				panic(err)
+				continue
 			}
 
-			for topic, _ := range assignment.Topics {
+			for topic := range assignment.Topics {
 				topicsDedup[topic] = struct{}{}
 			}
 		}
