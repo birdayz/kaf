@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/Shopify/sarama"
+	sarama "github.com/birdayz/sarama"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -26,11 +26,9 @@ var produceCmd = &cobra.Command{
 	Short: "Produce record. Reads data from stdin.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		config := sarama.NewConfig()
-		config.Version = sarama.V1_0_0_0
-		config.Producer.Return.Successes = true
+		config := getConfig()
 
-		producer, err := sarama.NewSyncProducer([]string{"localhost:9092"}, config)
+		producer, err := sarama.NewSyncProducer(brokers, config)
 		if err != nil {
 			panic(err)
 		}

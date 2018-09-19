@@ -18,12 +18,29 @@ import (
 	"fmt"
 	"os"
 
+	sarama "github.com/birdayz/sarama"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var cfgFile string
+
+// TODO read from viper
+var brokers = []string{}
+var password = ""
+var user = ""
+
+func getConfig() (config *sarama.Config) {
+	config = sarama.NewConfig()
+	config.Version = sarama.V1_0_0_0
+	config.Producer.Return.Successes = true
+	config.Net.TLS.Enable = true
+	config.Net.SASL.Enable = true
+	config.Net.SASL.User = user
+	config.Net.SASL.Password = password
+	return config
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "kaf",

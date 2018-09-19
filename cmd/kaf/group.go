@@ -13,6 +13,8 @@ import (
 
 	"encoding/hex"
 
+	"sync"
+
 	sarama "github.com/birdayz/sarama"
 	"github.com/infinimesh/kaf"
 	"github.com/spf13/cobra"
@@ -57,10 +59,15 @@ var groupLsCmd = &cobra.Command{
 		fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
 
 		found := false
-		for group, _ := range grps {
-			if len(args) > 0 && group != args[0] {
-				continue
+		for group := range grps {
+			if len(args) > 0 {
+				if group == args[0] {
+					found = true
+				} else {
+					continue
+				}
 			}
+
 			detail, err := admin.DescribeConsumerGroup(group)
 			if err != nil {
 				panic(err)
@@ -73,7 +80,7 @@ var groupLsCmd = &cobra.Command{
 			found = true
 		}
 
-		if found {
+		if found || len(args) == 0 {
 			w.Flush()
 		} else {
 			fmt.Printf("Group %v not found\n", args[0])
@@ -86,8 +93,24 @@ var groupLsCmd = &cobra.Command{
 func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
 	config := sarama.NewConfig()
 	config.Version = sarama.V1_0_0_0
+	config.Net.TLS.Enable = true
+	config.Net.SASL.Enable = true
+	// config.Net.SASL.Handshake = true
+	config.Net.SASL.User = user
+	config.Net.SASL.Password = password
 
-	return sarama.NewClusterAdmin([]string{"localhost:9092"}, config)
+	return sarama.NewClusterAdmin(brokers, config)
+}
+
+func getClient() (client sarama.Client, err error) {
+	config := sarama.NewConfig()
+	config.Version = sarama.V1_0_0_0
+	config.Net.TLS.Enable = true
+	config.Net.SASL.Enable = true
+	config.Net.SASL.User = user
+	config.Net.SASL.Password = password
+
+	return sarama.NewClient(brokers, config)
 }
 
 var groupDescribeCmd = &cobra.Command{
@@ -155,12 +178,21 @@ var groupDescribeCmd = &cobra.Command{
 			offsetAndMetadata, _ := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
 			for topic, partitions := range topicPartitions {
 				fmt.Fprintf(w, "\t%v:\n", topic)
-				fmt.Fprintf(w, "\t\tPartition\tOffset\n")
-				fmt.Fprintf(w, "\t\t---------\t------\n")
+				fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\t\n")
+				fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t\n")
+
+				// Create "fake" request which requests no payload, but contains
+				// the high watermark offset. This is as of Kafka 2.0.0 the only
+				// way to get the high watermark offset.
+				existingOffsets := make(map[int32]int64)
+				for partition, groupOffset := range offsetAndMetadata.Blocks[topic] {
+					existingOffsets[partition] = groupOffset.Offset
+				}
+				wms := getHighWatermarks(topic, partitions)
 
 				for _, partition := range partitions {
-
-					fmt.Fprintf(w, "\t\t%v\t%v\t\n", partition, offsetAndMetadata.GetBlock(topic, partition).Offset)
+					wm := wms[partition]
+					fmt.Fprintf(w, "\t\t%v\t%v\t%v\t\n", partition, offsetAndMetadata.GetBlock(topic, partition).Offset, wm)
 				}
 
 			}
@@ -185,7 +217,7 @@ var groupDescribeCmd = &cobra.Command{
 			fmt.Fprintf(w, "\t\tAssignments:\n")
 
 			fmt.Fprintf(w, "\t\t  Topic\tPartitions\t\n")
-			fmt.Fprintf(w, "\t\t  -----\t--------\t")
+			fmt.Fprintf(w, "\t\t  -----\t----------\t")
 
 			for topic, partitions := range assignment.Topics {
 				fmt.Fprintf(w, "\n\t\t  %v\t%v\t", topic, partitions)
@@ -218,6 +250,66 @@ var groupDescribeCmd = &cobra.Command{
 		w.Flush()
 
 	},
+}
+
+func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]int64) {
+	watermarks = make(map[int32]int64)
+	client, err := getClient()
+	if err != nil {
+		panic(err)
+	}
+	leaders := make(map[*sarama.Broker][]int32)
+
+	for _, partition := range partitions {
+		leader, _ := client.Leader(topic, partition)
+		leaders[leader] = append(leaders[leader], partition)
+	}
+	wg := sync.WaitGroup{}
+	wg.Add(len(leaders))
+
+	results := make(chan map[int32]int64, len(leaders))
+
+	for leader, partitions := range leaders {
+		req := &sarama.OffsetRequest{
+			Version: int16(1),
+		}
+
+		for _, partition := range partitions {
+
+			req.AddBlock(topic, partition, int64(-1), int32(0))
+			// req.AddBlock(topic, partition, int64(existingOffsets[partition]), int32(0))
+		}
+
+		// Query distinct brokers in parallel
+		go func(leader *sarama.Broker, req *sarama.OffsetRequest) {
+			resp, err := leader.GetAvailableOffsets(req)
+			if err != nil {
+				panic(err)
+			}
+
+			watermarksFromLeader := make(map[int32]int64)
+			for partition, block := range resp.Blocks[topic] {
+				watermarksFromLeader[partition] = block.Offset
+			}
+
+			results <- watermarksFromLeader
+			wg.Done()
+
+		}(leader, req)
+
+	}
+
+	wg.Wait()
+	close(results)
+
+	watermarks = make(map[int32]int64)
+	for resultMap := range results {
+		for partition, offset := range resultMap {
+			watermarks[partition] = offset
+		}
+	}
+
+	return
 }
 
 func IsASCIIPrintable(s string) bool {

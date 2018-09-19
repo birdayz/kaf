@@ -64,14 +64,14 @@ var lsTopicsCmd = &cobra.Command{
 		})
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-		fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\tINTERNAL\t\n")
+		fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\tPARTITIONS\t\n")
 
 		for _, topic := range sortedTopics {
 			moreDetail, err := admin.DescribeTopic([]string{topic.name})
 			if err != nil {
 				panic(err)
 			}
-			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor, moreDetail[0].IsInternal)
+			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor, len(moreDetail[0].Partitions))
 		}
 		w.Flush()
 	},
@@ -120,30 +120,14 @@ var describeTopicCmd = &cobra.Command{
 		// Get High watermark
 		config := sarama.NewConfig()
 		config.Version = sarama.V1_0_0_0
-		client, err := sarama.NewClient([]string{"localhost:9092"}, config)
-		if err != nil {
-			panic(err)
-		}
-
-		c, _ := client.Controller()
+		config.Net.TLS.Enable = true
+		config.Net.SASL.Enable = true
+		config.Net.SASL.User = user
+		config.Net.SASL.Password = password
 
 		// Create "fake" request which requests no payload, but contains
 		// the high watermark offset. This is as of Kafka 2.0.0 the only
 		// way to get the high watermark offset.
-		req := &sarama.FetchRequest{
-			MaxWaitTime: int32(0),
-			MinBytes:    int32(0),
-			MaxBytes:    int32(0),
-		}
-
-		for _, partition := range detail.Partitions {
-			req.AddBlock(args[0], partition.ID, int64(0), int32(0))
-		}
-
-		resp, err := c.Fetch(req)
-		if err != nil {
-			panic(err)
-		}
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Name:\t%v\t\n", detail.Name)
@@ -151,15 +135,20 @@ var describeTopicCmd = &cobra.Command{
 		fmt.Fprintf(w, "Compacted:\t%v\t\n", compacted)
 		fmt.Fprintf(w, "Partitions:\n")
 
-		w.Flush()
-		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
+		// w.Flush()
+		// w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
-		fmt.Fprintf(w, "\tPartition\tHighWatermark\tLeader\tReplicas\tISR\t\n")
-		fmt.Fprintf(w, "\t---------\t-------------\t------\t--------\t---\t\n")
+		fmt.Fprintf(w, "\tPartition\tHigh Watermark\tLeader\tReplicas\tISR\t\n")
+		fmt.Fprintf(w, "\t---------\t--------------\t------\t--------\t---\t\n")
+
+		partitions := make([]int32, 0, len(detail.Partitions))
+		for _, partition := range detail.Partitions {
+			partitions = append(partitions, partition.ID)
+		}
+		highWatermarks := getHighWatermarks(args[0], partitions)
 
 		for _, partition := range detail.Partitions {
-			wm := resp.GetBlock(args[0], partition.ID).HighWaterMarkOffset
-			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.ID, wm, partition.Leader, partition.Replicas, partition.Isr)
+			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.ID, highWatermarks[partition.ID], partition.Leader, partition.Replicas, partition.Isr)
 		}
 		fmt.Fprintf(w, "Config:\n")
 		fmt.Fprintf(w, "\tName\tValue\tReadOnly\tSensitive\t\n")
