@@ -127,8 +127,8 @@ var describeTopicCmd = &cobra.Command{
 		fmt.Fprintf(w, "Compacted:\t%v\t\n", compacted)
 		fmt.Fprintf(w, "Partitions:\n")
 
-		// w.Flush()
-		// w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
+		w.Flush()
+		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
 		fmt.Fprintf(w, "\tPartition\tHigh Watermark\tLeader\tReplicas\tISR\t\n")
 		fmt.Fprintf(w, "\t---------\t--------------\t------\t--------\t---\t\n")
