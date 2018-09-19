@@ -26,9 +26,7 @@ var produceCmd = &cobra.Command{
 	Short: "Produce record. Reads data from stdin.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		config := getConfig()
-
-		producer, err := sarama.NewSyncProducer(brokers, config)
+		producer, err := sarama.NewSyncProducer(viper.GetStringSlice("brokers"), getConfig())
 		if err != nil {
 			panic(err)
 		}

@@ -15,10 +15,15 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+
+	"strings"
 
 	sarama "github.com/birdayz/sarama"
+	"github.com/magiconair/properties"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -26,19 +31,18 @@ import (
 
 var cfgFile string
 
-// TODO read from viper
-var brokers = []string{}
-var password = ""
-var user = ""
-
 func getConfig() (config *sarama.Config) {
 	config = sarama.NewConfig()
 	config.Version = sarama.V1_0_0_0
 	config.Producer.Return.Successes = true
-	config.Net.TLS.Enable = true
-	config.Net.SASL.Enable = true
-	config.Net.SASL.User = user
-	config.Net.SASL.Password = password
+
+	if viper.IsSet("saslUsername") {
+		config.Net.TLS.Enable = true
+		config.Net.SASL.Enable = true
+		config.Net.SASL.User = viper.GetString("saslUsername")
+		config.Net.SASL.Password = viper.GetString("saslPassword")
+	}
+
 	return config
 }
 
@@ -67,19 +71,68 @@ func init() {
 	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
+func extractValue(key, input string) (unquoted string, ok bool) {
+	if strings.HasPrefix(input, key+"=") {
+		return strings.TrimRight(strings.Replace(strings.TrimPrefix(input, key+"="), "\"", "", -1), ";"), true
+	}
+	return
+}
+
+func tryParseConfluentCloud(path string) (username, password, host string, err error) {
+	p := properties.MustLoadFile(path, properties.UTF8)
+	saslJaasConfig := p.MustGetString("sasl.jaas.config")
+
+	words := strings.Split(saslJaasConfig, " ")
+
+	jaasOk := true
+	for _, word := range words {
+		if result, ok := extractValue("username", word); ok {
+			username = result
+			jaasOk = jaasOk && ok
+		}
+		if result, ok := extractValue("password", word); ok {
+			password = result
+			jaasOk = jaasOk && ok
+		}
+
+	}
+
+	if !jaasOk {
+		return "", "", "", errors.New("Could not parse sasl.jaas.config from ccloud")
+	}
+
+	host = p.MustGetString("bootstrap.servers")
+
+	return
+}
+
+var ccloudSubpath = filepath.Join(".ccloud", "config")
+
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
+	home, err := homedir.Dir()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	ccloudPath := filepath.Join(home, ccloudSubpath)
+	if _, err := os.Stat(ccloudPath); err == nil {
+		ccloudUser, ccloudPassword, host, err := tryParseConfluentCloud(ccloudPath)
+		if err == nil {
+			viper.Set("saslUsername", ccloudUser)
+			viper.Set("saslPassword", ccloudPassword)
+			viper.Set("brokers", []string{host})
+
+		}
+	} else {
+		fmt.Println(ccloudPath, err)
+	}
+
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
 		// Search config in home directory with name ".x" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigName("config")

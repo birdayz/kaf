@@ -18,6 +18,7 @@ import (
 	sarama "github.com/birdayz/sarama"
 	"github.com/infinimesh/kaf"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -91,26 +92,11 @@ var groupLsCmd = &cobra.Command{
 }
 
 func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
-	config := sarama.NewConfig()
-	config.Version = sarama.V1_0_0_0
-	config.Net.TLS.Enable = true
-	config.Net.SASL.Enable = true
-	// config.Net.SASL.Handshake = true
-	config.Net.SASL.User = user
-	config.Net.SASL.Password = password
-
-	return sarama.NewClusterAdmin(brokers, config)
+	return sarama.NewClusterAdmin(viper.GetStringSlice("brokers"), getConfig())
 }
 
 func getClient() (client sarama.Client, err error) {
-	config := sarama.NewConfig()
-	config.Version = sarama.V1_0_0_0
-	config.Net.TLS.Enable = true
-	config.Net.SASL.Enable = true
-	config.Net.SASL.User = user
-	config.Net.SASL.Password = password
-
-	return sarama.NewClient(brokers, config)
+	return sarama.NewClient(viper.GetStringSlice("brokers"), getConfig())
 }
 
 var groupDescribeCmd = &cobra.Command{

@@ -117,14 +117,6 @@ var describeTopicCmd = &cobra.Command{
 		detail := topicDetails[0]
 		sort.Slice(detail.Partitions, func(i, j int) bool { return detail.Partitions[i].ID < detail.Partitions[j].ID })
 
-		// Get High watermark
-		config := sarama.NewConfig()
-		config.Version = sarama.V1_0_0_0
-		config.Net.TLS.Enable = true
-		config.Net.SASL.Enable = true
-		config.Net.SASL.User = user
-		config.Net.SASL.Password = password
-
 		// Create "fake" request which requests no payload, but contains
 		// the high watermark offset. This is as of Kafka 2.0.0 the only
 		// way to get the high watermark offset.
