@@ -117,10 +117,6 @@ var describeTopicCmd = &cobra.Command{
 		detail := topicDetails[0]
 		sort.Slice(detail.Partitions, func(i, j int) bool { return detail.Partitions[i].ID < detail.Partitions[j].ID })
 
-		// Create "fake" request which requests no payload, but contains
-		// the high watermark offset. This is as of Kafka 2.0.0 the only
-		// way to get the high watermark offset.
-
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Name:\t%v\t\n", detail.Name)
 		fmt.Fprintf(w, "Internal:\t%v\t\n", detail.IsInternal)
