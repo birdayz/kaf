@@ -71,7 +71,7 @@ func extractValue(key, input string) (unquoted string, ok bool) {
 	return
 }
 
-func tryParseConfluentCloud(path string) (username, password, host string, err error) {
+func tryParseConfluentCloud(path string) (username, password, broker string, err error) {
 	p := properties.MustLoadFile(path, properties.UTF8)
 	saslJaasConfig := p.MustGetString("sasl.jaas.config")
 
@@ -94,7 +94,7 @@ func tryParseConfluentCloud(path string) (username, password, host string, err e
 		return "", "", "", errors.New("Could not parse sasl.jaas.config from ccloud")
 	}
 
-	host = p.MustGetString("bootstrap.servers")
+	broker = p.MustGetString("bootstrap.servers")
 
 	return
 }
@@ -118,8 +118,6 @@ func initConfig() {
 			viper.Set("brokers", []string{host})
 
 		}
-	} else {
-		fmt.Println(ccloudPath, err)
 	}
 
 	if cfgFile != "" {
