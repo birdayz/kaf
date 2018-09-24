@@ -15,15 +15,13 @@
 package main
 
 import (
-	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 
-	"strings"
+	"os"
 
 	sarama "github.com/birdayz/sarama"
-	"github.com/magiconair/properties"
+	"github.com/infinimesh/kaf"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -60,46 +58,11 @@ func main() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
+	rootCmd.PersistentFlags().StringSliceP("brokers", "b", []string{"localhost:9092"}, "Comma separated list of broker ip:port pairs")
+	viper.BindPFlag("brokers", rootCmd.PersistentFlags().Lookup("brokers"))
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kafka/config)")
 }
-
-func extractValue(key, input string) (unquoted string, ok bool) {
-	if strings.HasPrefix(input, key+"=") {
-		return strings.TrimRight(strings.Replace(strings.TrimPrefix(input, key+"="), "\"", "", -1), ";"), true
-	}
-	return
-}
-
-func tryParseConfluentCloud(path string) (username, password, broker string, err error) {
-	p := properties.MustLoadFile(path, properties.UTF8)
-	saslJaasConfig := p.MustGetString("sasl.jaas.config")
-
-	words := strings.Split(saslJaasConfig, " ")
-
-	jaasOk := true
-	for _, word := range words {
-		if result, ok := extractValue("username", word); ok {
-			username = result
-			jaasOk = jaasOk && ok
-		}
-		if result, ok := extractValue("password", word); ok {
-			password = result
-			jaasOk = jaasOk && ok
-		}
-
-	}
-
-	if !jaasOk {
-		return "", "", "", errors.New("Could not parse sasl.jaas.config from ccloud")
-	}
-
-	broker = p.MustGetString("bootstrap.servers")
-
-	return
-}
-
-var ccloudSubpath = filepath.Join(".ccloud", "config")
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
@@ -109,30 +72,28 @@ func initConfig() {
 		os.Exit(1)
 	}
 
-	ccloudPath := filepath.Join(home, ccloudSubpath)
-	if _, err := os.Stat(ccloudPath); err == nil {
-		ccloudUser, ccloudPassword, host, err := tryParseConfluentCloud(ccloudPath)
-		if err == nil {
-			viper.Set("saslUsername", ccloudUser)
-			viper.Set("saslPassword", ccloudPassword)
-			viper.Set("brokers", []string{host})
-
-		}
+	if cfgFile == "" {
+		cfgFile = filepath.Join(home, ".kaf", "config")
 	}
 
-	if cfgFile != "" {
-		// Use config file from the flag.
-		viper.SetConfigFile(cfgFile)
-	} else {
-		// Search config in home directory with name ".x" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName("config")
-	}
-
+	config, _ := kaf.ReadConfig(cfgFile)
 	viper.AutomaticEnv() // read in environment variables that match
 
-	// If a config file is found, read it in.
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	// Extract current cluster
+
+	switch len(config.Clusters) {
+	case 0:
+		break
+	case 1:
+		defaultCluster := config.Clusters[0]
+		viper.Set("brokers", config.Clusters[0].Brokers)
+		viper.Set("saslUsername", defaultCluster.SASL.Username)
+		viper.Set("saslPassword", defaultCluster.SASL.Password)
+	default:
 	}
+
+	// TODO: write "fake" viper config, and pass it to viper. This will
+	// preserve the override-priority where flags will override the config.
+	// This is not the case if we call viper.Set for our manually parsed
+	// config
 }

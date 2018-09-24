@@ -23,6 +23,7 @@ func init() {
 	createTopicCmd.Flags().Int16P("replicas", "r", int16(1), "Number of replicas")
 	viper.BindPFlag("replicas", createTopicCmd.Flags().Lookup("replicas"))
 
+	// viper.BindPFlags(rootCmd.PersistentFlags())
 }
 
 var topicCmd = &cobra.Command{
