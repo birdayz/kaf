@@ -222,15 +222,15 @@ var groupDescribeCmd = &cobra.Command{
 
 					fmt.Fprintf(w, "\f\t\tMetadata:\t%v\n", base64.StdEncoding.EncodeToString(metadata.UserData))
 				}
+			} else {
+				switch d := decodedUserData.(type) {
+				case kaf.SubscriptionInfo:
+					fmt.Fprintf(w, "\f\t\tMetadata:\t\n")
+					fmt.Fprintf(w, "\t\t  UUID:\t0x%v\n", hex.EncodeToString(d.UUID))
+					fmt.Fprintf(w, "\t\t  UserEndpoint:\t%v\n", d.UserEndpoint)
+				}
 			}
 
-			switch d := decodedUserData.(type) {
-			case kaf.SubscriptionInfo:
-
-				fmt.Fprintf(w, "\f\t\tMetadata:\t\n")
-				fmt.Fprintf(w, "\t\t  UUID:\t0x%v\n", hex.EncodeToString(d.UUID))
-				fmt.Fprintf(w, "\t\t  UserEndpoint:\t%v\n", d.UserEndpoint)
-			}
 		}
 
 		w.Flush()
@@ -261,9 +261,7 @@ func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]i
 		}
 
 		for _, partition := range partitions {
-
 			req.AddBlock(topic, partition, int64(-1), int32(0))
-			// req.AddBlock(topic, partition, int64(existingOffsets[partition]), int32(0))
 		}
 
 		// Query distinct brokers in parallel
