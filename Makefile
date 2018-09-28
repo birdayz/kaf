@@ -1,4 +1,4 @@
 build:
-	go build ./cmd/kaf
+	GO111MODULE=on go build ./cmd/kaf
 install:
-	go install ./cmd/kaf
+	GO111MODULE=on go install ./cmd/kaf
