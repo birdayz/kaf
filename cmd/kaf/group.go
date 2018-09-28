@@ -150,7 +150,7 @@ var groupDescribeCmd = &cobra.Command{
 		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
 		if len(topics) > 0 {
-			topicMeta, _ := admin.DescribeTopic(topics)
+			topicMeta, _ := admin.DescribeTopics(topics)
 
 			topicPartitions := make(map[string][]int32)
 			for _, topic := range topicMeta {

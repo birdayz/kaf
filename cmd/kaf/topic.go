@@ -68,7 +68,7 @@ var lsTopicsCmd = &cobra.Command{
 		fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\tPARTITIONS\t\n")
 
 		for _, topic := range sortedTopics {
-			moreDetail, err := admin.DescribeTopic([]string{topic.name})
+			moreDetail, err := admin.DescribeTopics([]string{topic.name})
 			if err != nil {
 				panic(err)
 			}
@@ -89,7 +89,7 @@ var describeTopicCmd = &cobra.Command{
 			panic(err)
 		}
 
-		topicDetails, err := admin.DescribeTopic([]string{args[0]})
+		topicDetails, err := admin.DescribeTopics([]string{args[0]})
 		if err != nil {
 			panic(err)
 		}
