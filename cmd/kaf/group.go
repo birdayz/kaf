@@ -178,7 +178,11 @@ var groupDescribeCmd = &cobra.Command{
 
 				for _, partition := range partitions {
 					wm := wms[partition]
-					fmt.Fprintf(w, "\t\t%v\t%v\t%v\t\n", partition, offsetAndMetadata.GetBlock(topic, partition).Offset, wm)
+					var offset int64
+					if blockOff := offsetAndMetadata.GetBlock(topic, partition).Offset; blockOff != -1 {
+						offset = blockOff
+					}
+					fmt.Fprintf(w, "\t\t%v\t%v\t%v\t\n", partition, offset, wm)
 				}
 
 			}
