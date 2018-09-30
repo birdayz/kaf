@@ -18,7 +18,6 @@ import (
 	sarama "github.com/birdayz/sarama"
 	"github.com/infinimesh/kaf"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -92,11 +91,11 @@ var groupLsCmd = &cobra.Command{
 }
 
 func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
-	return sarama.NewClusterAdmin(viper.GetStringSlice("brokers"), getConfig())
+	return sarama.NewClusterAdmin(config.ActiveCluster().Brokers, getConfig())
 }
 
 func getClient() (client sarama.Client, err error) {
-	return sarama.NewClient(viper.GetStringSlice("brokers"), getConfig())
+	return sarama.NewClient(config.ActiveCluster().Brokers, getConfig())
 }
 
 var groupDescribeCmd = &cobra.Command{

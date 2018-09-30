@@ -8,8 +8,10 @@ import (
 
 	sarama "github.com/birdayz/sarama"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
+
+var partitionsFlag int32
+var replicasFlag int16
 
 func init() {
 	rootCmd.AddCommand(topicCmd)
@@ -18,12 +20,8 @@ func init() {
 	topicCmd.AddCommand(lsTopicsCmd)
 	topicCmd.AddCommand(describeTopicCmd)
 
-	createTopicCmd.Flags().Int32P("partitions", "p", int32(1), "Number of partitions")
-	viper.BindPFlag("partitions", createTopicCmd.Flags().Lookup("partitions"))
-	createTopicCmd.Flags().Int16P("replicas", "r", int16(1), "Number of replicas")
-	viper.BindPFlag("replicas", createTopicCmd.Flags().Lookup("replicas"))
-
-	// viper.BindPFlags(rootCmd.PersistentFlags())
+	createTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(1), "Number of partitions")
+	createTopicCmd.Flags().Int16VarP(&replicasFlag, "replicas", "r", int16(1), "Number of replicas")
 }
 
 var topicCmd = &cobra.Command{
@@ -165,8 +163,8 @@ var createTopicCmd = &cobra.Command{
 		}
 
 		err = admin.CreateTopic(args[0], &sarama.TopicDetail{
-			NumPartitions:     viper.GetInt32("partitions"),
-			ReplicationFactor: int16(viper.GetInt("replicas")),
+			NumPartitions:     partitionsFlag,
+			ReplicationFactor: replicasFlag,
 		}, false)
 		if err != nil {
 			fmt.Printf("Could not create topic %v: %v\n", args[0], err.Error())

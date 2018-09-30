@@ -7,18 +7,16 @@ import (
 
 	sarama "github.com/birdayz/sarama"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
+
+var keyFlag string
+var numFlag int
 
 func init() {
 	rootCmd.AddCommand(produceCmd)
 
-	produceCmd.Flags().StringP("key", "k", "", "Key for the record. Currently only strings are supported.")
-	viper.BindPFlag("key", produceCmd.Flags().Lookup("key"))
-
-	produceCmd.Flags().IntP("num", "n", 1, "Number of records to send.")
-	viper.BindPFlag("num", produceCmd.Flags().Lookup("num"))
-
+	produceCmd.Flags().StringVarP(&keyFlag, "key", "k", "", "Key for the record. Currently only strings are supported.")
+	produceCmd.Flags().IntVarP(&numFlag, "num", "n", 1, "Number of records to send.")
 }
 
 var produceCmd = &cobra.Command{
@@ -26,17 +24,17 @@ var produceCmd = &cobra.Command{
 	Short: "Produce record. Reads data from stdin.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		producer, err := sarama.NewSyncProducer(viper.GetStringSlice("brokers"), getConfig())
+		producer, err := sarama.NewSyncProducer(config.ActiveCluster().Brokers, getConfig())
 		if err != nil {
 			panic(err)
 		}
 
 		data, err := ioutil.ReadAll(os.Stdin)
 
-		for i := 0; i < viper.GetInt("num"); i++ {
+		for i := 0; i < numFlag; i++ {
 			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
 				Topic: args[0],
-				Key:   sarama.StringEncoder(viper.GetString("key")),
+				Key:   sarama.StringEncoder(keyFlag),
 				Value: sarama.ByteEncoder(data),
 			})
 			if err != nil {

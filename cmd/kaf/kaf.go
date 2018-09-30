@@ -16,32 +16,29 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"os"
 
 	sarama "github.com/birdayz/sarama"
 	"github.com/infinimesh/kaf"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var cfgFile string
 
-func getConfig() (config *sarama.Config) {
-	config = sarama.NewConfig()
-	config.Version = sarama.V1_0_0_0
-	config.Producer.Return.Successes = true
+func getConfig() (saramaConfig *sarama.Config) {
+	saramaConfig = sarama.NewConfig()
+	saramaConfig.Version = sarama.V1_0_0_0
+	saramaConfig.Producer.Return.Successes = true
 
-	if viper.IsSet("saslUsername") {
-		config.Net.TLS.Enable = true
-		config.Net.SASL.Enable = true
-		config.Net.SASL.User = viper.GetString("saslUsername")
-		config.Net.SASL.Password = viper.GetString("saslPassword")
+	if cluster := config.ActiveCluster(); cluster.SecurityProtocol == "SASL_SSL" {
+		saramaConfig.Net.TLS.Enable = true
+		saramaConfig.Net.SASL.Enable = true
+		saramaConfig.Net.SASL.User = cluster.SASL.Username
+		saramaConfig.Net.SASL.Password = cluster.SASL.Password
 	}
 
-	return config
+	return saramaConfig
 }
 
 var rootCmd = &cobra.Command{
@@ -56,44 +53,20 @@ func main() {
 	}
 }
 
+var config *kaf.Config
+
+var brokersFlag []string
+
 func init() {
-	cobra.OnInitialize(initConfig)
+
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
-	rootCmd.PersistentFlags().StringSliceP("brokers", "b", []string{"localhost:9092"}, "Comma separated list of broker ip:port pairs")
-	viper.BindPFlag("brokers", rootCmd.PersistentFlags().Lookup("brokers"))
+	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", []string{"localhost:9092"}, "Comma separated list of broker ip:port pairs")
+
+	cobra.OnInitialize(initConfig)
 
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
-	home, err := homedir.Dir()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	if cfgFile == "" {
-		cfgFile = filepath.Join(home, ".kaf", "config")
-	}
-
-	config, _ := kaf.ReadConfig(cfgFile)
-	viper.AutomaticEnv() // read in environment variables that match
-
-	// Extract current cluster
-
-	switch len(config.Clusters) {
-	case 0:
-		break
-	case 1:
-		defaultCluster := config.Clusters[0]
-		viper.Set("brokers", config.Clusters[0].Brokers)
-		viper.Set("saslUsername", defaultCluster.SASL.Username)
-		viper.Set("saslPassword", defaultCluster.SASL.Password)
-	default:
-	}
-
-	// TODO: write "fake" viper config, and pass it to viper. This will
-	// preserve the override-priority where flags will override the config.
-	// This is not the case if we call viper.Set for our manually parsed
-	// config
+	config, _ = kaf.ReadConfig()
 }

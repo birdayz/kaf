@@ -2,15 +2,9 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/infinimesh/kaf"
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
-
-	"os"
-
-	"gopkg.in/yaml.v2"
 )
 
 func init() {
@@ -30,10 +24,10 @@ var configImportCmd = &cobra.Command{
 		if path, err := kaf.TryFindCcloudConfigFile(); err == nil {
 			fmt.Printf("Detected Confluent Cloud config in file %v\n", path)
 			if username, password, broker, err := kaf.ParseConfluentCloudConfig(path); err == nil {
-				cluster := kaf.Cluster{
+				cluster := &kaf.Cluster{
 					Name:    "confluent cloud",
 					Brokers: []string{broker},
-					SASL: kaf.SASL{
+					SASL: &kaf.SASL{
 						Username:  username,
 						Password:  password,
 						Mechanism: "PLAIN",
@@ -41,26 +35,12 @@ var configImportCmd = &cobra.Command{
 					SecurityProtocol: "SASL_SSL",
 				}
 
-				config := kaf.Config{
-					Clusters: []kaf.Cluster{cluster},
-				}
+				// config := kaf.Config{
+				// 	Clusters: []*kaf.Cluster{cluster},
+				// }
 
-				home, err := homedir.Dir()
-				if err != nil {
-					fmt.Println(err)
-				}
-
-				configPath := filepath.Join(home, ".kaf", "config")
-				file, err := os.OpenFile(configPath, os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0644)
-				if err != nil {
-					panic(err)
-				}
-
-				encoder := yaml.NewEncoder(file)
-				err = encoder.Encode(&config)
-				if err != nil {
-					panic(err)
-				}
+				config.Clusters = append(config.Clusters, cluster)
+				config.Write()
 
 			}
 		}
