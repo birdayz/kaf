@@ -24,7 +24,8 @@ var configImportCmd = &cobra.Command{
 		if path, err := kaf.TryFindCcloudConfigFile(); err == nil {
 			fmt.Printf("Detected Confluent Cloud config in file %v\n", path)
 			if username, password, broker, err := kaf.ParseConfluentCloudConfig(path); err == nil {
-				cluster := &kaf.Cluster{
+
+				newCluster := &kaf.Cluster{
 					Name:    "confluent cloud",
 					Brokers: []string{broker},
 					SASL: &kaf.SASL{
@@ -35,11 +36,23 @@ var configImportCmd = &cobra.Command{
 					SecurityProtocol: "SASL_SSL",
 				}
 
-				// config := kaf.Config{
-				// 	Clusters: []*kaf.Cluster{cluster},
-				// }
+				var found bool
+				for i, newCluster := range config.Clusters {
+					if newCluster.Name == "confluent cloud" {
+						found = true
+						config.Clusters[i] = newCluster
+						break
+					}
+				}
 
-				config.Clusters = append(config.Clusters, cluster)
+				if !found {
+					fmt.Println("Wrote new entry to config file")
+					config.Clusters = append(config.Clusters, newCluster)
+				}
+
+				if config.CurrentCluster == "" {
+					config.CurrentCluster = newCluster.Name
+				}
 				config.Write()
 
 			}

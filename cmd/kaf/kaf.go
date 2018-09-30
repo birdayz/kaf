@@ -53,7 +53,7 @@ func main() {
 	}
 }
 
-var config *kaf.Config
+var config kaf.Config
 var currentCluster *kaf.Cluster
 
 var brokersFlag []string

@@ -56,15 +56,15 @@ func (c *Config) Write() error {
 	return encoder.Encode(&c)
 }
 
-func ReadConfig() (c *Config, err error) {
+func ReadConfig() (c Config, err error) {
 	file, err := os.OpenFile(getDefaultConfigPath(), os.O_RDONLY, 0644)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 	decoder := yaml.NewDecoder(file)
 	err = decoder.Decode(&c)
 	if err != nil {
-		return nil, err
+		return Config{}, err
 	}
 	return c, nil
 }
