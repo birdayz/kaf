@@ -50,16 +50,25 @@ var groupLsCmd = &cobra.Command{
 			panic(err)
 		}
 
-		grps, err := admin.ListConsumerGroups()
+		groups, err := admin.ListConsumerGroups()
 		if err != nil {
 			panic(err)
 		}
+
+		groupList := make([]string, 0, len(groups))
+		for grp := range groups {
+			groupList = append(groupList, grp)
+		}
+
+		sort.Slice(groupList, func(i int, j int) bool {
+			return groupList[i] < groupList[j]
+		})
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
 
 		found := false
-		for group := range grps {
+		for _, group := range groupList {
 			if len(args) > 0 {
 				if group == args[0] {
 					found = true
