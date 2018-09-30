@@ -63,17 +63,23 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 
+	cobra.OnInitialize(onInit)
+}
+
+func onInit() {
 	config, _ = kaf.ReadConfig()
 
-	// Flag has highest priority
+	// Flag is highest priority override
 	if brokersFlag != nil {
 		currentCluster = &kaf.Cluster{
 			Brokers: brokersFlag,
 		}
 	} else {
+		// If no override from flag is set, get current cluster from config file
 		if cluster := config.ActiveCluster(); cluster != nil {
 			currentCluster = cluster
 		} else {
+			// Default to localhost:9092 with no security
 			currentCluster = &kaf.Cluster{
 				Brokers: []string{"localhost:9092"},
 			}
