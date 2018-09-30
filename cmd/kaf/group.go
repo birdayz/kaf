@@ -90,14 +90,6 @@ var groupLsCmd = &cobra.Command{
 	},
 }
 
-func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
-	return sarama.NewClusterAdmin(config.ActiveCluster().Brokers, getConfig())
-}
-
-func getClient() (client sarama.Client, err error) {
-	return sarama.NewClient(config.ActiveCluster().Brokers, getConfig())
-}
-
 var groupDescribeCmd = &cobra.Command{
 	Use:   "describe",
 	Short: "Describe consumer group",

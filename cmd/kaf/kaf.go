@@ -31,7 +31,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 	saramaConfig.Version = sarama.V1_0_0_0
 	saramaConfig.Producer.Return.Successes = true
 
-	if cluster := config.ActiveCluster(); cluster.SecurityProtocol == "SASL_SSL" {
+	if cluster := currentCluster; cluster.SecurityProtocol == "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
 		saramaConfig.Net.SASL.Enable = true
 		saramaConfig.Net.SASL.User = cluster.SASL.Username
@@ -54,19 +54,38 @@ func main() {
 }
 
 var config *kaf.Config
+var currentCluster *kaf.Cluster
 
 var brokersFlag []string
 
 func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
-	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", []string{"localhost:9092"}, "Comma separated list of broker ip:port pairs")
+	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 
-	cobra.OnInitialize(initConfig)
+	config, _ = kaf.ReadConfig()
+
+	// Flag has highest priority
+	if brokersFlag != nil {
+		currentCluster = &kaf.Cluster{
+			Brokers: brokersFlag,
+		}
+	} else {
+		if cluster := config.ActiveCluster(); cluster != nil {
+			currentCluster = cluster
+		} else {
+			currentCluster = &kaf.Cluster{
+				Brokers: []string{"localhost:9092"},
+			}
+		}
+	}
 
 }
 
-// initConfig reads in config file and ENV variables if set.
-func initConfig() {
-	config, _ = kaf.ReadConfig()
+func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
+	return sarama.NewClusterAdmin(currentCluster.Brokers, getConfig())
+}
+
+func getClient() (client sarama.Client, err error) {
+	return sarama.NewClient(currentCluster.Brokers, getConfig())
 }

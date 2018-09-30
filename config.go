@@ -28,7 +28,16 @@ type Config struct {
 }
 
 func (c *Config) ActiveCluster() *Cluster {
-	return c.Clusters[0]
+	if c == nil || c.CurrentCluster == "" {
+		return nil
+	}
+
+	for _, cluster := range c.Clusters {
+		if cluster.Name == c.CurrentCluster {
+			return cluster
+		}
+	}
+	return nil
 }
 
 func (c *Config) Write() error {
@@ -45,7 +54,6 @@ func (c *Config) Write() error {
 
 	encoder := yaml.NewEncoder(file)
 	return encoder.Encode(&c)
-
 }
 
 func ReadConfig() (c *Config, err error) {
