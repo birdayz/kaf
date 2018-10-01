@@ -27,6 +27,16 @@ type Config struct {
 	Clusters       []*Cluster `yaml:"clusters"`
 }
 
+func (c *Config) SetCurrentCluster(name string) error {
+	for _, cluster := range c.Clusters {
+		if cluster.Name == name {
+			c.CurrentCluster = name
+			return nil
+		}
+	}
+	return fmt.Errorf("Could not find cluster with name %v", name)
+}
+
 func (c *Config) ActiveCluster() *Cluster {
 	if c == nil || c.CurrentCluster == "" {
 		return nil

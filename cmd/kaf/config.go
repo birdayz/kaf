@@ -9,6 +9,8 @@ import (
 
 func init() {
 	configCmd.AddCommand(configImportCmd)
+	configCmd.AddCommand(configUseCmd)
+	configCmd.AddCommand(configLsCmd)
 	rootCmd.AddCommand(configCmd)
 }
 
@@ -17,8 +19,34 @@ var configCmd = &cobra.Command{
 	Short: "Handle kaf configuration",
 }
 
+var configUseCmd = &cobra.Command{
+	Use:   "use-cluster [NAME]",
+	Short: "Sets the current cluster in the configuration",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+		if err := config.SetCurrentCluster(name); err != nil {
+			fmt.Printf("Cluster with name %v not found\n", name)
+		} else {
+			fmt.Printf("Switched to cluster \"%v\".\n", name)
+		}
+	},
+}
+
+var configLsCmd = &cobra.Command{
+	Use:   "get-clusters",
+	Short: "Display clusters in the configuration file",
+	Args:  cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("NAME")
+		for _, cluster := range config.Clusters {
+			fmt.Println(cluster.Name)
+		}
+	},
+}
+
 var configImportCmd = &cobra.Command{
-	Use:   "import",
+	Use:   "import [ccloud]",
 	Short: "Import configurations into the $HOME/.kaf/config file",
 	Run: func(cmd *cobra.Command, args []string) {
 		if path, err := kaf.TryFindCcloudConfigFile(); err == nil {
@@ -57,7 +85,6 @@ var configImportCmd = &cobra.Command{
 
 			}
 		}
-		// fmt.Println(args)
 	},
 	ValidArgs: []string{"ccloud"},
 	Args: func(cmd *cobra.Command, args []string) error {
