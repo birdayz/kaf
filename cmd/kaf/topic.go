@@ -10,8 +10,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var partitionsFlag int32
-var replicasFlag int16
+var (
+	partitionsFlag int32
+	replicasFlag   int16
+	noHeaderFlag   bool
+)
 
 func init() {
 	rootCmd.AddCommand(topicCmd)
@@ -22,6 +25,8 @@ func init() {
 
 	createTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(1), "Number of partitions")
 	createTopicCmd.Flags().Int16VarP(&replicasFlag, "replicas", "r", int16(1), "Number of replicas")
+
+	lsTopicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
 
 var topicCmd = &cobra.Command{
@@ -63,7 +68,10 @@ var lsTopicsCmd = &cobra.Command{
 		})
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-		fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\t\n")
+
+		if !noHeaderFlag {
+			fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\t\n")
+		}
 
 		for _, topic := range sortedTopics {
 			fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor)
