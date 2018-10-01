@@ -24,6 +24,8 @@ func init() {
 	rootCmd.AddCommand(groupCmd)
 	groupCmd.AddCommand(groupDescribeCmd)
 	groupCmd.AddCommand(groupLsCmd)
+
+	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
 
 const (
@@ -65,7 +67,10 @@ var groupLsCmd = &cobra.Command{
 		})
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-		fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
+
+		if !noHeaderFlag {
+			fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
+		}
 
 		found := false
 		for _, group := range groupList {
