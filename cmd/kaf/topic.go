@@ -63,14 +63,10 @@ var lsTopicsCmd = &cobra.Command{
 		})
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-		fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\tPARTITIONS\t\n")
+		fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\t\n")
 
 		for _, topic := range sortedTopics {
-			moreDetail, err := admin.DescribeTopics([]string{topic.name})
-			if err != nil {
-				panic(err)
-			}
-			fmt.Fprintf(w, "%v\t%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor, len(moreDetail[0].Partitions))
+			fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor)
 		}
 		w.Flush()
 	},
