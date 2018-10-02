@@ -85,6 +85,9 @@ type ClusterAdmin interface {
 	// List the consumer group offsets available in the cluster.
 	ListConsumerGroupOffsets(group string, topicPartitions map[string][]int32) (*OffsetFetchResponse, error)
 
+	// Get information about the nodes in the cluster
+	DescribeCluster() (brokers []*Broker, controllerID int32, err error)
+
 	// Close shuts down the admin and closes underlying client.
 	Close() error
 }
@@ -175,6 +178,7 @@ func (ca *clusterAdmin) DescribeTopics(topics []string) (metadata []*TopicMetada
 	if err != nil {
 		return nil, err
 	}
+
 	request := &MetadataRequest{
 		Topics:                 topics,
 		AllowAutoTopicCreation: false,
@@ -189,6 +193,24 @@ func (ca *clusterAdmin) DescribeTopics(topics []string) (metadata []*TopicMetada
 		return nil, err
 	}
 	return response.Topics, nil
+}
+
+func (ca *clusterAdmin) DescribeCluster() (brokers []*Broker, controllerID int32, err error) {
+	controller, err := ca.Controller()
+	if err != nil {
+		return nil, int32(0), err
+	}
+
+	request := &MetadataRequest{
+		Topics: []string{},
+	}
+
+	response, err := controller.GetMetadata(request)
+	if err != nil {
+		return nil, int32(0), err
+	}
+
+	return response.Brokers, response.ControllerID, nil
 }
 
 func (ca *clusterAdmin) findAnyBroker() (*Broker, error) {
