@@ -43,7 +43,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 
 var rootCmd = &cobra.Command{
 	Use:   "kaf",
-	Short: "Kafka CLI",
+	Short: "Kafka Command Line utility for cluster management",
 }
 
 func main() {
@@ -59,7 +59,6 @@ var currentCluster *kaf.Cluster
 var brokersFlag []string
 
 func init() {
-
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 

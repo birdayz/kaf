@@ -18,6 +18,7 @@ var (
 
 func init() {
 	rootCmd.AddCommand(topicCmd)
+	rootCmd.AddCommand(topicsCmd)
 	topicCmd.AddCommand(createTopicCmd)
 	topicCmd.AddCommand(deleteTopicCmd)
 	topicCmd.AddCommand(lsTopicsCmd)
@@ -32,6 +33,12 @@ func init() {
 var topicCmd = &cobra.Command{
 	Use:   "topic",
 	Short: "Create and describe topics.",
+}
+
+var topicsCmd = &cobra.Command{
+	Use:   "topics",
+	Short: "List topics",
+	Run:   lsTopicsCmd.Run,
 }
 
 var lsTopicsCmd = &cobra.Command{

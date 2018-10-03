@@ -16,6 +16,12 @@ func init() {
 	nodeLsCommand.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
 
+var nodesCommand = &cobra.Command{
+	Use:   "nodes",
+	Short: "List nodes in a cluster",
+	Run:   nodeLsCommand.Run,
+}
+
 var nodeCommand = &cobra.Command{
 	Use:   "node",
 	Short: "Describe and List nodes",

@@ -22,6 +22,7 @@ import (
 
 func init() {
 	rootCmd.AddCommand(groupCmd)
+	rootCmd.AddCommand(groupsCmd)
 	groupCmd.AddCommand(groupDescribeCmd)
 	groupCmd.AddCommand(groupLsCmd)
 
@@ -40,6 +41,12 @@ const (
 var groupCmd = &cobra.Command{
 	Use:   "group",
 	Short: "Display information about consumer groups.",
+}
+
+var groupsCmd = &cobra.Command{
+	Use:   "groups",
+	Short: "List groups",
+	Run:   groupLsCmd.Run,
 }
 
 var groupLsCmd = &cobra.Command{
