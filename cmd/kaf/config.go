@@ -11,6 +11,7 @@ func init() {
 	configCmd.AddCommand(configImportCmd)
 	configCmd.AddCommand(configUseCmd)
 	configCmd.AddCommand(configLsCmd)
+	configCmd.AddCommand(configAddClusterCmd)
 	rootCmd.AddCommand(configCmd)
 }
 
@@ -45,6 +46,23 @@ var configLsCmd = &cobra.Command{
 		for _, cluster := range config.Clusters {
 			fmt.Println(cluster.Name)
 		}
+	},
+}
+
+var configAddClusterCmd = &cobra.Command{
+	Use:   "add-cluster [NAME]",
+	Short: "add cluster",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		config.Clusters = append(config.Clusters, &kaf.Cluster{
+			Name:    args[0],
+			Brokers: brokersFlag,
+		})
+		err := config.Write()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println("Added cluster.")
 	},
 }
 
