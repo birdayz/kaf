@@ -75,7 +75,7 @@ var configImportCmd = &cobra.Command{
 			if username, password, broker, err := kaf.ParseConfluentCloudConfig(path); err == nil {
 
 				newCluster := &kaf.Cluster{
-					Name:    "confluent cloud",
+					Name:    "ccloud",
 					Brokers: []string{broker},
 					SASL: &kaf.SASL{
 						Username:  username,
