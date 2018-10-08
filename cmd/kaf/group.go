@@ -179,9 +179,6 @@ var groupDescribeCmd = &cobra.Command{
 				fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\t\n")
 				fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t\n")
 
-				// Create "fake" request which requests no payload, but contains
-				// the high watermark offset. This is as of Kafka 2.0.0 the only
-				// way to get the high watermark offset.
 				existingOffsets := make(map[int32]int64)
 				for partition, groupOffset := range offsetAndMetadata.Blocks[topic] {
 					existingOffsets[partition] = groupOffset.Offset
