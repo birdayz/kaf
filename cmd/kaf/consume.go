@@ -1,19 +1,18 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 	"sync"
-
-	"io"
 
 	"github.com/birdayz/sarama"
 	"github.com/spf13/cobra"
 )
 
+var offsetFlag string
+
 func init() {
 	rootCmd.AddCommand(consumeCmd)
+	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest. Default: newest")
 }
 
 var consumeCmd = &cobra.Command{
@@ -21,6 +20,21 @@ var consumeCmd = &cobra.Command{
 	Short: "Consume messages",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+
+		var offset int64
+		switch offsetFlag {
+		case "oldest":
+			offset = sarama.OffsetOldest
+		case "newest":
+			offset = sarama.OffsetNewest
+		default:
+			// TODO: normally we would parse this to int64 but it's
+			// difficult as we can have multiple partitions. need to
+			// find a way to give offsets from CLI with a good
+			// syntax.
+			offset = sarama.OffsetNewest
+		}
+
 		topic := args[0]
 		client, err := getClient()
 		if err != nil {
@@ -38,20 +52,22 @@ var consumeCmd = &cobra.Command{
 		}
 		wg := sync.WaitGroup{}
 		for _, partition := range partitions {
-			pc, err := consumer.ConsumePartition(topic, partition, sarama.OffsetNewest)
-			if err != nil {
-				panic(err)
-			}
 
 			wg.Add(1)
 
-			go func() {
+			go func(partition int32) {
+				pc, err := consumer.ConsumePartition(topic, partition, offset)
+				if err != nil {
+					panic(err)
+				}
+
 				for msg := range pc.Messages() {
-					io.Copy(os.Stdout, bytes.NewReader(msg.Value))
+					// io.Copy(os.Stdout, bytes.NewReader(msg.Value))
+					fmt.Println(string(msg.Value))
 					fmt.Println()
 				}
 				wg.Done()
-			}()
+			}(partition)
 		}
 		wg.Wait()
 
