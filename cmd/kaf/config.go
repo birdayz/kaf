@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/infinimesh/kaf"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -12,6 +13,7 @@ func init() {
 	configCmd.AddCommand(configUseCmd)
 	configCmd.AddCommand(configLsCmd)
 	configCmd.AddCommand(configAddClusterCmd)
+	configCmd.AddCommand(configSelectCluster)
 	rootCmd.AddCommand(configCmd)
 }
 
@@ -45,6 +47,36 @@ var configLsCmd = &cobra.Command{
 		fmt.Println("NAME")
 		for _, cluster := range config.Clusters {
 			fmt.Println(cluster.Name)
+		}
+	},
+}
+
+var configSelectCluster = &cobra.Command{
+	Use:   "select-cluster",
+	Short: "Interactively select a cluster",
+	Run: func(cmd *cobra.Command, args []string) {
+		var clusterNames []string
+		for _, cluster := range config.Clusters {
+			clusterNames = append(clusterNames, cluster.Name)
+		}
+		p := promptui.Select{
+			Label: "Select cluster",
+			Items: clusterNames,
+		}
+
+		_, selected, err := p.Run()
+		if err != nil {
+			panic(err)
+		}
+
+		// TODO copy pasta
+		if err := config.SetCurrentCluster(selected); err != nil {
+			fmt.Printf("Cluster with selected %v not found\n", selected)
+		} else {
+			if err := config.Write(); err != nil {
+				panic(err)
+			}
+			fmt.Printf("Switched to cluster \"%v\".\n", selected)
 		}
 	},
 }
