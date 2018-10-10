@@ -28,10 +28,20 @@ type Config struct {
 }
 
 func (c *Config) SetCurrentCluster(name string) error {
+	oldCluster := c.ActiveCluster().Name
 	for _, cluster := range c.Clusters {
 		if cluster.Name == name {
 			c.CurrentCluster = name
+
+			if err := c.Write(); err != nil {
+				// "Revert" change to the cluster struct, either
+				// everything is successful or nothing.
+				c.CurrentCluster = oldCluster
+				return err
+
+			}
 			return nil
+
 		}
 	}
 	return fmt.Errorf("Could not find cluster with name %v", name)

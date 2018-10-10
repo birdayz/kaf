@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/infinimesh/kaf"
 	"github.com/manifoldco/promptui"
@@ -30,12 +31,9 @@ var configUseCmd = &cobra.Command{
 		name := args[0]
 		if err := config.SetCurrentCluster(name); err != nil {
 			fmt.Printf("Cluster with name %v not found\n", name)
-		} else {
-			if err := config.Write(); err != nil {
-				panic(err)
-			}
-			fmt.Printf("Switched to cluster \"%v\".\n", name)
 		}
+
+		fmt.Printf("Switched to cluster \"%v\".\n", name)
 	},
 }
 
@@ -66,17 +64,14 @@ var configSelectCluster = &cobra.Command{
 
 		_, selected, err := p.Run()
 		if err != nil {
-			panic(err)
+			os.Exit(0)
 		}
+
+		// How to have selection on currently selected cluster?
 
 		// TODO copy pasta
 		if err := config.SetCurrentCluster(selected); err != nil {
 			fmt.Printf("Cluster with selected %v not found\n", selected)
-		} else {
-			if err := config.Write(); err != nil {
-				panic(err)
-			}
-			fmt.Printf("Switched to cluster \"%v\".\n", selected)
 		}
 	},
 }
