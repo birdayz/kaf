@@ -8,4 +8,5 @@ jobs:
     working_directory: /go/src/github.com/infinimesh/kaf
     steps:
       - checkout
-      - run: go build ./cmd/kaf
+      - run: go mod verify
+      - run: make build
