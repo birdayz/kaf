@@ -1,0 +1,11 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.11
+        environment:
+          GO111MODULE: "ON"
+    working_directory: /go/src/github.com/infinimesh/kaf
+    steps:
+      - checkout
+      - run: go build ./cmd/kaf
