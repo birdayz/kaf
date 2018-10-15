@@ -14,6 +14,7 @@ var (
 	partitionsFlag int32
 	replicasFlag   int16
 	noHeaderFlag   bool
+	compactFlag    bool
 )
 
 func init() {
@@ -26,6 +27,7 @@ func init() {
 
 	createTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(1), "Number of partitions")
 	createTopicCmd.Flags().Int16VarP(&replicasFlag, "replicas", "r", int16(1), "Number of replicas")
+	createTopicCmd.Flags().BoolVarP(&compactFlag, "compact", "c", false, "Enable topic compaction")
 
 	lsTopicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
@@ -173,9 +175,13 @@ var createTopicCmd = &cobra.Command{
 			panic(err)
 		}
 
+		compact := "compact"
 		err = admin.CreateTopic(args[0], &sarama.TopicDetail{
 			NumPartitions:     partitionsFlag,
 			ReplicationFactor: replicasFlag,
+			ConfigEntries: map[string]*string{
+				"cleanup.policy": &compact,
+			},
 		}, false)
 		if err != nil {
 			fmt.Printf("Could not create topic %v: %v\n", args[0], err.Error())
