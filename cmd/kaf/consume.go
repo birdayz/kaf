@@ -1,10 +1,7 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"os"
 	"sync"
 
 	"github.com/birdayz/sarama"
@@ -65,8 +62,7 @@ var consumeCmd = &cobra.Command{
 				}
 
 				for msg := range pc.Messages() {
-					io.Copy(os.Stdout, bytes.NewReader(msg.Value))
-					fmt.Println()
+					fmt.Printf("%v %v\n", string(msg.Key), string(msg.Value))
 				}
 				wg.Done()
 			}(partition)
