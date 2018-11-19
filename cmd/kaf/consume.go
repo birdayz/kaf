@@ -62,7 +62,11 @@ var consumeCmd = &cobra.Command{
 				}
 
 				for msg := range pc.Messages() {
-					fmt.Printf("%v %v\n", string(msg.Key), string(msg.Value))
+					if msg.Key != nil && len(msg.Key) > 0 {
+						fmt.Printf("%v %v\n", string(msg.Key), string(msg.Value))
+					} else {
+						fmt.Printf("%v\n", string(msg.Value))
+					}
 				}
 				wg.Done()
 			}(partition)
