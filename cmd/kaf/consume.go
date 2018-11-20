@@ -9,11 +9,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var offsetFlag string
+var (
+	offsetFlag string
+	prettyPrint     bool
+)
 
 func init() {
 	rootCmd.AddCommand(consumeCmd)
 	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest. Default: newest")
+	consumeCmd.Flags().BoolVar(&prettyPrint, "pretty", false, "Pretty print output if possible, e.g. for JSON.")
 }
 
 var consumeCmd = &cobra.Command{
@@ -65,9 +69,12 @@ var consumeCmd = &cobra.Command{
 				for msg := range pc.Messages() {
 
 					dataToDisplay := msg.Value
-					formatted, err := prettyjson.Format(msg.Value)
-					if err == nil {
-						dataToDisplay = formatted
+
+					if prettyPrint {
+						formatted, err := prettyjson.Format(msg.Value)
+						if err == nil {
+							dataToDisplay = formatted
+						}
 					}
 
 					if msg.Key != nil && len(msg.Key) > 0 {
