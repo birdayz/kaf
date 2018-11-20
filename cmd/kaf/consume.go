@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/birdayz/sarama"
+	"github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
 )
 
@@ -62,10 +63,17 @@ var consumeCmd = &cobra.Command{
 				}
 
 				for msg := range pc.Messages() {
+
+					dataToDisplay := msg.Value
+					formatted, err := prettyjson.Format(msg.Value)
+					if err == nil {
+						dataToDisplay = formatted
+					}
+
 					if msg.Key != nil && len(msg.Key) > 0 {
-						fmt.Printf("%v %v\n", string(msg.Key), string(msg.Value))
+						fmt.Printf("%v %v\n", string(msg.Key), string(dataToDisplay))
 					} else {
-						fmt.Printf("%v\n", string(msg.Value))
+						fmt.Printf("%v\n", string(dataToDisplay))
 					}
 				}
 				wg.Done()
