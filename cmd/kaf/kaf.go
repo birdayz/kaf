@@ -52,7 +52,11 @@ func init() {
 }
 
 func onInit() {
-	config, _ = kaf.ReadConfig()
+	var err error
+	config, err = kaf.ReadConfig()
+	if err != nil && !os.IsNotExist(err) {
+		panic(err)
+	}
 
 	// Flag is highest priority override
 	if brokersFlag != nil {
