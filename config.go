@@ -28,7 +28,10 @@ type Config struct {
 }
 
 func (c *Config) SetCurrentCluster(name string) error {
-	oldCluster := c.ActiveCluster().Name
+	var oldCluster string
+	if c.ActiveCluster() != nil {
+		oldCluster = c.ActiveCluster().Name
+	}
 	for _, cluster := range c.Clusters {
 		if cluster.Name == name {
 			c.CurrentCluster = name
