@@ -23,3 +23,7 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
+release:
+  github:
+    owner: infinimesh 
+    name: kaf
