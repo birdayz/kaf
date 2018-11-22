@@ -1,9 +1,14 @@
 package main
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"sync"
+
+	"strconv"
+
+	"text/tabwriter"
 
 	"github.com/birdayz/sarama"
 	"github.com/hokaccha/go-prettyjson"
@@ -97,6 +102,30 @@ var consumeCmd = &cobra.Command{
 						if err == nil {
 							dataToDisplay = formatted
 						}
+
+						w := tabwriter.NewWriter(os.Stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+
+						if len(msg.Headers) > 0 {
+							fmt.Fprintf(w, "Headers:\n")
+						}
+
+						for _, hdr := range msg.Headers {
+							var hdrValue string
+							// Try to detect azure eventhub-specific encoding
+							switch hdr.Value[0] {
+							case 161:
+								hdrValue = string(hdr.Value[2 : 2+hdr.Value[1]])
+							case 131:
+								hdrValue = strconv.FormatUint(binary.BigEndian.Uint64(hdr.Value[1:9]), 10)
+							default:
+								hdrValue = string(hdr.Value)
+							}
+
+							fmt.Fprintf(w, "\tKey: %v\tValue:%v\n", string(hdr.Key), hdrValue)
+
+						}
+						w.Flush()
+
 					}
 
 					if msg.Key != nil && len(msg.Key) > 0 && !raw {
