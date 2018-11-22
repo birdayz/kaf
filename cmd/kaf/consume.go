@@ -121,7 +121,7 @@ var consumeCmd = &cobra.Command{
 								hdrValue = string(hdr.Value)
 							}
 
-							fmt.Fprintf(w, "\tKey: %v\tValue:%v\n", string(hdr.Key), hdrValue)
+							fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", string(hdr.Key), hdrValue)
 
 						}
 						w.Flush()
