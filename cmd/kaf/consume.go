@@ -129,10 +129,11 @@ var consumeCmd = &cobra.Command{
 					}
 
 					if msg.Key != nil && len(msg.Key) > 0 && !raw {
-						fmt.Printf("%v %v\n", string(msg.Key), string(dataToDisplay))
-					} else {
-						fmt.Printf("%v\n", string(dataToDisplay))
+						w := tabwriter.NewWriter(os.Stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+						fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", string(msg.Key), msg.Partition, msg.Offset, msg.Timestamp)
+						w.Flush()
 					}
+					fmt.Printf("%v\n", string(dataToDisplay))
 				}
 				wg.Done()
 			}(partition)
