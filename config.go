@@ -69,7 +69,10 @@ func (c *Config) Write() error {
 		return err
 	}
 
-	configPath := filepath.Join(home, ".kaf", "config")
+	configDir := filepath.Join(home, ".kaf")
+	_ = os.MkdirAll(configDir, 0755)
+	configPath := filepath.Join(configDir, "config")
+
 	file, err := os.OpenFile(configPath, os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
