@@ -66,7 +66,7 @@ func (c *Config) ActiveCluster() *Cluster {
 func (c *Config) Write() error {
 	home, err := homedir.Dir()
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	configPath := filepath.Join(home, ".kaf", "config")
