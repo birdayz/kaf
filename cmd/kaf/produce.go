@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	sarama "github.com/birdayz/sarama"
+	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 )
 

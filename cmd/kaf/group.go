@@ -15,9 +15,10 @@ import (
 
 	"sync"
 
-	sarama "github.com/birdayz/sarama"
-	"github.com/infinimesh/kaf"
+	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
+
+	"github.com/infinimesh/kaf"
 )
 
 func init() {
@@ -38,8 +39,7 @@ const (
 	tabwriterFlags          = 0
 )
 
-var groupCmd = &cobra.Command{
-	Use:   "group",
+var groupCmd = &cobra.Command{Use: "group",
 	Short: "Display information about consumer groups.",
 }
 
@@ -80,25 +80,36 @@ var groupLsCmd = &cobra.Command{
 		}
 
 		found := false
-		for _, group := range groupList {
-			if len(args) > 0 {
-				if group == args[0] {
-					found = true
-				} else {
-					continue
-				}
-			}
+		// for _, group := range groupList {
+		// 	if len(args) > 0 {
+		// 		if group == args[0] {
+		// 			found = true
+		// 		} else {
+		// 			continue
+		// 		}
+		// 	}
 
-			detail, err := admin.DescribeConsumerGroup(group)
-			if err != nil {
-				panic(err)
-			}
+		// 	detail, err := admin.DescribeConsumerGroup(group)
+		// 	if err != nil {
+		// 		panic(err)
+		// 	}
 
+		// 	state := detail.State
+		// 	consumers := len(detail.Members)
+
+		// 	fmt.Fprintf(w, "%v\t%v\t%v\t\n", group, state, consumers)
+		// 	found = true
+		// }
+
+		groupDescs, err := admin.DescribeConsumerGroups(groupList)
+		if err != nil {
+			panic(err)
+		}
+
+		for _, detail := range groupDescs {
 			state := detail.State
 			consumers := len(detail.Members)
-
-			fmt.Fprintf(w, "%v\t%v\t%v\t\n", group, state, consumers)
-			found = true
+			fmt.Fprintf(w, "%v\t%v\t%v\t\n", detail.GroupId, state, consumers)
 		}
 
 		if found || len(args) == 0 {
@@ -123,10 +134,15 @@ var groupDescribeCmd = &cobra.Command{
 			panic(err)
 		}
 
-		group, err := admin.DescribeConsumerGroup(args[0])
+		groups, err := admin.DescribeConsumerGroups([]string{args[0]})
 		if err != nil {
 			panic(err)
 		}
+
+		if len(groups) == 0 {
+			panic("Did not receive expected describe consumergroup result")
+		}
+		group := groups[0]
 
 		if group.State == "Dead" {
 			fmt.Printf("Group %v not found.\n", args[0])

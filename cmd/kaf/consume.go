@@ -10,8 +10,8 @@ import (
 
 	"text/tabwriter"
 
-	"github.com/birdayz/sarama"
-	"github.com/hokaccha/go-prettyjson"
+	"github.com/Shopify/sarama"
+	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
 )
 

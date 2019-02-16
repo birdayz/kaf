@@ -1,8 +1,9 @@
 module github.com/infinimesh/kaf
 
 require (
+	github.com/DataDog/zstd v1.3.5 // indirect
+	github.com/Shopify/sarama v1.20.2-0.20190215145417-6a7bac87a052
 	github.com/Shopify/toxiproxy v2.1.3+incompatible // indirect
-	github.com/birdayz/sarama v1.18.1-0.20181002235130-f4ecd70fafef
 	github.com/chzyer/logex v1.1.10 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 // indirect

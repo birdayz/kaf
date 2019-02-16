@@ -5,9 +5,10 @@ import (
 
 	"os"
 
-	sarama "github.com/birdayz/sarama"
-	"github.com/infinimesh/kaf"
+	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
+
+	"github.com/infinimesh/kaf"
 )
 
 var cfgFile string
