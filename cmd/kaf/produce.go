@@ -30,6 +30,9 @@ var produceCmd = &cobra.Command{
 		}
 
 		data, err := ioutil.ReadAll(os.Stdin)
+		if err != nil {
+			panic(err)
+		}
 
 		for i := 0; i < numFlag; i++ {
 			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
