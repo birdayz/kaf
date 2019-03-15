@@ -2,6 +2,7 @@
 Kafka CLI inspired by kubectl & docker
 
 [![CircleCI](https://img.shields.io/circleci/project/github/infinimesh/kaf.svg)](https://circleci.com/gh/infinimesh/kaf/tree/master)  [![GoReportCard](https://goreportcard.com/badge/github.com/infinimesh/kaf)](https://goreportcard.com/report/github.com/infinimesh/kaf) 
+[![GoDoc](https://godoc.org/github.com/infinimesh/kaf?status.svg)](https://godoc.org/github.com/infinimesh/kaf)
 
 ![asciicinema](asciicinema.gif)
 
