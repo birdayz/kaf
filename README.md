@@ -9,7 +9,7 @@ Kafka CLI inspired by kubectl & docker
 ## Install
 Install from source:
 
-```GO111MODULE=on go get github.com/infinimesh/kaf/cmd/kaf```
+```go get github.com/infinimesh/kaf/cmd/kaf```
 
 Install binary:
 
