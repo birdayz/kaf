@@ -175,7 +175,10 @@ var createTopicCmd = &cobra.Command{
 			panic(err)
 		}
 
-		compact := "compact"
+		compact := "delete"
+		if compactFlag {
+			compact = "compact"
+		}
 		err = admin.CreateTopic(args[0], &sarama.TopicDetail{
 			NumPartitions:     partitionsFlag,
 			ReplicationFactor: replicasFlag,
