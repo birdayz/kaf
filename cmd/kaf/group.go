@@ -80,26 +80,6 @@ var groupLsCmd = &cobra.Command{
 		}
 
 		found := false
-		// for _, group := range groupList {
-		// 	if len(args) > 0 {
-		// 		if group == args[0] {
-		// 			found = true
-		// 		} else {
-		// 			continue
-		// 		}
-		// 	}
-
-		// 	detail, err := admin.DescribeConsumerGroup(group)
-		// 	if err != nil {
-		// 		panic(err)
-		// 	}
-
-		// 	state := detail.State
-		// 	consumers := len(detail.Members)
-
-		// 	fmt.Fprintf(w, "%v\t%v\t%v\t\n", group, state, consumers)
-		// 	found = true
-		// }
 
 		groupDescs, err := admin.DescribeConsumerGroups(groupList)
 		if err != nil {
