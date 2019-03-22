@@ -5,21 +5,23 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
-	"sync"
-
 	"strconv"
-
+	"sync"
 	"text/tabwriter"
 
 	"github.com/Shopify/sarama"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
+
+	"github.com/infinimesh/kaf/avro"
 )
 
 var (
-	offsetFlag string
-	raw        bool
-	follow     bool
+	offsetFlag  string
+	raw         bool
+	follow      bool
+	schemaCache *avro.SchemaCache
+	keyfmt      *prettyjson.Formatter
 )
 
 func init() {
@@ -27,6 +29,10 @@ func init() {
 	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest. Default: newest")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON")
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition. Overrides --offset flag")
+
+	keyfmt = prettyjson.NewFormatter()
+	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
+	keyfmt.Indent = 0
 }
 
 var consumeCmd = &cobra.Command{
@@ -64,6 +70,12 @@ var consumeCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
+
+		schemaCache, err = getSchemaCache()
+		if err != nil {
+			panic(err)
+		}
+
 		wg := sync.WaitGroup{}
 		mu := sync.Mutex{} // Synchronizes stderr and stdout.
 		for _, partition := range partitions {
@@ -87,7 +99,7 @@ var consumeCmd = &cobra.Command{
 
 				if follow && followOffset > 0 {
 					offset = followOffset
-					fmt.Fprintf(os.Stderr, "Starting on partition %v with offet %v\n", partition, offset)
+					fmt.Fprintf(os.Stderr, "Starting on partition %v with offset %v\n", partition, offset)
 				}
 
 				pc, err := consumer.ConsumePartition(topic, partition, offset)
@@ -96,12 +108,11 @@ var consumeCmd = &cobra.Command{
 				}
 
 				for msg := range pc.Messages() {
-
-					dataToDisplay := msg.Value
+					dataToDisplay := tryAvroDecode(msg.Value)
 
 					var stderr bytes.Buffer
 					if !raw {
-						formatted, err := prettyjson.Format(msg.Value)
+						formatted, err := prettyjson.Format(dataToDisplay)
 						if err == nil {
 							dataToDisplay = formatted
 						}
@@ -128,12 +139,13 @@ var consumeCmd = &cobra.Command{
 
 						}
 						w.Flush()
-
 					}
 
 					if msg.Key != nil && len(msg.Key) > 0 && !raw {
+						key := tryAvroDecode(msg.Key)
+
 						w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-						fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", string(msg.Key), msg.Partition, msg.Offset, msg.Timestamp)
+						fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", formatKey(key), msg.Partition, msg.Offset, msg.Timestamp)
 						w.Flush()
 					}
 
@@ -148,4 +160,22 @@ var consumeCmd = &cobra.Command{
 		wg.Wait()
 
 	},
+}
+
+func tryAvroDecode(b []byte) []byte {
+	if schemaCache != nil {
+		dec, err := schemaCache.DecodeMessage(b)
+		if err == nil {
+			return dec
+		}
+	}
+	return b
+}
+
+func formatKey(key []byte) string {
+	b, err := keyfmt.Format(key)
+	if err != nil {
+		return string(key)
+	}
+	return string(b)
 }
