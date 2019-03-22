@@ -2,6 +2,7 @@ module github.com/infinimesh/kaf
 
 require (
 	github.com/DataDog/zstd v1.3.5 // indirect
+	github.com/Landoop/schema-registry v0.0.0-20181115093143-9861c67a815b
 	github.com/Shopify/sarama v1.20.2-0.20190215145417-6a7bac87a052
 	github.com/Shopify/toxiproxy v2.1.3+incompatible // indirect
 	github.com/chzyer/logex v1.1.10 // indirect
@@ -17,6 +18,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a // indirect
 	github.com/kr/pretty v0.1.0 // indirect
+	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/lunixbochs/vtclean v0.0.0-20180621232353-2d01aacdc34a // indirect
 	github.com/magiconair/properties v1.8.0
 	github.com/manifoldco/promptui v0.3.1
