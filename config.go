@@ -15,10 +15,16 @@ type SASL struct {
 	Password  string
 }
 
+type TLS struct {
+	Cafile  string
+	Insecure  bool
+}
+
 type Cluster struct {
 	Name             string
 	Brokers          []string `yaml:"brokers"`
 	SASL             *SASL    `yaml:"SASL"`
+	TLS              *TLS     `yaml:"TLS"`
 	SecurityProtocol string   `yaml:"security-protocol"`
 }
 

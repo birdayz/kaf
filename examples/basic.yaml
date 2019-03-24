@@ -1,0 +1,7 @@
+clusters:
+- name: local
+  brokers:
+  - localhost:9092
+  SASL: null
+  TLS: null 
+  security-protocol: ""
