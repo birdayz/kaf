@@ -37,7 +37,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 			}
 			saramaConfig.Net.TLS.Config = tlsConfig
 		} else {
-			saramaConfig.Net.TLS.Config = &tls.Config{ InsecureSkipVerify:true }
+			saramaConfig.Net.TLS.Config = &tls.Config{ InsecureSkipVerify:false }
 		}
 		saramaConfig.Net.SASL.Enable = true
 		saramaConfig.Net.SASL.User = cluster.SASL.Username
