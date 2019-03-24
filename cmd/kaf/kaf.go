@@ -22,22 +22,24 @@ func getConfig() (saramaConfig *sarama.Config) {
 
 	if cluster := currentCluster; cluster.SecurityProtocol == "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
-		if cluster.TLS != nil && cluster.TLS.Cafile != "" {
-			caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(caCert)
-
+		if cluster.TLS != nil {
 			tlsConfig := &tls.Config{
-				RootCAs:            caCertPool,
 				InsecureSkipVerify: cluster.TLS.Insecure,
 			}
+			if cluster.TLS.Cafile != "" {
+				caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
+				if err != nil {
+					fmt.Println(err)
+					os.Exit(1)
+				}
+				caCertPool := x509.NewCertPool()
+				caCertPool.AppendCertsFromPEM(caCert)
+				tlsConfig.RootCAs = caCertPool
+			}
 			saramaConfig.Net.TLS.Config = tlsConfig
+
 		} else {
-			saramaConfig.Net.TLS.Config = &tls.Config{ InsecureSkipVerify:false }
+			saramaConfig.Net.TLS.Config = &tls.Config{InsecureSkipVerify: false}
 		}
 		saramaConfig.Net.SASL.Enable = true
 		saramaConfig.Net.SASL.User = cluster.SASL.Username
