@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 
-	"os"
-
+	"crypto/tls"
+	"crypto/x509"
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
+	"io/ioutil"
+	"os"
 
 	"github.com/infinimesh/kaf"
 )
@@ -20,6 +22,23 @@ func getConfig() (saramaConfig *sarama.Config) {
 
 	if cluster := currentCluster; cluster.SecurityProtocol == "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
+		if cluster.TLS != nil && cluster.TLS.Cafile != "" {
+			caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			caCertPool := x509.NewCertPool()
+			caCertPool.AppendCertsFromPEM(caCert)
+
+			tlsConfig := &tls.Config{
+				RootCAs:            caCertPool,
+				InsecureSkipVerify: cluster.TLS.Verify,
+			}
+			saramaConfig.Net.TLS.Config = tlsConfig
+		} else {
+			saramaConfig.Net.TLS.Config = &tls.Config{ InsecureSkipVerify:true }
+		}
 		saramaConfig.Net.SASL.Enable = true
 		saramaConfig.Net.SASL.User = cluster.SASL.Username
 		saramaConfig.Net.SASL.Password = cluster.SASL.Password
