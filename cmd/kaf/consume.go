@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -64,6 +65,7 @@ var consumeCmd = &cobra.Command{
 			panic(err)
 		}
 		wg := sync.WaitGroup{}
+		mu := sync.Mutex{} // Synchronizes stderr and stdout.
 		for _, partition := range partitions {
 
 			wg.Add(1)
@@ -97,13 +99,14 @@ var consumeCmd = &cobra.Command{
 
 					dataToDisplay := msg.Value
 
+					var stderr bytes.Buffer
 					if !raw {
 						formatted, err := prettyjson.Format(msg.Value)
 						if err == nil {
 							dataToDisplay = formatted
 						}
 
-						w := tabwriter.NewWriter(os.Stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+						w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 
 						if len(msg.Headers) > 0 {
 							fmt.Fprintf(w, "Headers:\n")
@@ -129,11 +132,15 @@ var consumeCmd = &cobra.Command{
 					}
 
 					if msg.Key != nil && len(msg.Key) > 0 && !raw {
-						w := tabwriter.NewWriter(os.Stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+						w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 						fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", string(msg.Key), msg.Partition, msg.Offset, msg.Timestamp)
 						w.Flush()
 					}
+
+					mu.Lock()
+					stderr.WriteTo(os.Stderr)
 					fmt.Printf("%v\n", string(dataToDisplay))
+					mu.Unlock()
 				}
 				wg.Done()
 			}(partition)
