@@ -17,7 +17,7 @@ type SASL struct {
 
 type TLS struct {
 	Cafile  string
-	Verify  bool
+	Insecure  bool
 }
 
 type Cluster struct {

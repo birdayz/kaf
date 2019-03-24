@@ -33,7 +33,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 
 			tlsConfig := &tls.Config{
 				RootCAs:            caCertPool,
-				InsecureSkipVerify: cluster.TLS.Verify,
+				InsecureSkipVerify: cluster.TLS.Insecure,
 			}
 			saramaConfig.Net.TLS.Config = tlsConfig
 		} else {
