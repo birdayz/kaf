@@ -14,3 +14,8 @@ Install from source:
 Install binary:
 
 ```curl https://raw.githubusercontent.com/infinimesh/kaf/master/godownloader.sh | BINDIR=$HOME/bin bash```
+
+
+## Configuration
+See the [examples](examples) folder
+
