@@ -108,9 +108,13 @@ var consumeCmd = &cobra.Command{
 				}
 
 				for msg := range pc.Messages() {
-					dataToDisplay := tryAvroDecode(msg.Value)
-
 					var stderr bytes.Buffer
+
+					dataToDisplay, err := avroDecode(msg.Value)
+					if err != nil {
+						fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+					}
+
 					if !raw {
 						formatted, err := prettyjson.Format(dataToDisplay)
 						if err == nil {
@@ -142,7 +146,10 @@ var consumeCmd = &cobra.Command{
 					}
 
 					if msg.Key != nil && len(msg.Key) > 0 && !raw {
-						key := tryAvroDecode(msg.Key)
+						key, err := avroDecode(msg.Key)
+						if err != nil {
+							fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+						}
 
 						w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 						fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", formatKey(key), msg.Partition, msg.Offset, msg.Timestamp)
@@ -162,14 +169,11 @@ var consumeCmd = &cobra.Command{
 	},
 }
 
-func tryAvroDecode(b []byte) []byte {
+func avroDecode(b []byte) ([]byte, error) {
 	if schemaCache != nil {
-		dec, err := schemaCache.DecodeMessage(b)
-		if err == nil {
-			return dec
-		}
+		return schemaCache.DecodeMessage(b)
 	}
-	return b
+	return b, nil
 }
 
 func formatKey(key []byte) string {

@@ -2,7 +2,6 @@ package avro
 
 import (
 	"encoding/binary"
-	"fmt"
 	"sync"
 
 	schemaregistry "github.com/Landoop/schema-registry"
@@ -87,26 +86,27 @@ func (c *SchemaCache) getCodecForSchemaID(schemaID int) (codec *goavro.Codec, er
 func (c *SchemaCache) DecodeMessage(b []byte) (message []byte, err error) {
 	// Ensure avro header is present with the magic start-byte.
 	if len(b) < 5 || b[0] != 0x00 {
-		return nil, fmt.Errorf("message does not contain Avro-encoded data")
+		// The message does not contain Avro-encoded data
+		return b, nil
 	}
 
 	// Schema ID is stored in the 4 bytes following the magic byte.
 	schemaID := binary.BigEndian.Uint32(b[1:5])
 	codec, err := c.getCodecForSchemaID(int(schemaID))
 	if err != nil {
-		return nil, err
+		return b, err
 	}
 
 	// Convert binary Avro data back to native Go form
 	native, _, err := codec.NativeFromBinary(b[5:])
 	if err != nil {
-		return nil, err
+		return b, err
 	}
 
 	// Convert native Go form to textual Avro data
 	message, err = codec.TextualFromNative(nil, native)
 	if err != nil {
-		return nil, err
+		return b, err
 	}
 
 	return message, nil
