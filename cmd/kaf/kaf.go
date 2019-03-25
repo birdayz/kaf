@@ -83,23 +83,24 @@ func onInit() {
 		panic(err)
 	}
 
-	// Flag is highest priority override
-	if brokersFlag != nil {
-		currentCluster = &kaf.Cluster{
-			Brokers:           brokersFlag,
-			SchemaRegistryURL: schemaRegistryURL,
-		}
+	cluster := config.ActiveCluster()
+	if cluster != nil {
+		// Use active cluster from config
+		currentCluster = cluster
 	} else {
-		// If no override from flag is set, get current cluster from config file
-		if cluster := config.ActiveCluster(); cluster != nil {
-			currentCluster = cluster
-		} else {
-			// Default to localhost:9092 with no security
-			currentCluster = &kaf.Cluster{
-				Brokers:           []string{"localhost:9092"},
-				SchemaRegistryURL: schemaRegistryURL,
-			}
+		// Create sane default if not configured
+		currentCluster = &kaf.Cluster{
+			Brokers: []string{"localhost:9092"},
 		}
+	}
+
+	// Any set flags override the configuration
+	if schemaRegistryURL != "" {
+		currentCluster.SchemaRegistryURL = schemaRegistryURL
+	}
+
+	if brokersFlag != nil {
+		currentCluster.Brokers = brokersFlag
 	}
 
 }
