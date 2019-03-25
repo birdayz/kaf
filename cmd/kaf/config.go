@@ -82,8 +82,9 @@ var configAddClusterCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		config.Clusters = append(config.Clusters, &kaf.Cluster{
-			Name:    args[0],
-			Brokers: brokersFlag,
+			Name:              args[0],
+			Brokers:           brokersFlag,
+			SchemaRegistryURL: schemaRegistryURL,
 		})
 		err := config.Write()
 		if err != nil {

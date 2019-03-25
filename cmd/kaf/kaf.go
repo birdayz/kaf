@@ -5,12 +5,14 @@ import (
 
 	"crypto/tls"
 	"crypto/x509"
-	"github.com/Shopify/sarama"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"os"
 
+	"github.com/Shopify/sarama"
+	"github.com/spf13/cobra"
+
 	"github.com/infinimesh/kaf"
+	"github.com/infinimesh/kaf/avro"
 )
 
 var cfgFile string
@@ -65,11 +67,12 @@ var config kaf.Config
 var currentCluster *kaf.Cluster
 
 var brokersFlag []string
+var schemaRegistryURL string
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
-
+	rootCmd.PersistentFlags().StringVar(&schemaRegistryURL, "schema-registry", "", "URL to a Confluent schema registry. Used for attempting to decode Avro-encoded messages")
 	cobra.OnInitialize(onInit)
 }
 
@@ -83,7 +86,8 @@ func onInit() {
 	// Flag is highest priority override
 	if brokersFlag != nil {
 		currentCluster = &kaf.Cluster{
-			Brokers: brokersFlag,
+			Brokers:           brokersFlag,
+			SchemaRegistryURL: schemaRegistryURL,
 		}
 	} else {
 		// If no override from flag is set, get current cluster from config file
@@ -92,7 +96,8 @@ func onInit() {
 		} else {
 			// Default to localhost:9092 with no security
 			currentCluster = &kaf.Cluster{
-				Brokers: []string{"localhost:9092"},
+				Brokers:           []string{"localhost:9092"},
+				SchemaRegistryURL: schemaRegistryURL,
 			}
 		}
 	}
@@ -105,4 +110,11 @@ func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
 
 func getClient() (client sarama.Client, err error) {
 	return sarama.NewClient(currentCluster.Brokers, getConfig())
+}
+
+func getSchemaCache() (cache *avro.SchemaCache, err error) {
+	if currentCluster.SchemaRegistryURL != "" {
+		return avro.NewSchemaCache(currentCluster.SchemaRegistryURL)
+	}
+	return nil, nil
 }
