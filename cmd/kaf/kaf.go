@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 
 	"crypto/tls"
 	"crypto/x509"
@@ -21,6 +22,12 @@ func getConfig() (saramaConfig *sarama.Config) {
 	saramaConfig = sarama.NewConfig()
 	saramaConfig.Version = sarama.V1_0_0_0
 	saramaConfig.Producer.Return.Successes = true
+
+	if debug {
+		// change the logger so it writes to Stderr rather than discarding
+		// messages
+		sarama.Logger = log.New(os.Stderr, "[Sarama] ", log.LstdFlags)
+	}
 
 	if cluster := currentCluster; cluster.SecurityProtocol == "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
@@ -69,10 +76,13 @@ var currentCluster *kaf.Cluster
 var brokersFlag []string
 var schemaRegistryURL string
 
+var debug bool
+
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 	rootCmd.PersistentFlags().StringVar(&schemaRegistryURL, "schema-registry", "", "URL to a Confluent schema registry. Used for attempting to decode Avro-encoded messages")
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "output debugging")
 	cobra.OnInitialize(onInit)
 }
 
