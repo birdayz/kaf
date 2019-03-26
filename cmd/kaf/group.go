@@ -142,7 +142,7 @@ var groupDescribeCmd = &cobra.Command{
 		}
 
 		topics := make([]string, 0, len(topicsDedup))
-		for topic, _ := range topicsDedup {
+		for topic := range topicsDedup {
 			topics = append(topics, topic)
 		}
 
@@ -305,6 +305,7 @@ func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]i
 	return
 }
 
+// IsASCIIPrintable returns true if the string is ASCII printable.
 func IsASCIIPrintable(s string) bool {
 	for _, r := range s {
 		if r > unicode.MaxASCII || !unicode.IsPrint(r) {
