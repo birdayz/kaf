@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -77,13 +76,15 @@ var consumeCmd = &cobra.Command{
 			panic(err)
 		}
 
+		// outputChan contains messages that will be written to the console
+		outputChan := make(chan outputMessage)
+
 		wg := sync.WaitGroup{}
-		mu := sync.Mutex{} // Synchronizes stderr and stdout.
 		for _, partition := range partitions {
 
 			wg.Add(1)
 
-			go func(partition int32) {
+			go func(partition int32, outputChan chan outputMessage) {
 				req := &sarama.OffsetRequest{
 					Version: int16(1),
 				}
@@ -93,6 +94,9 @@ var consumeCmd = &cobra.Command{
 					panic(err)
 				}
 
+				// There is a race where the metadata may not have been received
+				// yet when we ask for offsets.  Retry and backoff until it
+				// (hopefully) connects.
 				offsets, err := ldr.GetAvailableOffsets(req)
 				for retries := 1; err != nil && retries <= 20; {
 					if err == sarama.ErrNotConnected {
@@ -106,11 +110,12 @@ var consumeCmd = &cobra.Command{
 				if err != nil {
 					panic(err)
 				}
+
 				followOffset := offsets.GetBlock(topic, partition).Offset - 1
 
 				if follow && followOffset > 0 {
 					offset = followOffset
-					fmt.Fprintf(os.Stderr, "Starting on partition %v with offset %v\n", partition, offset)
+					outputChan <- outputMessage{error: fmt.Errorf("starting on partition %v with offset %v", partition, offset)}
 				}
 
 				pc, err := consumer.ConsumePartition(topic, partition, offset)
@@ -119,24 +124,23 @@ var consumeCmd = &cobra.Command{
 				}
 
 				for msg := range pc.Messages() {
-					var stderr bytes.Buffer
 
 					dataToDisplay, err := avroDecode(msg.Value)
 					if err != nil {
-						fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+						outputChan <- outputMessage{error: fmt.Errorf("could not decode Avro data: %v", err)}
 					}
 
-					if !raw {
+					om := outputMessage{}
+
+					if raw {
+						om.body = string(dataToDisplay)
+					} else {
 						formatted, err := prettyjson.Format(dataToDisplay)
 						if err == nil {
-							dataToDisplay = formatted
+							om.body = string(formatted)
 						}
 
-						w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-
-						if len(msg.Headers) > 0 {
-							fmt.Fprintf(w, "Headers:\n")
-						}
+						headers := map[string]string{}
 
 						for _, hdr := range msg.Headers {
 							var hdrValue string
@@ -150,33 +154,33 @@ var consumeCmd = &cobra.Command{
 								hdrValue = string(hdr.Value)
 							}
 
-							fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", string(hdr.Key), hdrValue)
+							headers[string(hdr.Key)] = hdrValue
 
 						}
-						w.Flush()
+						om.headers = headers
 					}
 
-					if msg.Key != nil && len(msg.Key) > 0 && !raw {
-						key, err := avroDecode(msg.Key)
-						if err != nil {
-							fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
-						}
-
-						w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-						fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", formatKey(key), msg.Partition, msg.Offset, msg.Timestamp)
-						w.Flush()
+					// if msg.Key != nil && len(msg.Key) > 0 && !raw {
+					key, err := avroDecode(msg.Key)
+					if err != nil {
+						outputChan <- outputMessage{error: fmt.Errorf("could not decode Avro data: %v", err)}
 					}
 
-					mu.Lock()
-					stderr.WriteTo(os.Stderr)
-					fmt.Printf("%v\n", string(dataToDisplay))
-					mu.Unlock()
+					om.key = formatKey(key)
+					om.partition = msg.Partition
+					om.offset = msg.Offset
+					om.timestamp = msg.Timestamp
+
+					outputChan <- om
 				}
 				wg.Done()
-			}(partition)
+			}(partition, outputChan)
 		}
-		wg.Wait()
 
+		go consumeOutput(outputChan)
+		wg.Wait()
+		close(outputChan)
+		consumer.Close()
 	},
 }
 
@@ -193,4 +197,35 @@ func formatKey(key []byte) string {
 		return string(key)
 	}
 	return string(b)
+}
+
+func consumeOutput(outputChannel chan outputMessage) {
+	w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+	for message := range outputChannel {
+		if message.error != nil {
+			fmt.Fprintf(os.Stderr, "Error: %s\n", message.error)
+		}
+		if len(message.headers) > 0 {
+			fmt.Fprintf(w, "Headers:\n")
+
+			for k, v := range message.headers {
+				fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", k, v)
+			}
+		}
+		if len(message.key) > 0 && !raw {
+			fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", message.key, message.partition, message.offset, message.timestamp)
+		}
+		fmt.Fprintf(w, "%v\n", message.body)
+		w.Flush()
+	}
+}
+
+type outputMessage struct {
+	error     error
+	body      string
+	headers   map[string]string
+	key       string
+	partition int32
+	offset    int64
+	timestamp time.Time
 }
