@@ -148,7 +148,13 @@ var describeTopicCmd = &cobra.Command{
 		highWatermarks := getHighWatermarks(args[0], partitions)
 
 		for _, partition := range detail.Partitions {
-			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.ID, highWatermarks[partition.ID], partition.Leader, partition.Replicas, partition.Isr)
+			sortedReplicas := partition.Replicas
+			sort.Slice(sortedReplicas, func(i, j int) bool { return sortedReplicas[i] < sortedReplicas[j] })
+
+			sortedISR := partition.Isr
+			sort.Slice(sortedISR, func(i, j int) bool { return sortedISR[i] < sortedISR[j] })
+
+			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.ID, highWatermarks[partition.ID], partition.Leader, sortedReplicas, sortedISR)
 		}
 		fmt.Fprintf(w, "Config:\n")
 		fmt.Fprintf(w, "\tName\tValue\tReadOnly\tSensitive\t\n")
