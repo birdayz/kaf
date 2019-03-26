@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 	"text/tabwriter"
+	"time"
 
 	"github.com/Shopify/sarama"
 	prettyjson "github.com/hokaccha/go-prettyjson"
@@ -91,7 +92,17 @@ var consumeCmd = &cobra.Command{
 				if err != nil {
 					panic(err)
 				}
+
 				offsets, err := ldr.GetAvailableOffsets(req)
+				for retries := 1; err != nil && retries <= 20; {
+					if err == sarama.ErrNotConnected {
+						time.Sleep(time.Duration(50*retries) * time.Millisecond)
+						offsets, err = ldr.GetAvailableOffsets(req)
+						retries++
+					} else {
+						break
+					}
+				}
 				if err != nil {
 					panic(err)
 				}
