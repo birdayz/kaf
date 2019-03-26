@@ -172,8 +172,8 @@ var groupDescribeCmd = &cobra.Command{
 			offsetAndMetadata, _ := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
 			for topic, partitions := range topicPartitions {
 				fmt.Fprintf(w, "\t%v:\n", topic)
-				fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tMessages Behind\t\n")
-				fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---------------\t\n")
+				fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tLag\t\n")
+				fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---\t\n")
 
 				existingOffsets := make(map[int32]int64)
 				for partition, groupOffset := range offsetAndMetadata.Blocks[topic] {
