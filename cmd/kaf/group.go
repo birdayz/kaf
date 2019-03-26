@@ -142,7 +142,7 @@ var groupDescribeCmd = &cobra.Command{
 		}
 
 		topics := make([]string, 0, len(topicsDedup))
-		for topic, _ := range topicsDedup {
+		for topic := range topicsDedup {
 			topics = append(topics, topic)
 		}
 
@@ -172,8 +172,8 @@ var groupDescribeCmd = &cobra.Command{
 			offsetAndMetadata, _ := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
 			for topic, partitions := range topicPartitions {
 				fmt.Fprintf(w, "\t%v:\n", topic)
-				fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\t\n")
-				fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t\n")
+				fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tLag\t\n")
+				fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---\t\n")
 
 				existingOffsets := make(map[int32]int64)
 				for partition, groupOffset := range offsetAndMetadata.Blocks[topic] {
@@ -187,7 +187,7 @@ var groupDescribeCmd = &cobra.Command{
 					if blockOff := offsetAndMetadata.GetBlock(topic, partition).Offset; blockOff != -1 {
 						offset = blockOff
 					}
-					fmt.Fprintf(w, "\t\t%v\t%v\t%v\t\n", partition, offset, wm)
+					fmt.Fprintf(w, "\t\t%v\t%v\t%v\t%v\t\n", partition, offset, wm, (wm - offset))
 				}
 
 			}
@@ -305,6 +305,7 @@ func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]i
 	return
 }
 
+// IsASCIIPrintable returns true if the string is ASCII printable.
 func IsASCIIPrintable(s string) bool {
 	for _, r := range s {
 		if r > unicode.MaxASCII || !unicode.IsPrint(r) {
