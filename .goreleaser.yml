@@ -6,6 +6,9 @@ builds:
     - linux
     - darwin
     - windows
+    goarch:
+      - amd64
+        arm64
 archive:
   replacements:
     darwin: Darwin
