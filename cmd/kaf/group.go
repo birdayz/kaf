@@ -51,7 +51,7 @@ var groupsCmd = &cobra.Command{
 
 var groupLsCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "List topics",
+	Short: "List groups",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin, err := getClusterAdmin()
