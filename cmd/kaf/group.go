@@ -52,7 +52,7 @@ var groupsCmd = &cobra.Command{
 var groupLsCmd = &cobra.Command{
 	Use:   "ls",
 	Short: "List groups",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin, err := getClusterAdmin()
 		if err != nil {
@@ -79,8 +79,6 @@ var groupLsCmd = &cobra.Command{
 			fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
 		}
 
-		found := false
-
 		groupDescs, err := admin.DescribeConsumerGroups(groupList)
 		if err != nil {
 			panic(err)
@@ -92,10 +90,10 @@ var groupLsCmd = &cobra.Command{
 			fmt.Fprintf(w, "%v\t%v\t%v\t\n", detail.GroupId, state, consumers)
 		}
 
-		if found || len(args) == 0 {
+		if len(groupDescs) != 0 {
 			w.Flush()
 		} else {
-			fmt.Printf("Group %v not found\n", args[0])
+			fmt.Printf("No Groups found\n")
 		}
 
 		return
