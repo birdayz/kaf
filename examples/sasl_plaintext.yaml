@@ -1,0 +1,8 @@
+clusters:
+- name: test
+  brokers:
+  - localhost:9092
+  SASL:
+    mechanism: PLAIN
+    username: admin
+    password: mypasswordisnotsosimple
