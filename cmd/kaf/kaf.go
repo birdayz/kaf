@@ -22,7 +22,13 @@ func getConfig() (saramaConfig *sarama.Config) {
 	saramaConfig.Version = sarama.V1_0_0_0
 	saramaConfig.Producer.Return.Successes = true
 
-	if cluster := currentCluster; cluster.SecurityProtocol == "SASL_SSL" {
+	cluster := currentCluster
+	if cluster.SASL != nil {
+		saramaConfig.Net.SASL.Enable = true
+		saramaConfig.Net.SASL.User = cluster.SASL.Username
+		saramaConfig.Net.SASL.Password = cluster.SASL.Password
+	}
+	if cluster.SecurityProtocol == "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
 		if cluster.TLS != nil {
 			tlsConfig := &tls.Config{
@@ -43,11 +49,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 		} else {
 			saramaConfig.Net.TLS.Config = &tls.Config{InsecureSkipVerify: false}
 		}
-		saramaConfig.Net.SASL.Enable = true
-		saramaConfig.Net.SASL.User = cluster.SASL.Username
-		saramaConfig.Net.SASL.Password = cluster.SASL.Password
 	}
-
 	return saramaConfig
 }
 
