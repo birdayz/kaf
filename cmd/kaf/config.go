@@ -31,9 +31,9 @@ var configUseCmd = &cobra.Command{
 		name := args[0]
 		if err := config.SetCurrentCluster(name); err != nil {
 			fmt.Printf("Cluster with name %v not found\n", name)
+		} else {
+			fmt.Printf("Switched to cluster \"%v\".\n", name)
 		}
-
-		fmt.Printf("Switched to cluster \"%v\".\n", name)
 	},
 }
 
