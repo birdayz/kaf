@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
+	"log"
 	"os"
 
 	"github.com/Shopify/sarama"
@@ -70,11 +71,13 @@ var currentCluster *kaf.Cluster
 
 var brokersFlag []string
 var schemaRegistryURL string
+var verbose bool
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 	rootCmd.PersistentFlags().StringVar(&schemaRegistryURL, "schema-registry", "", "URL to a Confluent schema registry. Used for attempting to decode Avro-encoded messages")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Whether to turn on sarama logging")
 	cobra.OnInitialize(onInit)
 }
 
@@ -103,6 +106,10 @@ func onInit() {
 
 	if brokersFlag != nil {
 		currentCluster.Brokers = brokersFlag
+	}
+
+	if verbose {
+		sarama.Logger = log.New(os.Stderr, "[sarama] ", log.Lshortfile | log.LstdFlags)
 	}
 
 }
