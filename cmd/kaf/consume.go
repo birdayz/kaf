@@ -56,25 +56,19 @@ var consumeCmd = &cobra.Command{
 		}
 
 		topic := args[0]
-		client, err := getClient()
-		if err != nil {
-			panic(err)
-		}
+		client := getClient()
 
 		consumer, err := sarama.NewConsumerFromClient(client)
 		if err != nil {
-			panic(err)
+			errorExit("Unable to create consumer from client: %v\n", err)
 		}
 
 		partitions, err := consumer.Partitions(topic)
 		if err != nil {
-			panic(err)
+			errorExit("Unable to get partitions: %v\n", err)
 		}
 
-		schemaCache, err = getSchemaCache()
-		if err != nil {
-			panic(err)
-		}
+		schemaCache = getSchemaCache()
 
 		wg := sync.WaitGroup{}
 		mu := sync.Mutex{} // Synchronizes stderr and stdout.
@@ -89,11 +83,11 @@ var consumeCmd = &cobra.Command{
 				req.AddBlock(topic, partition, int64(-1), int32(0))
 				ldr, err := client.Leader(topic, partition)
 				if err != nil {
-					panic(err)
+					errorExit("Unable to get leader: %v\n", err)
 				}
 				offsets, err := ldr.GetAvailableOffsets(req)
 				if err != nil {
-					panic(err)
+					errorExit("Unable to get available offsets: %v\n", err)
 				}
 				followOffset := offsets.GetBlock(topic, partition).Offset - 1
 
@@ -104,7 +98,7 @@ var consumeCmd = &cobra.Command{
 
 				pc, err := consumer.ConsumePartition(topic, partition, offset)
 				if err != nil {
-					panic(err)
+					errorExit("Unable to consume partition: %v\n", err)
 				}
 
 				for msg := range pc.Messages() {
