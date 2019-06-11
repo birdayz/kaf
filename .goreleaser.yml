@@ -26,5 +26,5 @@ changelog:
     - '^test:'
 release:
   github:
-    owner: infinimesh 
+    owner: birdayz 
     name: kaf
