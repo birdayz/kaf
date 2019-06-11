@@ -13,7 +13,7 @@ Install from source:
 
 Install binary:
 
-```curl https://raw.githubusercontent.com/infinimesh/kaf/master/godownloader.sh | BINDIR=$HOME/bin bash```
+```curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BINDIR=$HOME/bin bash```
 
 
 ## Configuration
