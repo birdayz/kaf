@@ -26,12 +26,12 @@ var produceCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		producer, err := sarama.NewSyncProducer(currentCluster.Brokers, getConfig())
 		if err != nil {
-			panic(err)
+			errorExit("Unable to create new sync producer: %v\n", err)
 		}
 
 		data, err := ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			panic(err)
+			errorExit("Unable to read data\n")
 		}
 
 		for i := 0; i < numFlag; i++ {

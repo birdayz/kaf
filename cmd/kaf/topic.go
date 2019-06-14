@@ -49,14 +49,11 @@ var lsTopicsCmd = &cobra.Command{
 	Short:   "List topics",
 	Args:    cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
-		admin, err := getClusterAdmin()
-		if err != nil {
-			panic(err)
-		}
+		admin := getClusterAdmin()
 
 		topics, err := admin.ListTopics()
 		if err != nil {
-			panic(err)
+			errorExit("Unable to list topics: %v\n", err)
 		}
 
 		sortedTopics := make(
@@ -95,14 +92,11 @@ var describeTopicCmd = &cobra.Command{
 	Long:  "Describe a topic. Default values of the configuration are omitted.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		admin, err := getClusterAdmin()
-		if err != nil {
-			panic(err)
-		}
+		admin := getClusterAdmin()
 
 		topicDetails, err := admin.DescribeTopics([]string{args[0]})
 		if err != nil {
-			panic(err)
+			errorExit("Unable to describe topics: %v\n", err)
 		}
 
 		if topicDetails[0].Err == sarama.ErrUnknownTopicOrPartition {
@@ -114,16 +108,15 @@ var describeTopicCmd = &cobra.Command{
 			Type: sarama.TopicResource,
 			Name: args[0],
 		})
+		if err != nil {
+			errorExit("Unable to describe config: %v\n", err)
+		}
 
 		var compacted bool
 		for _, e := range cfg {
 			if e.Name == "cleanup.policy" && e.Value == "compact" {
 				compacted = true
 			}
-		}
-
-		if err != nil {
-			panic(err)
 		}
 
 		detail := topicDetails[0]
@@ -176,16 +169,13 @@ var createTopicCmd = &cobra.Command{
 	Short: "Create a topic",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		admin, err := getClusterAdmin()
-		if err != nil {
-			panic(err)
-		}
+		admin := getClusterAdmin()
 
 		compact := "delete"
 		if compactFlag {
 			compact = "compact"
 		}
-		err = admin.CreateTopic(args[0], &sarama.TopicDetail{
+		err := admin.CreateTopic(args[0], &sarama.TopicDetail{
 			NumPartitions:     partitionsFlag,
 			ReplicationFactor: replicasFlag,
 			ConfigEntries: map[string]*string{
@@ -205,12 +195,9 @@ var deleteTopicCmd = &cobra.Command{
 	Short: "Delete a topic",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		admin, err := getClusterAdmin()
-		if err != nil {
-			panic(err)
-		}
+		admin := getClusterAdmin()
 
-		err = admin.DeleteTopic(args[0])
+		err := admin.DeleteTopic(args[0])
 		if err != nil {
 			fmt.Printf("Could not delete topic %v: %v\n", args[0], err.Error())
 		} else {

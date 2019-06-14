@@ -88,7 +88,7 @@ var configAddClusterCmd = &cobra.Command{
 		})
 		err := config.Write()
 		if err != nil {
-			panic(err)
+			errorExit("Unable to write config: %v\n", err)
 		}
 		fmt.Println("Added cluster.")
 	},

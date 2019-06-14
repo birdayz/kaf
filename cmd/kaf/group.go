@@ -54,14 +54,11 @@ var groupLsCmd = &cobra.Command{
 	Short: "List groups",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		admin, err := getClusterAdmin()
-		if err != nil {
-			panic(err)
-		}
+		admin := getClusterAdmin()
 
 		groups, err := admin.ListConsumerGroups()
 		if err != nil {
-			panic(err)
+			errorExit("Unable to list consumer groups: %v\n", err)
 		}
 
 		groupList := make([]string, 0, len(groups))
@@ -81,7 +78,7 @@ var groupLsCmd = &cobra.Command{
 
 		groupDescs, err := admin.DescribeConsumerGroups(groupList)
 		if err != nil {
-			panic(err)
+			errorExit("Unable to describe consumer groups: %v\n", err)
 		}
 
 		for _, detail := range groupDescs {
@@ -107,18 +104,15 @@ var groupDescribeCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO List: This API can be used to find the current groups managed by a broker. To get a list of all groups in the cluster, you must send ListGroup to all brokers.
 		// same goes probably for topics
-		admin, err := getClusterAdmin()
-		if err != nil {
-			panic(err)
-		}
+		admin := getClusterAdmin()
 
 		groups, err := admin.DescribeConsumerGroups([]string{args[0]})
 		if err != nil {
-			panic(err)
+			errorExit("Unable to describe consumer groups: %v\n", err)
 		}
 
 		if len(groups) == 0 {
-			panic("Did not receive expected describe consumergroup result")
+			errorExit("Did not receive expected describe consumergroup result")
 		}
 		group := groups[0]
 
@@ -247,10 +241,7 @@ var groupDescribeCmd = &cobra.Command{
 
 func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]int64) {
 	watermarks = make(map[int32]int64)
-	client, err := getClient()
-	if err != nil {
-		panic(err)
-	}
+	client := getClient()
 	leaders := make(map[*sarama.Broker][]int32)
 
 	for _, partition := range partitions {
@@ -275,7 +266,7 @@ func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]i
 		go func(leader *sarama.Broker, req *sarama.OffsetRequest) {
 			resp, err := leader.GetAvailableOffsets(req)
 			if err != nil {
-				panic(err)
+				errorExit("Unable to get available offsets: %v\n", err)
 			}
 
 			watermarksFromLeader := make(map[int32]int64)

@@ -85,7 +85,7 @@ func onInit() {
 	var err error
 	config, err = kaf.ReadConfig()
 	if err != nil && !os.IsNotExist(err) {
-		panic(err)
+		errorExit("Config %s does not exist", config)
 	}
 
 	cluster := config.ActiveCluster()
@@ -114,17 +114,34 @@ func onInit() {
 
 }
 
-func getClusterAdmin() (admin sarama.ClusterAdmin, err error) {
-	return sarama.NewClusterAdmin(currentCluster.Brokers, getConfig())
-}
-
-func getClient() (client sarama.Client, err error) {
-	return sarama.NewClient(currentCluster.Brokers, getConfig())
-}
-
-func getSchemaCache() (cache *avro.SchemaCache, err error) {
-	if currentCluster.SchemaRegistryURL != "" {
-		return avro.NewSchemaCache(currentCluster.SchemaRegistryURL)
+func getClusterAdmin() (admin sarama.ClusterAdmin) {
+	clusterAdmin, err := sarama.NewClusterAdmin(currentCluster.Brokers, getConfig())
+	if err != nil {
+		errorExit("Unable to get cluster admin: %v\n", err)
 	}
-	return nil, nil
+	return clusterAdmin
+}
+
+func getClient() (client sarama.Client) {
+	client, err := sarama.NewClient(currentCluster.Brokers, getConfig())
+	if err != nil {
+		errorExit("Unable to get client: %v\n", err)
+	}
+	return client
+}
+
+func getSchemaCache() (cache *avro.SchemaCache) {
+	if currentCluster.SchemaRegistryURL == "" {
+		return nil
+	}
+	cache, err := avro.NewSchemaCache(currentCluster.SchemaRegistryURL)
+	if err != nil {
+		errorExit("Unable to get schema cache :%v\n", err)
+	}
+	return cache
+}
+
+func errorExit(format string, a ...interface{}) {
+	fmt.Fprintf(os.Stderr, format, a...)
+	os.Exit(1)
 }

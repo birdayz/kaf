@@ -31,14 +31,11 @@ var nodeLsCommand = &cobra.Command{
 	Use:   "ls",
 	Short: "List nodes in a cluster",
 	Run: func(cmd *cobra.Command, args []string) {
-		admin, err := getClusterAdmin()
-		if err != nil {
-			panic(err)
-		}
+		admin := getClusterAdmin()
 
 		brokers, _, err := admin.DescribeCluster()
 		if err != nil {
-			panic(err)
+			errorExit("Unable to describe cluster: %v\n", err)
 		}
 
 		sort.Slice(brokers, func(i, j int) bool {
