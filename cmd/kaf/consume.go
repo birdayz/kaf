@@ -85,9 +85,14 @@ var consumeCmd = &cobra.Command{
 				if err != nil {
 					errorExit("Unable to get leader: %v\n", err)
 				}
-				offsets, err := ldr.GetAvailableOffsets(req)
-				if err != nil {
-					errorExit("Unable to get available offsets: %v\n", err)
+
+				var offsets *sarama.OffsetResponse
+				for {
+					var err error
+					offsets, err = ldr.GetAvailableOffsets(req)
+					if err == nil {
+						break
+					}
 				}
 				followOffset := offsets.GetBlock(topic, partition).Offset - 1
 
