@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 	"text/tabwriter"
+	"time"
 
 	"github.com/Shopify/sarama"
 	prettyjson "github.com/hokaccha/go-prettyjson"
@@ -34,6 +35,29 @@ func init() {
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
 	keyfmt.Indent = 0
 }
+
+func getAvailableOffsetsRetry(
+	ldr *sarama.Broker, req *sarama.OffsetRequest, d time.Duration,
+) (*sarama.OffsetResponse, error) {
+	var (
+		err     error
+		offsets *sarama.OffsetResponse
+	)
+
+	for {
+		select {
+		case <-time.After(d):
+			return nil, err
+		default:
+			offsets, err = ldr.GetAvailableOffsets(req)
+			if err == nil {
+				return offsets, err
+			}
+		}
+	}
+}
+
+const offsetsRetry = 500 * time.Millisecond
 
 var consumeCmd = &cobra.Command{
 	Use:   "consume",
@@ -86,13 +110,9 @@ var consumeCmd = &cobra.Command{
 					errorExit("Unable to get leader: %v\n", err)
 				}
 
-				var offsets *sarama.OffsetResponse
-				for {
-					var err error
-					offsets, err = ldr.GetAvailableOffsets(req)
-					if err == nil {
-						break
-					}
+				offsets, err := getAvailableOffsetsRetry(ldr, req, offsetsRetry)
+				if err != nil {
+					errorExit("Unable to get available offsets: %v\n", err)
 				}
 				followOffset := offsets.GetBlock(topic, partition).Offset - 1
 
