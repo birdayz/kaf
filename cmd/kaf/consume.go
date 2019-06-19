@@ -54,7 +54,6 @@ var consumeCmd = &cobra.Command{
 			// syntax.
 			offset = sarama.OffsetNewest
 		}
-
 		topic := args[0]
 		client := getClient()
 
@@ -124,29 +123,29 @@ var consumeCmd = &cobra.Command{
 						for _, hdr := range msg.Headers {
 							var hdrValue string
 							// Try to detect azure eventhub-specific encoding
-							switch hdr.Value[0] {
-							case 161:
-								hdrValue = string(hdr.Value[2 : 2+hdr.Value[1]])
-							case 131:
-								hdrValue = strconv.FormatUint(binary.BigEndian.Uint64(hdr.Value[1:9]), 10)
-							default:
-								hdrValue = string(hdr.Value)
+							if len(hdr.Value) > 0 {
+								switch hdr.Value[0] {
+								case 161:
+									hdrValue = string(hdr.Value[2 : 2+hdr.Value[1]])
+								case 131:
+									hdrValue = strconv.FormatUint(binary.BigEndian.Uint64(hdr.Value[1:9]), 10)
+								default:
+									hdrValue = string(hdr.Value)
+								}
 							}
 
 							fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", string(hdr.Key), hdrValue)
 
 						}
-						w.Flush()
-					}
 
-					if msg.Key != nil && len(msg.Key) > 0 && !raw {
-						key, err := avroDecode(msg.Key)
-						if err != nil {
-							fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+						if msg.Key != nil && len(msg.Key) > 0 {
+							key, err := avroDecode(msg.Key)
+							if err != nil {
+								fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+							}
+							fmt.Fprintf(w, "Key:\t%v\n", formatKey(key))
 						}
-
-						w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-						fmt.Fprintf(w, "Key:\t%v\nPartition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", formatKey(key), msg.Partition, msg.Offset, msg.Timestamp)
+						fmt.Fprintf(w, "Partition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", msg.Partition, msg.Offset, msg.Timestamp)
 						w.Flush()
 					}
 
