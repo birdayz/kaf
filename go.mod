@@ -22,7 +22,7 @@ require (
 	github.com/lunixbochs/vtclean v0.0.0-20180621232353-2d01aacdc34a // indirect
 	github.com/magiconair/properties v1.8.0
 	github.com/manifoldco/promptui v0.3.1
-	github.com/mattn/go-colorable v0.0.9 // indirect
+	github.com/mattn/go-colorable v0.0.9
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
