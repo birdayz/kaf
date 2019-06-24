@@ -12,7 +12,7 @@ import (
 	"github.com/Shopify/sarama"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
-
+	"github.com/mattn/go-colorable"
 	"github.com/infinimesh/kaf/avro"
 )
 
@@ -151,7 +151,8 @@ var consumeCmd = &cobra.Command{
 
 					mu.Lock()
 					stderr.WriteTo(os.Stderr)
-					fmt.Printf("%v\n", string(dataToDisplay))
+					colorable.NewColorableStdout().Write(dataToDisplay)
+					fmt.Print("\n")
 					mu.Unlock()
 				}
 				wg.Done()
