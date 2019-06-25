@@ -5,7 +5,7 @@ jobs:
       - image: circleci/golang:1.11
         environment:
           GO111MODULE: "on"
-    working_directory: /go/src/github.com/infinimesh/kaf
+    working_directory: /go/src/github.com/birdayz/kaf
     steps:
       - checkout
       - run: go mod verify

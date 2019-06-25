@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/infinimesh/kaf"
+	"github.com/birdayz/kaf"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )

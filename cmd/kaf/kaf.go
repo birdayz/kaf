@@ -12,8 +12,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 
-	"github.com/infinimesh/kaf"
-	"github.com/infinimesh/kaf/avro"
+	"github.com/birdayz/kaf"
+	"github.com/birdayz/kaf/avro"
 )
 
 var cfgFile string
@@ -109,7 +109,7 @@ func onInit() {
 	}
 
 	if verbose {
-		sarama.Logger = log.New(os.Stderr, "[sarama] ", log.Lshortfile | log.LstdFlags)
+		sarama.Logger = log.New(os.Stderr, "[sarama] ", log.Lshortfile|log.LstdFlags)
 	}
 
 }

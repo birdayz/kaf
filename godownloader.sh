@@ -356,7 +356,7 @@ End of functions from https://github.com/client9/shlib
 EOF
 
 PROJECT_NAME="kaf"
-OWNER=infinimesh
+OWNER=birdayz
 REPO="kaf"
 BINARY=kaf
 FORMAT=tar.gz

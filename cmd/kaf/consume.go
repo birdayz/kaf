@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
+	"github.com/birdayz/kaf/avro"
 	prettyjson "github.com/hokaccha/go-prettyjson"
+	colorable "github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
-	"github.com/mattn/go-colorable"
-	"github.com/infinimesh/kaf/avro"
 )
 
 var (

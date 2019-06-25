@@ -18,7 +18,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 
-	"github.com/infinimesh/kaf"
+	"github.com/birdayz/kaf"
 )
 
 func init() {
