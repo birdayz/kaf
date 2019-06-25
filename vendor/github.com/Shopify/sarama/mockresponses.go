@@ -2,6 +2,7 @@ package sarama
 
 import (
 	"fmt"
+	"strings"
 )
 
 // TestReporter has methods matching go's testing.T to avoid importing
@@ -177,7 +178,7 @@ func (mmr *MockMetadataResponse) For(reqBody versionedDecoder) encoder {
 
 	// Generate set of replicas
 	replicas := []int32{}
-
+	offlineReplicas := []int32{}
 	for _, brokerID := range mmr.brokers {
 		replicas = append(replicas, brokerID)
 	}
@@ -185,14 +186,14 @@ func (mmr *MockMetadataResponse) For(reqBody versionedDecoder) encoder {
 	if len(metadataRequest.Topics) == 0 {
 		for topic, partitions := range mmr.leaders {
 			for partition, brokerID := range partitions {
-				metadataResponse.AddTopicPartition(topic, partition, brokerID, replicas, replicas, ErrNoError)
+				metadataResponse.AddTopicPartition(topic, partition, brokerID, replicas, replicas, offlineReplicas, ErrNoError)
 			}
 		}
 		return metadataResponse
 	}
 	for _, topic := range metadataRequest.Topics {
 		for partition, brokerID := range mmr.leaders[topic] {
-			metadataResponse.AddTopicPartition(topic, partition, brokerID, replicas, replicas, ErrNoError)
+			metadataResponse.AddTopicPartition(topic, partition, brokerID, replicas, replicas, offlineReplicas, ErrNoError)
 		}
 	}
 	return metadataResponse
@@ -620,10 +621,20 @@ func NewMockCreateTopicsResponse(t TestReporter) *MockCreateTopicsResponse {
 
 func (mr *MockCreateTopicsResponse) For(reqBody versionedDecoder) encoder {
 	req := reqBody.(*CreateTopicsRequest)
-	res := &CreateTopicsResponse{}
+	res := &CreateTopicsResponse{
+		Version: req.Version,
+	}
 	res.TopicErrors = make(map[string]*TopicError)
 
-	for topic, _ := range req.TopicDetails {
+	for topic := range req.TopicDetails {
+		if res.Version >= 1 && strings.HasPrefix(topic, "_") {
+			msg := "insufficient permissions to create topic with reserved prefix"
+			res.TopicErrors[topic] = &TopicError{
+				Err:    ErrTopicAuthorizationFailed,
+				ErrMsg: &msg,
+			}
+			continue
+		}
 		res.TopicErrors[topic] = &TopicError{Err: ErrNoError}
 	}
 	return res
@@ -661,7 +672,15 @@ func (mr *MockCreatePartitionsResponse) For(reqBody versionedDecoder) encoder {
 	res := &CreatePartitionsResponse{}
 	res.TopicPartitionErrors = make(map[string]*TopicPartitionError)
 
-	for topic, _ := range req.TopicPartitions {
+	for topic := range req.TopicPartitions {
+		if strings.HasPrefix(topic, "_") {
+			msg := "insufficient permissions to create partition on topic with reserved prefix"
+			res.TopicPartitionErrors[topic] = &TopicPartitionError{
+				Err:    ErrTopicAuthorizationFailed,
+				ErrMsg: &msg,
+			}
+			continue
+		}
 		res.TopicPartitionErrors[topic] = &TopicPartitionError{Err: ErrNoError}
 	}
 	return res
@@ -682,7 +701,7 @@ func (mr *MockDeleteRecordsResponse) For(reqBody versionedDecoder) encoder {
 
 	for topic, deleteRecordRequestTopic := range req.Topics {
 		partitions := make(map[int32]*DeleteRecordsResponsePartition)
-		for partition, _ := range deleteRecordRequestTopic.PartitionOffsets {
+		for partition := range deleteRecordRequestTopic.PartitionOffsets {
 			partitions[partition] = &DeleteRecordsResponsePartition{Err: ErrNoError}
 		}
 		res.Topics[topic] = &DeleteRecordsResponseTopic{Partitions: partitions}

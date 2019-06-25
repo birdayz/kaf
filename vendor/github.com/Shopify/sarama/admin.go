@@ -20,7 +20,7 @@ type ClusterAdmin interface {
 	// List the topics available in the cluster with the default options.
 	ListTopics() (map[string]TopicDetail, error)
 
-	// Describe some topics in the cluster
+	// Describe some topics in the cluster.
 	DescribeTopics(topics []string) (metadata []*TopicMetadata, err error)
 
 	// Delete a topic. It may take several seconds after the DeleteTopic to returns success
@@ -78,13 +78,13 @@ type ClusterAdmin interface {
 	// List the consumer groups available in the cluster.
 	ListConsumerGroups() (map[string]string, error)
 
-	// Describe the given consumer group
+	// Describe the given consumer groups.
 	DescribeConsumerGroups(groups []string) ([]*GroupDescription, error)
 
 	// List the consumer group offsets available in the cluster.
 	ListConsumerGroupOffsets(group string, topicPartitions map[string][]int32) (*OffsetFetchResponse, error)
 
-	// Get information about the nodes in the cluster
+	// Get information about the nodes in the cluster.
 	DescribeCluster() (brokers []*Broker, controllerID int32, err error)
 
 	// Close shuts down the admin and closes underlying client.
@@ -131,7 +131,7 @@ func (ca *clusterAdmin) CreateTopic(topic string, detail *TopicDetail, validateO
 	}
 
 	if detail == nil {
-		return errors.New("You must specify topic details")
+		return errors.New("you must specify topic details")
 	}
 
 	topicDetails := make(map[string]*TopicDetail)
@@ -166,7 +166,7 @@ func (ca *clusterAdmin) CreateTopic(topic string, detail *TopicDetail, validateO
 	}
 
 	if topicErr.Err != ErrNoError {
-		return topicErr.Err
+		return topicErr
 	}
 
 	return nil
@@ -183,7 +183,9 @@ func (ca *clusterAdmin) DescribeTopics(topics []string) (metadata []*TopicMetada
 		AllowAutoTopicCreation: false,
 	}
 
-	if ca.conf.Version.IsAtLeast(V0_11_0_0) {
+	if ca.conf.Version.IsAtLeast(V1_0_0_0) {
+		request.Version = 5
+	} else if ca.conf.Version.IsAtLeast(V0_11_0_0) {
 		request.Version = 4
 	}
 
@@ -358,7 +360,7 @@ func (ca *clusterAdmin) CreatePartitions(topic string, count int32, assignment [
 	}
 
 	if topicErr.Err != ErrNoError {
-		return topicErr.Err
+		return topicErr
 	}
 
 	return nil

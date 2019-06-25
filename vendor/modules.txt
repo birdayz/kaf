@@ -1,11 +1,18 @@
-# github.com/DataDog/zstd v1.3.5
+# github.com/DataDog/zstd v1.3.6-0.20190409195224-796139022798
 github.com/DataDog/zstd
-# github.com/Landoop/schema-registry v0.0.0-20181115093143-9861c67a815b
+# github.com/Landoop/schema-registry v0.0.0-20190327143759-50a5701c1891
 github.com/Landoop/schema-registry
-# github.com/Shopify/sarama v1.20.2-0.20190215145417-6a7bac87a052
+# github.com/Shopify/sarama v1.22.1
 github.com/Shopify/sarama
+# github.com/alecthomas/gometalinter v2.0.11+incompatible
+github.com/alecthomas/gometalinter
+# github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf
+github.com/alecthomas/units
 # github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 github.com/chzyer/readline
+# github.com/client9/misspell v0.3.4
+github.com/client9/misspell/cmd/misspell
+github.com/client9/misspell
 # github.com/davecgh/go-spew v1.1.1
 github.com/davecgh/go-spew/spew
 # github.com/eapache/go-resiliency v1.1.0
@@ -16,8 +23,14 @@ github.com/eapache/go-xerial-snappy
 github.com/eapache/queue
 # github.com/fatih/color v1.7.0
 github.com/fatih/color
-# github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db
+# github.com/golang/lint v0.0.0-20181026193005-c67002cb31c3
+github.com/golang/lint/golint
+# github.com/golang/snappy v0.0.1
 github.com/golang/snappy
+# github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf
+github.com/google/shlex
+# github.com/gordonklaus/ineffassign v0.0.0-20180909121442-1003c8bd00dc
+github.com/gordonklaus/ineffassign
 # github.com/hokaccha/go-prettyjson v0.0.0-20180920040306-f579f869bbfe
 github.com/hokaccha/go-prettyjson
 # github.com/inconshreveable/mousetrap v1.0.0
@@ -29,28 +42,41 @@ github.com/juju/ansiterm/tabwriter
 github.com/linkedin/goavro
 # github.com/lunixbochs/vtclean v0.0.0-20180621232353-2d01aacdc34a
 github.com/lunixbochs/vtclean
-# github.com/magiconair/properties v1.8.0
+# github.com/magiconair/properties v1.8.1
 github.com/magiconair/properties
-# github.com/manifoldco/promptui v0.3.1
+# github.com/manifoldco/promptui v0.3.2
 github.com/manifoldco/promptui
 github.com/manifoldco/promptui/list
 github.com/manifoldco/promptui/screenbuf
-# github.com/mattn/go-colorable v0.0.9
+# github.com/mattn/go-colorable v0.1.2
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.4
+# github.com/mattn/go-isatty v0.0.8
 github.com/mattn/go-isatty
-# github.com/mitchellh/go-homedir v1.0.0
+# github.com/mitchellh/go-homedir v1.1.0
 github.com/mitchellh/go-homedir
-# github.com/pierrec/lz4 v2.0.5+incompatible
+# github.com/pierrec/lz4 v0.0.0-20190327172049-315a67e90e41
 github.com/pierrec/lz4
 github.com/pierrec/lz4/internal/xxh32
-# github.com/rcrowley/go-metrics v0.0.0-20180503174638-e2704e165165
+# github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 github.com/rcrowley/go-metrics
-# github.com/spf13/cobra v0.0.3
+# github.com/spf13/cobra v0.0.5
 github.com/spf13/cobra
-# github.com/spf13/pflag v1.0.2
+# github.com/spf13/pflag v1.0.3
 github.com/spf13/pflag
-# golang.org/x/sys v0.0.0-20181011152604-fa43e7bc11ba
+# github.com/tsenart/deadcode v0.0.0-20160724212837-210d2dc333e9
+github.com/tsenart/deadcode
+# golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3
+golang.org/x/lint
+# golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
+golang.org/x/net/proxy
+golang.org/x/net/internal/socks
+# golang.org/x/sys v0.0.0-20190403152447-81d4e9dc473e
 golang.org/x/sys/unix
-# gopkg.in/yaml.v2 v2.2.1
+# golang.org/x/tools v0.0.0-20181122213734-04b5d21e00f1
+golang.org/x/tools/go/ast/astutil
+golang.org/x/tools/go/gcexportdata
+golang.org/x/tools/go/internal/gcimporter
+# gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c
+gopkg.in/alecthomas/kingpin.v3-unstable
+# gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2

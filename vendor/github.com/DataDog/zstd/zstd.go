@@ -115,7 +115,7 @@ func Decompress(dst, src []byte) ([]byte, error) {
 		return dst[:written], nil
 	}
 
-	if dst == nil {
+	if len(dst) == 0 {
 		// Attempt to use zStd to determine decompressed size (may result in error or 0)
 		size := int(C.size_t(C.ZSTD_getDecompressedSize(unsafe.Pointer(&src[0]), C.size_t(len(src)))))
 

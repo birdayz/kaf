@@ -253,7 +253,7 @@ func (c *Client) do(method, path, contentType string, send []byte) (*http.Respon
 
 		if strings.Contains(respContentType, "text/html") {
 			// if the body is html, then don't read it, it doesn't contain the raw info we need.
-		} else if strings.Contains(respContentType, "application/json") {
+		} else if strings.Contains(respContentType, "json") {
 			// if it's json try to read it as confluent's specific error json.
 			var resErr ResourceError
 			c.readJSON(resp, &resErr)
@@ -449,6 +449,10 @@ type (
 		ID int `json:"id"`
 	}
 
+	isCompatibleJSON struct {
+		IsCompatible bool `json:"is_compatible"`
+	}
+
 	// Schema describes a schema, look `GetSchema` for more.
 	Schema struct {
 		// Schema is the Avro schema string.
@@ -621,4 +625,61 @@ func (c *Client) getConfigSubject(subject string) (Config, error) {
 // subject. When Config returned has "compatibilityLevel" empty, it's using global settings.
 func (c *Client) GetConfig(subject string) (Config, error) {
 	return c.getConfigSubject(subject)
+}
+
+// subject (string) – Name of the subject
+// version (versionId [string "latest" or 1,2^31-1]) – Version of the schema to be returned.
+// Valid values for versionId are between [1,2^31-1] or the string “latest”.
+// The string “latest” refers to the last registered schema under the specified subject.
+// Note that there may be a new latest schema that gets registered right after this request is served.
+//
+// It's not safe to use just an interface to the high-level API, therefore we split this method
+// to two, one which will retrieve the latest versioned schema and the other which will accept
+// the version as integer and it will retrieve by a specific version.
+//
+// See `IsSchemaCompatible` and `IsLatestSchemaCompatible` instead.
+func (c *Client) isSchemaCompatibleAtVersion(subject string, avroSchema string, versionID interface{}) (combatible bool, err error) {
+	if subject == "" {
+		err = errRequired("subject")
+		return
+	}
+	if avroSchema == "" {
+		err = errRequired("avroSchema")
+		return
+	}
+
+	if err = checkSchemaVersionID(versionID); err != nil {
+		return
+	}
+
+	schema := schemaOnlyJSON{
+		Schema: avroSchema,
+	}
+
+	send, err := json.Marshal(schema)
+	if err != nil {
+		return
+	}
+
+	// # Test input schema against a particular version of a subject’s schema for compatibility
+	// POST /compatibility/subjects/(string: subject)/versions/(versionId: "latest" | int)
+	path := fmt.Sprintf("compatibility/"+subjectPath+"/versions/%v", subject, versionID)
+	resp, err := c.do(http.MethodPost, path, contentTypeSchemaJSON, send)
+	if err != nil {
+		return
+	}
+
+	var res isCompatibleJSON
+	err = c.readJSON(resp, &res)
+	return res.IsCompatible, err
+}
+
+// IsSchemaCompatible tests compatibility with a specific version of a subject's schema.
+func (c *Client) IsSchemaCompatible(subject string, avroSchema string, versionID int) (bool, error) {
+	return c.isSchemaCompatibleAtVersion(subject, avroSchema, versionID)
+}
+
+// IsLatestSchemaCompatible tests compatibility with the latest version of a subject's schema.
+func (c *Client) IsLatestSchemaCompatible(subject string, avroSchema string) (bool, error) {
+	return c.isSchemaCompatibleAtVersion(subject, avroSchema, SchemaLatestVersion)
 }
