@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Shopify/sarama"
+	"github.com/birdayz/sarama"
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf"
@@ -20,7 +20,7 @@ var cfgFile string
 
 func getConfig() (saramaConfig *sarama.Config) {
 	saramaConfig = sarama.NewConfig()
-	saramaConfig.Version = sarama.V1_0_0_0
+	saramaConfig.Version = sarama.V1_1_0_0
 	saramaConfig.Producer.Return.Successes = true
 
 	cluster := currentCluster

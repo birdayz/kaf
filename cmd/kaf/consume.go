@@ -10,8 +10,8 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/avro"
+	"github.com/birdayz/sarama"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	colorable "github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"

@@ -15,7 +15,7 @@ import (
 
 	"sync"
 
-	"github.com/Shopify/sarama"
+	"github.com/birdayz/sarama"
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf"
@@ -26,6 +26,7 @@ func init() {
 	rootCmd.AddCommand(groupsCmd)
 	groupCmd.AddCommand(groupDescribeCmd)
 	groupCmd.AddCommand(groupLsCmd)
+	groupCmd.AddCommand(groupDeleteCmd)
 
 	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
@@ -47,6 +48,22 @@ var groupsCmd = &cobra.Command{
 	Use:   "groups",
 	Short: "List groups",
 	Run:   groupLsCmd.Run,
+}
+
+var groupDeleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Delete group",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		admin := getClusterAdmin()
+		err := admin.DeleteConsumerGroup(args[0])
+		if err != nil {
+			errorExit("Could not delete consumer group %v: %v\n", args[0], err.Error())
+		} else {
+			fmt.Printf("Deleted consumer group %v.\n", args[0])
+		}
+
+	},
 }
 
 var groupLsCmd = &cobra.Command{

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"text/tabwriter"
 
-	"github.com/Shopify/sarama"
+	"github.com/birdayz/sarama"
 	"github.com/spf13/cobra"
 )
 
