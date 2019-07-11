@@ -53,14 +53,18 @@ var groupsCmd = &cobra.Command{
 var groupDeleteCmd = &cobra.Command{
 	Use:   "delete",
 	Short: "Delete group",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-		err := admin.DeleteConsumerGroup(args[0])
+		var group string
+		if len(args) == 1 {
+			group = args[0]
+		}
+		err := admin.DeleteConsumerGroup(group)
 		if err != nil {
-			errorExit("Could not delete consumer group %v: %v\n", args[0], err.Error())
+			errorExit("Could not delete consumer group %v: %v\n", group, err.Error())
 		} else {
-			fmt.Printf("Deleted consumer group %v.\n", args[0])
+			fmt.Printf("Deleted consumer group %v.\n", group)
 		}
 
 	},
