@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/birdayz/sarama"
+	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf"

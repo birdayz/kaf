@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"runtime"
 	"unsafe"
 )
 
@@ -243,6 +244,8 @@ func (r *reader) Read(p []byte) (int, error) {
 			unsafe.Pointer(&src[0]),
 			&cSrcSize))
 
+		// Keep src here eventhough, we reuse later, the code might be deleted at some point
+		runtime.KeepAlive(src)
 		if err = getError(retCode); err != nil {
 			return 0, fmt.Errorf("failed to decompress: %s", err)
 		}
