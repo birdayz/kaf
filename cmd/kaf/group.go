@@ -133,30 +133,13 @@ var groupDescribeCmd = &cobra.Command{
 		}
 
 		if len(groups) == 0 {
-			errorExit("Did not receive expected describe consumergroup result")
+			errorExit("Did not receive expected describe consumergroup result\n")
 		}
 		group := groups[0]
 
 		if group.State == "Dead" {
 			fmt.Printf("Group %v not found.\n", args[0])
 			return
-		}
-
-		topicsDedup := make(map[string]interface{}, 0)
-		for _, member := range group.Members {
-			assignment, err := member.GetMemberAssignment()
-			if err != nil {
-				continue
-			}
-
-			for topic := range assignment.Topics {
-				topicsDedup[topic] = struct{}{}
-			}
-		}
-
-		topics := make([]string, 0, len(topicsDedup))
-		for topic := range topicsDedup {
-			topics = append(topics, topic)
 		}
 
 		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
@@ -170,39 +153,30 @@ var groupDescribeCmd = &cobra.Command{
 		w.Flush()
 		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
-		if len(topics) > 0 {
-			topicMeta, _ := admin.DescribeTopics(topics)
+		offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], nil)
+		if err != nil {
+			errorExit("Failed to fetch group offsets: %v\n", err)
+		}
 
-			topicPartitions := make(map[string][]int32)
-			for _, topic := range topicMeta {
-				topicPartitions[topic.Name] = make([]int32, 0, len(topic.Partitions))
-				for _, partition := range topic.Partitions {
-					topicPartitions[topic.Name] = append(topicPartitions[topic.Name], partition.ID)
-				}
-				sort.Slice(topicPartitions[topic.Name], func(i, j int) bool { return topicPartitions[topic.Name][i] < topicPartitions[topic.Name][j] })
+		for topic, partitions := range offsetAndMetadata.Blocks {
+			fmt.Fprintf(w, "\t%v:\n", topic)
+			fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tLag\t\n")
+			fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---\t\n")
+
+			var p []int32
+
+			for partition, _ := range partitions {
+				p = append(p, partition)
 			}
 
-			offsetAndMetadata, _ := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
-			for topic, partitions := range topicPartitions {
-				fmt.Fprintf(w, "\t%v:\n", topic)
-				fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tLag\t\n")
-				fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---\t\n")
+			sort.Slice(p, func(i, j int) bool {
+				return p[i] < p[j]
+			})
 
-				existingOffsets := make(map[int32]int64)
-				for partition, groupOffset := range offsetAndMetadata.Blocks[topic] {
-					existingOffsets[partition] = groupOffset.Offset
-				}
-				wms := getHighWatermarks(topic, partitions)
+			wms := getHighWatermarks(topic, p)
 
-				for _, partition := range partitions {
-					wm := wms[partition]
-					var offset int64
-					if blockOff := offsetAndMetadata.GetBlock(topic, partition).Offset; blockOff != -1 {
-						offset = blockOff
-					}
-					fmt.Fprintf(w, "\t\t%v\t%v\t%v\t%v\t\n", partition, offset, wm, (wm - offset))
-				}
-
+			for _, partition := range p {
+				fmt.Fprintf(w, "\t\t%v\t%v\t%v\t%v\t\n", partition, partitions[partition].Offset, wms[partition], (wms[partition] - partitions[partition].Offset))
 			}
 
 		}
