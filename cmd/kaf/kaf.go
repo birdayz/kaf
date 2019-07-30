@@ -29,6 +29,41 @@ func getConfig() (saramaConfig *sarama.Config) {
 		saramaConfig.Net.SASL.User = cluster.SASL.Username
 		saramaConfig.Net.SASL.Password = cluster.SASL.Password
 	}
+	if cluster.TLS != nil && cluster.SecurityProtocol != "SASL_SSL" {
+		saramaConfig.Net.TLS.Enable = true
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: cluster.TLS.Insecure,
+		}
+
+		caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		caCertPool := x509.NewCertPool()
+		caCertPool.AppendCertsFromPEM(caCert)
+		tlsConfig.RootCAs = caCertPool
+
+		clientCert, err := ioutil.ReadFile(cluster.TLS.Clientfile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		clientKey, err := ioutil.ReadFile(cluster.TLS.Clientkeyfile)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+		if err != nil {
+			log.Fatal(err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+
+		tlsConfig.BuildNameToCertificate()
+		saramaConfig.Net.TLS.Config = tlsConfig
+	}
 	if cluster.SecurityProtocol == "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
 		if cluster.TLS != nil {
