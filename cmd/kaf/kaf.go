@@ -37,8 +37,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 
 		caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			errorExit("Unable to read Cafile :%v\n", err)
 		}
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caCert)
@@ -46,18 +45,16 @@ func getConfig() (saramaConfig *sarama.Config) {
 
 		clientCert, err := ioutil.ReadFile(cluster.TLS.Clientfile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			errorExit("Unable to read Clientfile :%v\n", err)
 		}
 		clientKey, err := ioutil.ReadFile(cluster.TLS.Clientkeyfile)
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			errorExit("Unable to read Clientkeyfile :%v\n", err)
 		}
 
 		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 		if err != nil {
-			log.Fatal(err)
+			errorExit("Unable to creatre KeyPair: %v\n", err)
 		}
 		tlsConfig.Certificates = []tls.Certificate{cert}
 
