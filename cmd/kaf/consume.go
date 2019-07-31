@@ -34,8 +34,8 @@ func init() {
 	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest.")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON")
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition. Overrides --offset flag")
-	consumeCmd.Flags().StringArrayVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
-	consumeCmd.Flags().StringArrayVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
+	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
+	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 
 	keyfmt = prettyjson.NewFormatter()
@@ -237,7 +237,7 @@ func protoDecode(b []byte, _type string) ([]byte, error) {
 
 	dynamicMessage := reg.MessageForType(_type)
 
-	fmt.Println(dynamicMessage == nil)
+	dynamicMessage.Unmarshal(b)
 
 	var m jsonpb.Marshaler
 	var w bytes.Buffer
