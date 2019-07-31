@@ -24,6 +24,7 @@ func init() {
 	topicCmd.AddCommand(deleteTopicCmd)
 	topicCmd.AddCommand(lsTopicsCmd)
 	topicCmd.AddCommand(describeTopicCmd)
+	topicCmd.AddCommand(addConfigCmd)
 
 	createTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(1), "Number of partitions")
 	createTopicCmd.Flags().Int16VarP(&replicasFlag, "replicas", "r", int16(1), "Number of replicas")
@@ -186,6 +187,28 @@ var createTopicCmd = &cobra.Command{
 			fmt.Printf("Could not create topic %v: %v\n", args[0], err.Error())
 		} else {
 			fmt.Printf("Created topic %v.\n", args[0])
+		}
+	},
+}
+
+var addConfigCmd = &cobra.Command{
+	Use:   "add-config TOPIC KEY VALUE",
+	Short: "Add config key/value pair to topic",
+	Args:  cobra.ExactArgs(3), // TODO how to unset ? support empty VALUE ?
+	Run: func(cmd *cobra.Command, args []string) {
+		admin := getClusterAdmin()
+
+		topic := args[0]
+		key := args[1]
+		value := args[2]
+
+		err := admin.AlterConfig(sarama.TopicResource, topic, map[string]*string{
+			key: &value,
+		}, false)
+		if err != nil {
+			errorExit("failed to update topic config: %v", err)
+		} else {
+			fmt.Printf("Added config %v=%v to topic %v.\n", key, value, topic)
 		}
 	},
 }

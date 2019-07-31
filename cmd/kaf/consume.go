@@ -12,6 +12,8 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/avro"
+	"github.com/birdayz/kaf/pkg/proto"
+	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	colorable "github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
@@ -23,6 +25,8 @@ var (
 	follow      bool
 	schemaCache *avro.SchemaCache
 	keyfmt      *prettyjson.Formatter
+
+	protoType string
 )
 
 func init() {
@@ -30,6 +34,9 @@ func init() {
 	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest.")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON")
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition. Overrides --offset flag")
+	consumeCmd.Flags().StringArrayVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
+	consumeCmd.Flags().StringArrayVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
+	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
@@ -57,14 +64,16 @@ func getAvailableOffsetsRetry(
 	}
 }
 
-const offsetsRetry = 500 * time.Millisecond
+const (
+	offsetsRetry       = 500 * time.Millisecond
+	configProtobufType = "protobuf.type"
+)
 
 var consumeCmd = &cobra.Command{
 	Use:   "consume",
 	Short: "Consume messages",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-
 		var offset int64
 		switch offsetFlag {
 		case "oldest":
@@ -80,6 +89,27 @@ var consumeCmd = &cobra.Command{
 		}
 		topic := args[0]
 		client := getClient()
+
+		// admin := getClusterAdmin()
+
+		// Fetch topic config to find out if we have some en/decoding settings
+		// configEntries, err := admin.DescribeConfig(sarama.ConfigResource{
+		// 	Type:        sarama.TopicResource,
+		// 	Name:        topic,
+		// 	ConfigNames: []string{configProtobufType},
+		// })
+
+		// for _, entry := range configEntries {
+		// 	if entry.Name == configProtobufType {
+		// 		protobufType = entry.Name
+		// 		fmt.Printf("Detected protobuf.type=%v\n", protobufType)
+		// 	}
+		// }
+
+		// if topic == "public.device.last-contact" {
+		// 	fmt.Println("found type")
+		// 	protobufType = "eon.iotcore.devicetwin.kafka.LastContact"
+		// }
 
 		consumer, err := sarama.NewConsumerFromClient(client)
 		if err != nil {
@@ -128,9 +158,18 @@ var consumeCmd = &cobra.Command{
 				for msg := range pc.Messages() {
 					var stderr bytes.Buffer
 
-					dataToDisplay, err := avroDecode(msg.Value)
-					if err != nil {
-						fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+					// TODO make this nicer
+					var dataToDisplay []byte
+					if protoType != "" {
+						dataToDisplay, err = protoDecode(msg.Value, protoType)
+						if err != nil {
+							fmt.Fprintf(&stderr, "failed to decode proto. falling back to binary outputla. Error: %v", err)
+						}
+					} else {
+						dataToDisplay, err = avroDecode(msg.Value)
+						if err != nil {
+							fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+						}
 					}
 
 					if !raw {
@@ -164,6 +203,7 @@ var consumeCmd = &cobra.Command{
 						}
 
 						if msg.Key != nil && len(msg.Key) > 0 {
+
 							key, err := avroDecode(msg.Key)
 							if err != nil {
 								fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
@@ -186,6 +226,28 @@ var consumeCmd = &cobra.Command{
 		wg.Wait()
 
 	},
+}
+
+// proto to JSON
+func protoDecode(b []byte, _type string) ([]byte, error) {
+	reg, err := proto.NewDescriptorRegistry(protoFiles, protoExclude)
+	if err != nil {
+		return nil, err
+	}
+
+	dynamicMessage := reg.MessageForType(_type)
+
+	fmt.Println(dynamicMessage == nil)
+
+	var m jsonpb.Marshaler
+	var w bytes.Buffer
+
+	err = m.Marshal(&w, dynamicMessage)
+	if err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
+
 }
 
 func avroDecode(b []byte) ([]byte, error) {

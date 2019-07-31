@@ -9,8 +9,10 @@ require (
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
+	github.com/golang/protobuf v1.3.1
 	github.com/hokaccha/go-prettyjson v0.0.0-20180920040306-f579f869bbfe
 	github.com/jcmturner/gofork v1.0.0 // indirect
+	github.com/jhump/protoreflect v1.4.4
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/magiconair/properties v1.8.1
 	github.com/manifoldco/promptui v0.3.2

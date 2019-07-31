@@ -69,9 +69,13 @@ func main() {
 var config kaf.Config
 var currentCluster *kaf.Cluster
 
-var brokersFlag []string
-var schemaRegistryURL string
-var verbose bool
+var (
+	brokersFlag       []string
+	schemaRegistryURL string
+	protoFiles        []string
+	protoExclude      []string
+	verbose           bool
+)
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
@@ -111,7 +115,6 @@ func onInit() {
 	if verbose {
 		sarama.Logger = log.New(os.Stderr, "[sarama] ", log.Lshortfile|log.LstdFlags)
 	}
-
 }
 
 func getClusterAdmin() (admin sarama.ClusterAdmin) {
@@ -119,6 +122,7 @@ func getClusterAdmin() (admin sarama.ClusterAdmin) {
 	if err != nil {
 		errorExit("Unable to get cluster admin: %v\n", err)
 	}
+
 	return clusterAdmin
 }
 
