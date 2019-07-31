@@ -26,7 +26,6 @@ func (s *SubscriptionInfo) Decode(pd PacketDecoder) (err error) {
 		return err
 	}
 
-	s.PrevTasks = make([]TaskID, 0, int(numPrevs))
 	for i := 0; i < int(numPrevs); i++ {
 		t := TaskID{}
 
@@ -48,7 +47,6 @@ func (s *SubscriptionInfo) Decode(pd PacketDecoder) (err error) {
 		return err
 	}
 
-	s.StandbyTasks = make([]TaskID, 0, int(numStandby))
 	for i := 0; i < int(numStandby); i++ {
 		t := TaskID{}
 
