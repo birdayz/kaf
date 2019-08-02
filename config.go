@@ -16,8 +16,10 @@ type SASL struct {
 }
 
 type TLS struct {
-	Cafile   string
-	Insecure bool
+	Cafile        string
+	Clientfile    string
+	Clientkeyfile string
+	Insecure      bool
 }
 
 type Cluster struct {
