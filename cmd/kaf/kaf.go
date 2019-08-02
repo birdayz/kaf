@@ -35,8 +35,11 @@ func getConfig() (saramaConfig *sarama.Config) {
 			InsecureSkipVerify: cluster.TLS.Insecure,
 		}
 
-		caCert, _ := ioutil.ReadFile(cluster.TLS.Cafile)
-		if caCert != nil {
+		if cluster.TLS.Cafile != "" {
+			caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
+			if err != nil {
+				errorExit("Unable to read Cafile :%v\n", err)
+			}
 			caCertPool := x509.NewCertPool()
 			caCertPool.AppendCertsFromPEM(caCert)
 			tlsConfig.RootCAs = caCertPool
