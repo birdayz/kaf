@@ -172,11 +172,12 @@ var createTopicCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
+		topicName := args[0]
 		compact := "delete"
 		if compactFlag {
 			compact = "compact"
 		}
-		err := admin.CreateTopic(args[0], &sarama.TopicDetail{
+		err := admin.CreateTopic(topicName, &sarama.TopicDetail{
 			NumPartitions:     partitionsFlag,
 			ReplicationFactor: replicasFlag,
 			ConfigEntries: map[string]*string{
@@ -184,9 +185,15 @@ var createTopicCmd = &cobra.Command{
 			},
 		}, false)
 		if err != nil {
-			fmt.Printf("Could not create topic %v: %v\n", args[0], err.Error())
+			fmt.Printf("Could not create topic %v: %v\n", topicName, err.Error())
 		} else {
-			fmt.Printf("Created topic %v.\n", args[0])
+			w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+			fmt.Printf("\xE2\x9C\x85 Created topic!\n")
+			fmt.Fprintln(w, "\tTopic Name:\t", topicName)
+			fmt.Fprintln(w, "\tPartitions:\t", partitionsFlag)
+			fmt.Fprintln(w, "\tReplication Factor:\t", replicasFlag)
+			fmt.Fprintln(w, "\tCleanup Policy:\t", compact)
+			w.Flush()
 		}
 	},
 }
@@ -220,11 +227,12 @@ var deleteTopicCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		err := admin.DeleteTopic(args[0])
+		topicName := args[0]
+		err := admin.DeleteTopic(topicName)
 		if err != nil {
-			fmt.Printf("Could not delete topic %v: %v\n", args[0], err.Error())
+			fmt.Printf("Could not delete topic %v: %v\n", topicName, err.Error())
 		} else {
-			fmt.Printf("Deleted topic %v.\n", args[0])
+			fmt.Printf("\xE2\x9C\x85 Deleted topic %v!\n", topicName)
 		}
 	},
 }
