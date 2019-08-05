@@ -236,6 +236,9 @@ func protoDecode(b []byte, _type string) ([]byte, error) {
 	}
 
 	dynamicMessage := reg.MessageForType(_type)
+	if dynamicMessage == nil {
+		return b, nil
+	}
 
 	dynamicMessage.Unmarshal(b)
 
