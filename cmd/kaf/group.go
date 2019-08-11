@@ -160,8 +160,8 @@ var groupDescribeCmd = &cobra.Command{
 
 		for topic, partitions := range offsetAndMetadata.Blocks {
 			fmt.Fprintf(w, "\t%v:\n", topic)
-			fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tLag\t\n")
-			fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---\t\n")
+			fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tLag\tMetadata\t\n")
+			fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---\t--------\n")
 
 			var p []int32
 
