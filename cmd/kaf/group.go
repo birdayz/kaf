@@ -176,7 +176,7 @@ var groupDescribeCmd = &cobra.Command{
 			wms := getHighWatermarks(topic, p)
 
 			for _, partition := range p {
-				fmt.Fprintf(w, "\t\t%v\t%v\t%v\t%v\t\n", partition, partitions[partition].Offset, wms[partition], (wms[partition] - partitions[partition].Offset))
+				fmt.Fprintf(w, "\t\t%v\t%v\t%v\t%v\t%v\n", partition, partitions[partition].Offset, wms[partition], (wms[partition] - partitions[partition].Offset), partitions[partition].Metadata)
 			}
 
 		}
