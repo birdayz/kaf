@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -27,6 +28,7 @@ func init() {
 	groupCmd.AddCommand(groupDescribeCmd)
 	groupCmd.AddCommand(groupLsCmd)
 	groupCmd.AddCommand(groupDeleteCmd)
+	groupCmd.AddCommand(createGroupCommitOffsetCmd())
 
 	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
@@ -68,6 +70,79 @@ var groupDeleteCmd = &cobra.Command{
 		}
 
 	},
+}
+
+type resetHandler struct {
+	topic     string
+	partition int32
+	offset    int64
+	client    sarama.Client
+	group     string
+}
+
+func (r *resetHandler) Setup(s sarama.ConsumerGroupSession) error {
+	req := &sarama.OffsetCommitRequest{
+		Version:                 1,
+		ConsumerGroup:           r.group,
+		ConsumerGroupGeneration: s.GenerationID(),
+		ConsumerID:              s.MemberID(),
+	}
+	req.AddBlock(r.topic, r.partition, r.offset, 0, "reseted by kaf")
+	br, err := r.client.Coordinator(r.group)
+	if err != nil {
+		return err
+	}
+	br.Open(getConfig())
+	_, err = br.CommitOffset(req)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *resetHandler) Cleanup(s sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (r *resetHandler) ConsumeClaim(s sarama.ConsumerGroupSession, c sarama.ConsumerGroupClaim) error {
+	return nil
+}
+
+func createGroupCommitOffsetCmd() *cobra.Command {
+	var topic string
+	var offset int64
+	var partition int32
+	res := &cobra.Command{
+		Use: "commit",
+		Run: func(cmd *cobra.Command, args []string) {
+			client := getClient()
+
+			group := args[0]
+
+			cg, err := sarama.NewConsumerGroupFromClient(group, client)
+			if err != nil {
+				errorExit("Failed to create consumer group: %v", err)
+			}
+
+			h := resetHandler{
+				topic:     topic,
+				partition: partition,
+				offset:    offset,
+				client:    getClient(),
+				group:     group,
+			}
+			err = cg.Consume(context.Background(), []string{topic}, &h)
+			if err != nil {
+				errorExit("Failed to set offset: %v\n", err)
+			}
+
+			fmt.Println("Set offset to XY.")
+		},
+	}
+	res.Flags().StringVarP(&topic, "topic", "t", "", "topic")
+	res.Flags().Int64VarP(&offset, "offset", "o", 0, "offset to commit")
+	res.Flags().Int32VarP(&partition, "partition", "p", 0, "partition")
+	return res
 }
 
 var groupLsCmd = &cobra.Command{
