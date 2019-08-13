@@ -188,7 +188,7 @@ var createTopicCmd = &cobra.Command{
 			fmt.Printf("Could not create topic %v: %v\n", topicName, err.Error())
 		} else {
 			w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-			fmt.Printf("\xE2\x9C\x85 Created topic!\n")
+			fmt.Fprintf(w, "\xE2\x9C\x85 Created topic!\n")
 			fmt.Fprintln(w, "\tTopic Name:\t", topicName)
 			fmt.Fprintln(w, "\tPartitions:\t", partitionsFlag)
 			fmt.Fprintln(w, "\tReplication Factor:\t", replicasFlag)
