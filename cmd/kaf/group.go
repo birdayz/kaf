@@ -1,11 +1,11 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
 	"sort"
+	"time"
 	"unicode"
 
 	"text/tabwriter"
@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"github.com/Shopify/sarama"
+	"github.com/avast/retry-go"
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf"
@@ -116,27 +117,97 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 		Use: "commit",
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getClient()
+			config := getConfig()
+			admin := getClusterAdmin()
 
 			group := args[0]
 
-			cg, err := sarama.NewConsumerGroupFromClient(group, client)
+			var memberID string
+
+			var b *sarama.Broker
+
+			err := retry.Do(func() error {
+				de, err := admin.DescribeConsumerGroups([]string{group})
+				if err != nil {
+					errorExit("Failed to fetch consumer group details: %v", err)
+				}
+
+				rr := &sarama.JoinGroupRequest{
+					GroupId:        group,
+					MemberId:       "",
+					SessionTimeout: int32(time.Second * 20 / time.Millisecond),
+					ProtocolType:   de[0].ProtocolType,
+				}
+
+				desc := de[0]
+
+				var protocol string
+
+				switch desc.State {
+				case "Stable":
+					protocol = desc.Protocol
+				case "Empty":
+					protocol = "range"
+				default:
+					return fmt.Errorf("Can't join group while it is in state %v", desc.State)
+				}
+
+				rr.AddGroupProtocol(protocol, []byte{})
+
+				b, err = client.Coordinator(group)
+				if err != nil {
+					return retry.Unrecoverable(err)
+				}
+				_ = b.Open(config)
+
+				resp, err := b.JoinGroup(rr)
+				if err != nil {
+					return fmt.Errorf("Failed to join group: %v", err)
+				}
+
+				if resp.Err != sarama.ErrNoError {
+					return fmt.Errorf("Failed to join group: %v", resp.Err)
+				}
+
+				generationID := resp.GenerationId
+				memberID = resp.MemberId
+
+				commit := &sarama.OffsetCommitRequest{
+					Version:                 1,
+					ConsumerGroup:           group,
+					ConsumerGroupGeneration: generationID,
+					ConsumerID:              memberID,
+				}
+				commit.AddBlock(topic, partition, offset, 0, "reset by kaf")
+
+				commitResp, err := b.CommitOffset(commit)
+				if err != nil {
+					return retry.Unrecoverable(err)
+				}
+
+				for _, partitionErrors := range commitResp.Errors {
+					for _, _error := range partitionErrors {
+						if _error == sarama.ErrUnknownMemberId {
+							return retry.Unrecoverable(_error)
+						}
+					}
+				}
+
+				return nil
+
+			},
+				retry.Attempts(10),
+				retry.OnRetry(func(n uint, err error) {
+					fmt.Printf("Failed to reset offset: %v ...retrying\n", err)
+				}),
+			)
 			if err != nil {
-				errorExit("Failed to create consumer group: %v", err)
+				errorExit("Failed to set offset: %v", err)
 			}
 
-			h := resetHandler{
-				topic:     topic,
-				partition: partition,
-				offset:    offset,
-				client:    getClient(),
-				group:     group,
-			}
-			err = cg.Consume(context.Background(), []string{topic}, &h)
-			if err != nil {
-				errorExit("Failed to set offset: %v\n", err)
-			}
+			b.LeaveGroup(&sarama.LeaveGroupRequest{GroupId: group, MemberId: memberID})
 
-			fmt.Println("Set offset to XY.")
+			fmt.Printf("Set offset to %v.", offset)
 		},
 	}
 	res.Flags().StringVarP(&topic, "topic", "t", "", "topic")

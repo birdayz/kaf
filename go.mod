@@ -7,6 +7,7 @@ require (
 	github.com/Landoop/schema-registry v0.0.0-20190327143759-50a5701c1891
 	github.com/Shopify/sarama v1.23.0
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf // indirect
+	github.com/avast/retry-go v2.4.1+incompatible
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/golang/protobuf v1.3.1
