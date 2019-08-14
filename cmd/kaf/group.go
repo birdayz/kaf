@@ -148,6 +148,8 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 					protocol = desc.Protocol
 				case "Empty":
 					protocol = "range"
+				case "Dead":
+					return retry.Unrecoverable(errors.New("Group not found"))
 				default:
 					return fmt.Errorf("Can't join group while it is in state %v", desc.State)
 				}
@@ -197,8 +199,8 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 			},
 				retry.Attempts(10),
+				retry.LastErrorOnly(true),
 				retry.OnRetry(func(n uint, err error) {
-					fmt.Printf("Failed to reset offset: %v ...retrying\n", err)
 				}),
 			)
 			if err != nil {
