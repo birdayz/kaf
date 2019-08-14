@@ -27,6 +27,8 @@ var (
 	keyfmt      *prettyjson.Formatter
 
 	protoType string
+
+	reg *proto.DescriptorRegistry
 )
 
 func init() {
@@ -41,6 +43,7 @@ func init() {
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
 	keyfmt.Indent = 0
+
 }
 
 func getAvailableOffsetsRetry(
@@ -70,9 +73,10 @@ const (
 )
 
 var consumeCmd = &cobra.Command{
-	Use:   "consume",
-	Short: "Consume messages",
-	Args:  cobra.ExactArgs(1),
+	Use:    "consume",
+	Short:  "Consume messages",
+	Args:   cobra.ExactArgs(1),
+	PreRun: setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
 		var offset int64
 		switch offsetFlag {
@@ -140,7 +144,7 @@ var consumeCmd = &cobra.Command{
 					// TODO make this nicer
 					var dataToDisplay []byte
 					if protoType != "" {
-						dataToDisplay, err = protoDecode(msg.Value, protoType)
+						dataToDisplay, err = protoDecode(reg, msg.Value, protoType)
 						if err != nil {
 							fmt.Fprintf(&stderr, "failed to decode proto. falling back to binary outputla. Error: %v", err)
 						}
@@ -208,12 +212,7 @@ var consumeCmd = &cobra.Command{
 }
 
 // proto to JSON
-func protoDecode(b []byte, _type string) ([]byte, error) {
-	reg, err := proto.NewDescriptorRegistry(protoFiles, protoExclude)
-	if err != nil {
-		return nil, err
-	}
-
+func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte, error) {
 	dynamicMessage := reg.MessageForType(_type)
 	if dynamicMessage == nil {
 		return b, nil
@@ -224,7 +223,7 @@ func protoDecode(b []byte, _type string) ([]byte, error) {
 	var m jsonpb.Marshaler
 	var w bytes.Buffer
 
-	err = m.Marshal(&w, dynamicMessage)
+	err := m.Marshal(&w, dynamicMessage)
 	if err != nil {
 		return nil, err
 	}

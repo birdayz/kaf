@@ -14,6 +14,7 @@ import (
 
 	"github.com/birdayz/kaf"
 	"github.com/birdayz/kaf/avro"
+	"github.com/birdayz/kaf/pkg/proto"
 )
 
 var cfgFile string
@@ -117,6 +118,16 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&schemaRegistryURL, "schema-registry", "", "URL to a Confluent schema registry. Used for attempting to decode Avro-encoded messages")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Whether to turn on sarama logging")
 	cobra.OnInitialize(onInit)
+}
+
+var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
+	if protoType != "" {
+		r, err := proto.NewDescriptorRegistry(protoFiles, protoExclude)
+		if err != nil {
+			errorExit("Failed to load protobuf files: %v\n", err)
+		}
+		reg = r
+	}
 }
 
 func onInit() {
