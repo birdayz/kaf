@@ -90,27 +90,6 @@ var consumeCmd = &cobra.Command{
 		topic := args[0]
 		client := getClient()
 
-		// admin := getClusterAdmin()
-
-		// Fetch topic config to find out if we have some en/decoding settings
-		// configEntries, err := admin.DescribeConfig(sarama.ConfigResource{
-		// 	Type:        sarama.TopicResource,
-		// 	Name:        topic,
-		// 	ConfigNames: []string{configProtobufType},
-		// })
-
-		// for _, entry := range configEntries {
-		// 	if entry.Name == configProtobufType {
-		// 		protobufType = entry.Name
-		// 		fmt.Printf("Detected protobuf.type=%v\n", protobufType)
-		// 	}
-		// }
-
-		// if topic == "public.device.last-contact" {
-		// 	fmt.Println("found type")
-		// 	protobufType = "eon.iotcore.devicetwin.kafka.LastContact"
-		// }
-
 		consumer, err := sarama.NewConsumerFromClient(client)
 		if err != nil {
 			errorExit("Unable to create consumer from client: %v\n", err)
