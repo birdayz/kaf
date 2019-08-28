@@ -85,6 +85,13 @@ func getConfig() (saramaConfig *sarama.Config) {
 		} else {
 			saramaConfig.Net.TLS.Config = &tls.Config{InsecureSkipVerify: false}
 		}
+		if cluster.SASL.Mechanism == "SCRAM-SHA-512" {
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeSCRAMSHA512)
+		} else if cluster.SASL.Mechanism == "SCRAM-SHA-256" {
+			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeSCRAMSHA256)
+		}
 	}
 	return saramaConfig
 }
