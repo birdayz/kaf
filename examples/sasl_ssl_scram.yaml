@@ -1,0 +1,11 @@
+clusters:
+  - name: test
+    brokers:
+      - localhost:9092
+    SASL:
+      mechanism: SCRAM-SHA-512
+      username: user
+      password: pass
+    TLS:
+      cafile: /path/ca.pem
+    security-protocol: SASL_SSL
