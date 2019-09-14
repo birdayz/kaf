@@ -323,10 +323,17 @@ var groupDescribeCmd = &cobra.Command{
 
 			wms := getHighWatermarks(topic, p)
 
+			lagSum := 0
+			offsetSum := 0
 			for _, partition := range p {
+				lag := (wms[partition] - partitions[partition].Offset)
+				lagSum += int(lag)
+				offset := partitions[partition].Offset
+				offsetSum += int(offset)
 				fmt.Fprintf(w, "\t\t%v\t%v\t%v\t%v\t%v\n", partition, partitions[partition].Offset, wms[partition], (wms[partition] - partitions[partition].Offset), partitions[partition].Metadata)
 			}
 
+			fmt.Fprintf(w, "\t\tTotal\t%d\t\t%d\t\n", offsetSum, lagSum)
 		}
 
 		fmt.Fprintf(w, "Members:\t")
