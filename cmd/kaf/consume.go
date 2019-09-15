@@ -4,16 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math"
-	"os"
-	"sort"
-	"strconv"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"text/tabwriter"
-	"time"
-
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/avro"
 	"github.com/birdayz/kaf/pkg/proto"
@@ -21,16 +11,27 @@ import (
 	"github.com/hokaccha/go-prettyjson"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"text/tabwriter"
 )
 
 var (
 	partitionsWhitelistFlag []int
 	offsetFlags             []string
-	countFlags              []int
+	countFlag               int
+	countsFlags             []int
 	endFlag                 bool
 	raw                     bool
 	followFlag              bool
 	tailFlag                int
+	skipFlag                int
+	tailsFlags              []int
+	skipsFlags              []int
 	schemaCache             *avro.SchemaCache
 	keyfmt                  *prettyjson.Formatter
 
@@ -42,19 +43,23 @@ var (
 func init() {
 	rootCmd.AddCommand(consumeCmd)
 	consumeCmd.Flags().StringSliceVarP(&offsetFlags, "offset", "o", []string{},
-		`Offset to start consuming. Pass a single value to apply to all partitions; pass a comma-delimited list to apply to specific partitions.
+		`Offset to start consuming. Takes a single or partitioned value.
 Possible values: oldest, newest, -X, +X, X. (X is a number)
-oldest: Start reading at the oldest offset. This is the default.
+oldest: Start reading at the oldest offset. This is the default if skip/take are undefined.
 newest: Start reading at the newest offset.
-X: Start reading at offset X.
--X: Start reading X before newest offset.
-+X: Start reading X after oldest offset.`)
-	consumeCmd.Flags().IntSliceVarP(&countFlags, "count", "c", []int{}, "Number of messages to consume before exiting. Specify a single value for global limit, a comma-delimited list to limit specific partitions.")
+X: Start reading at offset X.`)
+	consumeCmd.Flags().IntVarP(&tailFlag, "tail", "t", 0, "Reads the last X messages across all partitions. Overrides --offset flag.")
+	consumeCmd.Flags().IntSliceVarP(&tailsFlags, "tails", "T", []int{}, "Reads the last X messages on each partition. Takes a single or partitioned value.")
+	consumeCmd.Flags().IntVarP(&skipFlag, "skip", "s", 0, "Skips the first X messages across all partitions. Overrides --offset flag.")
+	consumeCmd.Flags().IntSliceVarP(&skipsFlags, "skips", "S", []int{}, "Skips the first X messages on each partition. Takes a single or partitioned value. ")
+
+	consumeCmd.Flags().IntVarP(&countFlag, "count", "n", 0, "Number of messages to consume before exiting.")
+	consumeCmd.Flags().IntSliceVarP(&countsFlags, "counts", "N", []int{}, "Number of messages to consume per partition before stopping. Takes a single or partitioned value.")
+
 	consumeCmd.Flags().IntSliceVarP(&partitionsWhitelistFlag, "partitions", "p", []int{}, "Partitions to read from as a comma-delimited list; if unset, all partitions will be read.")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON.")
-	consumeCmd.Flags().BoolVarP(&followFlag, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition. Overrides --offset flag.")
-	consumeCmd.Flags().IntVarP(&tailFlag, "tail", "t", 0, "Reads the last X messages by distributing X over all partitions. Overrides --offset flag.")
-	consumeCmd.Flags().BoolVarP(&endFlag, "end", "e", false, "Stop reading after reaching the end of the partition.")
+	consumeCmd.Flags().BoolVarP(&followFlag, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition.")
+	consumeCmd.Flags().BoolVarP(&endFlag, "end", "e", false, "Stop reading after reaching the end of the partition(s).")
 	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files.")
 	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes).")
 	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage.")
@@ -98,18 +103,23 @@ func resolveOffset(
 			return 0, err
 		}
 
+		logFmt := flag
+
 		if isSkip {
 			offset = min + offset
-		}
-		if isTail {
+			logFmt = fmt.Sprintf("skip first %s", numStr)
+		} else if isTail {
 			offset = max - offset
+			logFmt = fmt.Sprintf("take last %s", numStr)
+		} else {
+			logFmt = fmt.Sprintf("use offset %s", numStr)
 		}
 		if offset > max {
-			fmt.Fprintf(os.Stderr, "Applying offset flag %q to partition %d gives %d, which is after the max offset of %d. Using the max offset instead.\n", flag, partition, offset, max)
+			fmt.Fprintf(os.Stderr, "Attempting to %s on partition %d (%d...%d) gives %d, which is after the max offset. Using the max offset instead.\n", logFmt, partition, min, max, offset)
 			offset = max
 		}
 		if offset < min {
-			fmt.Fprintf(os.Stderr, "Applying offset flag %q to partition %d gives %d, which is before the min offset of %d. Using the min offset instead.\n", flag, partition, offset, min)
+			fmt.Fprintf(os.Stderr, "Attempting to %s on partition %d (%d...%d) gives %d, which is before the min offset. Using the min offset instead.\n", logFmt, partition, min, max, offset)
 			offset = min
 		}
 
@@ -117,26 +127,18 @@ func resolveOffset(
 	}
 }
 
-const (
-	offsetsRetry       = 500 * time.Millisecond
-	configProtobufType = "protobuf.type"
-)
-
 var consumeCmd = &cobra.Command{
-	Use:    "consume",
-	Short:  "Consume messages",
-	Args:   cobra.ExactArgs(1),
+	Use:   "consume",
+	Short: "Consume messages",
+	Args:  cobra.ExactArgs(1),
+	Long: `Flags which are documented with "Takes a single or partitioned value" can be passed a single 
+value or a comma-delimited list of value. If a single value is provided, that value will be used for each 
+partition. If a comma-delimited list is provided, the number of values must be the same as the number of 
+partitions being consumed (based on the --partitions flag, defaults to all partitions).`,
 	PreRun: setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
-		topic := args[0]
-		// prevent confusing "default" string in flag help
-		if len(offsetFlags) == 0 {
-			offsetFlags = []string{"oldest"}
-		}
 
-		if followFlag {
-			offsetFlags = []string{"-1"}
-		}
+		topic := args[0]
 
 		client := getClient()
 
@@ -168,64 +170,20 @@ var consumeCmd = &cobra.Command{
 			for _, partition := range foundPartitions {
 				partitions = append(partitions, int(partition))
 			}
-			// make sure partitions are sorted in a reasonable order if the user provided tails
+			// make sure partitions are sorted in a reasonable order if the user provided partitioned arguments
 			sort.Ints(partitions)
 		}
 
-		if tailFlag > 0 {
-			offsetFlags = []string{}
-			commonOffsetFlag := int(tailFlag / len(partitions))
-			if commonOffsetFlag == 0 {
-				i := 0
-				for ; i < tailFlag; i++ {
-					offsetFlags = append(offsetFlags, "-1")
-				}
-				for ; i < len(partitions); i++ {
-					offsetFlags = append(offsetFlags, "newest")
-				}
-			} else {
-				fmt.Fprintf(os.Stderr, "Setting each of %d partitions to start at HEAD-%d because of --tail %d.", len(partitions), commonOffsetFlag, tailFlag)
-				offsetFlags = []string{fmt.Sprintf("-%d", commonOffsetFlag)}
-			}
-		}
+		opts := createOptions(partitions)
 
-		// offsetFlags will always contain at least one value
-		// build a map containing the flags for each partition
-		offsetFlagsMap := make(map[int]string, len(partitions))
-		switch len(offsetFlags) {
-		case 1:
-			commonOffsetFlag := offsetFlags[0]
-			for _, partition := range partitions {
-				offsetFlagsMap[partition] = commonOffsetFlag
-			}
-		case len(partitions):
-			for i, partition := range partitions {
-				offsetFlagsMap[partition] = offsetFlags[i]
-			}
-		default:
-			errorExit("%d offsets specified but found %d partitions.\n", len(offsetFlags), len(partitions))
-		}
+		offsetFlagsMap := opts.offsetFlagsMap
+		countFlagsMap := opts.countsMap
+		globalLimit := int64(opts.globalCount)
+		hasGlobalLimit := globalLimit > 0
 
-		countFlagsMap := make(map[int]int, len(partitions))
-		var globalLimit int64 = math.MaxInt64
-		hasGlobalLimit := false
-
-		switch len(countFlags) {
-		case 0:
-			// no limits
-		case 1:
-			globalLimit = int64(countFlags[0])
-			hasGlobalLimit = true
-		case len(partitions):
-			for i, partition := range partitions {
-				countFlagsMap[partition] = countFlags[i]
-			}
-		default:
-			errorExit("%d counts specified but found %d partitions.", len(countFlags), len(partitions))
-		}
 
 		// counter used for writing progress to stderr (needed because of buffered tabwriter)
-		var globalProgress int64 = 0
+		var globalProgress int64 = 0 // int64 because it's updated by atomic.AddInt64
 		// counter used to track how many messages have been written to std out
 		var globalWrittenCount int64 = 0
 
@@ -237,8 +195,8 @@ var consumeCmd = &cobra.Command{
 
 			go func(partition int) {
 
-				offsetFlag := offsetFlagsMap[int(partition)]
-				partitionLimit, hasPartitionLimit := countFlagsMap[int(partition)]
+				offsetFlag := offsetFlagsMap[partition]
+				partitionLimit, hasPartitionLimit := countFlagsMap[partition]
 				offset, err := resolveOffset(client, topic, partition, offsetFlag)
 				if err != nil {
 					errorExit("Unable to get offsets for partition %d: %v.", partition, err)
@@ -252,8 +210,7 @@ var consumeCmd = &cobra.Command{
 					formattedCount = fmt.Sprintf("%d", partitionLimit)
 				}
 
-
-				var  formattedOffset string
+				var formattedOffset string
 				switch offset {
 				case sarama.OffsetNewest:
 					formattedOffset = "newest"
@@ -417,4 +374,144 @@ func formatKey(key []byte) string {
 		return string(key)
 	}
 	return string(b)
+}
+
+type consumeOptions struct {
+	offsetFlagsMap map[int]string
+	countsMap      map[int]int
+	globalCount    int
+}
+
+// createOptions validates the flags and normalizes them into
+// a single offset flag map the command can use
+func createOptions(partitions []int) consumeOptions {
+
+	opts := consumeOptions{
+		offsetFlagsMap: map[int]string{},
+		globalCount:    countFlag,
+		countsMap:      map[int]int{},
+	}
+
+	numPartitions := len(partitions)
+
+	// validate mutually exclusive flags
+	var exclusive []string
+	if tailFlag > 0 {
+		exclusive = append(exclusive, "tail")
+	}
+	if len(tailsFlags) > 0 {
+		exclusive = append(exclusive, "tails")
+	}
+	if skipFlag > 0 {
+		exclusive = append(exclusive, "skip")
+	}
+	if len(skipsFlags) > 0 {
+		exclusive = append(exclusive, "skips")
+	}
+	if followFlag {
+		exclusive = append(exclusive, "follow")
+	}
+	if len(offsetFlags) > 0 {
+		exclusive = append(exclusive, "offset")
+	}
+	if len(exclusive) > 1 {
+		errorExit("multiple mutually exclusive offset-related flags provided, please only set one (flags set: %v)\n", exclusive)
+	}
+
+	if countFlag > 0 && len(countsFlags) > 0 {
+		errorExit("--count and --counts are mutually exclusive, please only set one\n")
+	}
+	switch len(countsFlags) {
+	case 0:
+	case 1:
+		commonCount := countsFlags[0]
+		for _, partition := range partitions {
+			opts.countsMap[partition] = commonCount
+		}
+	case numPartitions:
+		for i, partition := range partitions {
+			opts.countsMap[partition] = countsFlags[i]
+		}
+	default:
+		errorExit("--counts takes 1 value or a number of values equal to the number of partitions (have %d partitions, got %d values)", numPartitions, len(tailsFlags))
+	}
+
+	if followFlag {
+		for _, partition := range partitions {
+			opts.offsetFlagsMap[partition] = "-1"
+		}
+	}
+
+	if tailFlag > 0 {
+		tailsFlags = make([]int, numPartitions)
+		countdown := tailFlag
+		for countdown > 0 {
+			for i := 0; i < len(partitions) && countdown > 0; i++ {
+				tailsFlags[i]++
+				countdown--
+			}
+		}
+	}
+
+	switch len(tailsFlags) {
+	case 0:
+	case 1:
+		for _, partition := range partitions {
+			opts.offsetFlagsMap[partition] = fmt.Sprintf("-%d", tailsFlags[0])
+		}
+	case numPartitions:
+		for i, partition := range partitions {
+			opts.offsetFlagsMap[partition] = fmt.Sprintf("-%d", tailsFlags[i])
+		}
+	default:
+		errorExit("--tails takes 1 value or a number of values equal to the number of partitions (have %d partitions, got %d values)", numPartitions, len(tailsFlags))
+	}
+
+	if skipFlag > 0 {
+		skipsFlags = make([]int, numPartitions)
+		countdown := skipFlag
+		for countdown > 0 {
+			for i := 0; i < len(partitions) && countdown > 0; i++ {
+				skipsFlags[i]++
+				countdown--
+			}
+		}
+	}
+	switch len(skipsFlags) {
+	case 0:
+	case 1:
+		for _, partition := range partitions {
+			opts.offsetFlagsMap[partition] = fmt.Sprintf("+%d", skipsFlags[0])
+		}
+	case numPartitions:
+		for i, partition := range partitions {
+			opts.offsetFlagsMap[partition] = fmt.Sprintf("+%d", skipsFlags[i])
+		}
+	default:
+		errorExit("--skips takes 1 value or a number of values equal to the number of partitions (have %d partitions, got %d values)", numPartitions, len(skipsFlags))
+	}
+
+	if len(opts.offsetFlagsMap) == 0 {
+		// only use offsetFlags if skip and tail unset
+		switch len(offsetFlags) {
+		case 0:
+			// no other offsetting flags set, default to "oldest"
+			for _, partition := range partitions {
+				opts.offsetFlagsMap[partition] = "oldest"
+			}
+		case 1:
+			for _, partition := range partitions {
+				opts.offsetFlagsMap[partition] = offsetFlags[0]
+			}
+		case numPartitions:
+			for i, partition := range partitions {
+				opts.offsetFlagsMap[partition] = offsetFlags[i]
+			}
+		default:
+			errorExit("--offsets takes 1 value or a number of values equal to the number of partitions (have %d partitions, got %d values)", numPartitions, len(offsetFlags))
+
+		}
+	}
+
+	return opts
 }
