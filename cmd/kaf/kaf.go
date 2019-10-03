@@ -140,8 +140,8 @@ var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
 func onInit() {
 	var err error
 	config, err = kaf.ReadConfig()
-	if err != nil && !os.IsNotExist(err) {
-		errorExit("Config %s does not exist", config)
+	if err != nil {
+		errorExit("Invalid config: %v", err)
 	}
 
 	cluster := config.ActiveCluster()
@@ -198,6 +198,6 @@ func getSchemaCache() (cache *avro.SchemaCache) {
 }
 
 func errorExit(format string, a ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, a...)
+	fmt.Fprintf(os.Stderr, format+"\n", a...)
 	os.Exit(1)
 }

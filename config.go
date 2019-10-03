@@ -94,6 +94,9 @@ func (c *Config) Write() error {
 func ReadConfig() (c Config, err error) {
 	file, err := os.OpenFile(getDefaultConfigPath(), os.O_RDONLY, 0644)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return Config{}, nil
+		}
 		return Config{}, err
 	}
 	decoder := yaml.NewDecoder(file)
