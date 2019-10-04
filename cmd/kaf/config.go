@@ -16,6 +16,8 @@ func init() {
 	configCmd.AddCommand(configAddClusterCmd)
 	configCmd.AddCommand(configSelectCluster)
 	rootCmd.AddCommand(configCmd)
+
+	configLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
 
 var configCmd = &cobra.Command{
@@ -42,7 +44,9 @@ var configLsCmd = &cobra.Command{
 	Short: "Display clusters in the configuration file",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("NAME")
+		if !noHeaderFlag {
+			fmt.Println("NAME")
+		}
 		for _, cluster := range config.Clusters {
 			fmt.Println(cluster.Name)
 		}

@@ -34,6 +34,7 @@ func init() {
 	createTopicCmd.Flags().BoolVar(&compactFlag, "compact", false, "Enable topic compaction")
 
 	lsTopicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+	topicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
 
 var topicCmd = &cobra.Command{

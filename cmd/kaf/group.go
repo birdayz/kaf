@@ -31,6 +31,7 @@ func init() {
 	groupCmd.AddCommand(createGroupCommitOffsetCmd())
 
 	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+	groupsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
 
 const (
@@ -233,13 +234,7 @@ var groupLsCmd = &cobra.Command{
 			fmt.Fprintf(w, "%v\t%v\t%v\t\n", detail.GroupId, state, consumers)
 		}
 
-		if len(groupDescs) != 0 {
-			w.Flush()
-		} else {
-			fmt.Printf("No Groups found\n")
-		}
-
-		return
+		w.Flush()
 	},
 }
 

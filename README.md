@@ -20,3 +20,13 @@ Install binary:
 ## Configuration
 See the [examples](examples) folder
 
+## Shell autocompletion
+Source the completion script in your shell commands file:
+
+Bash
+
+```echo 'source <(kaf completion bash)' >> ~/.bashrc```
+
+Zsh
+
+```echo 'source <(kaf completion zsh)' >> ~/.zshrc```
