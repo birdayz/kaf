@@ -68,12 +68,11 @@ func getAvailableOffsetsRetry(
 }
 
 const (
-	offsetsRetry       = 500 * time.Millisecond
-	configProtobufType = "protobuf.type"
+	offsetsRetry = 500 * time.Millisecond
 )
 
 var consumeCmd = &cobra.Command{
-	Use:    "consume",
+	Use:    "consume TOPIC",
 	Short:  "Consume messages",
 	Args:   cobra.ExactArgs(1),
 	PreRun: setupProtoDescriptorRegistry,

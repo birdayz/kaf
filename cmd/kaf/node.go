@@ -12,6 +12,7 @@ import (
 
 func init() {
 	rootCmd.AddCommand(nodeCommand)
+	rootCmd.AddCommand(nodesCommand)
 	nodeCommand.AddCommand(nodeLsCommand)
 	nodeLsCommand.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
