@@ -91,8 +91,8 @@ func (c *Config) Write() error {
 	return encoder.Encode(&c)
 }
 
-func ReadConfig() (c Config, err error) {
-	file, err := os.OpenFile(getDefaultConfigPath(), os.O_RDONLY, 0644)
+func ReadConfig(cfgPath string) (c Config, err error) {
+	file, err := os.OpenFile(getConfigPath(cfgPath), os.O_RDONLY, 0644)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Config{}, nil
@@ -105,6 +105,21 @@ func ReadConfig() (c Config, err error) {
 		return Config{}, err
 	}
 	return c, nil
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
+}
+
+func getConfigPath(cfgPath string) string {
+	if !fileExists(cfgPath) {
+		return getDefaultConfigPath()
+	}
+	return cfgPath
 }
 
 func getDefaultConfigPath() string {

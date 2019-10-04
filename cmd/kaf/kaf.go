@@ -139,7 +139,7 @@ var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
 
 func onInit() {
 	var err error
-	config, err = kaf.ReadConfig()
+	config, err = kaf.ReadConfig(cfgFile)
 	if err != nil {
 		errorExit("Invalid config: %v", err)
 	}
