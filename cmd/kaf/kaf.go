@@ -117,6 +117,7 @@ var (
 	protoFiles        []string
 	protoExclude      []string
 	verbose           bool
+	clusterOverride   string
 )
 
 func init() {
@@ -124,6 +125,7 @@ func init() {
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 	rootCmd.PersistentFlags().StringVar(&schemaRegistryURL, "schema-registry", "", "URL to a Confluent schema registry. Used for attempting to decode Avro-encoded messages")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Whether to turn on sarama logging")
+	rootCmd.PersistentFlags().StringVarP(&clusterOverride, "cluster", "c", "", "set a temporary current cluster")
 	cobra.OnInitialize(onInit)
 }
 
@@ -143,6 +145,8 @@ func onInit() {
 	if err != nil {
 		errorExit("Invalid config: %v", err)
 	}
+
+	config.ClusterOverride = clusterOverride
 
 	cluster := config.ActiveCluster()
 	if cluster != nil {
