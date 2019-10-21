@@ -32,8 +32,9 @@ type Cluster struct {
 }
 
 type Config struct {
-	CurrentCluster string     `yaml:"current-cluster"`
-	Clusters       []*Cluster `yaml:"clusters"`
+	CurrentCluster  string `yaml:"current-cluster"`
+	ClusterOverride string
+	Clusters        []*Cluster `yaml:"clusters"`
 }
 
 func (c *Config) SetCurrentCluster(name string) error {
@@ -60,12 +61,21 @@ func (c *Config) SetCurrentCluster(name string) error {
 }
 
 func (c *Config) ActiveCluster() *Cluster {
-	if c == nil || c.CurrentCluster == "" {
+	if c == nil {
+		return nil
+	}
+
+	toSearch := c.ClusterOverride
+	if c.ClusterOverride == "" {
+		toSearch = c.CurrentCluster
+	}
+
+	if toSearch == "" {
 		return nil
 	}
 
 	for _, cluster := range c.Clusters {
-		if cluster.Name == c.CurrentCluster {
+		if cluster.Name == toSearch {
 			return cluster
 		}
 	}

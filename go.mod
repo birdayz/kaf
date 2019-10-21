@@ -13,7 +13,7 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/hokaccha/go-prettyjson v0.0.0-20180920040306-f579f869bbfe
 	github.com/jcmturner/gofork v1.0.0 // indirect
-	github.com/jhump/protoreflect v1.4.4
+	github.com/jhump/protoreflect v1.5.0
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/magiconair/properties v1.8.1
 	github.com/manifoldco/promptui v0.3.2
