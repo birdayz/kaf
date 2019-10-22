@@ -1,5 +1,6 @@
-//+build appengine
-// TODO: other build tags for environments where unsafe package is inappropriate
+//+build appengine gopherjs purego
+// NB: other environments where unsafe is unappropriate should use "purego" build tag
+// https://github.com/golang/go/issues/23172
 
 package desc
 

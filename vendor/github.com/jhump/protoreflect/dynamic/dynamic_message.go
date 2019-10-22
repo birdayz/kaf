@@ -12,6 +12,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 
+	"github.com/jhump/protoreflect/codec"
 	"github.com/jhump/protoreflect/desc"
 )
 
@@ -67,29 +68,6 @@ var NumericOverflowError = ErrNumericOverflow
 var typeOfProtoMessage = reflect.TypeOf((*proto.Message)(nil)).Elem()
 var typeOfDynamicMessage = reflect.TypeOf((*Message)(nil))
 var typeOfBytes = reflect.TypeOf(([]byte)(nil))
-
-var varintTypes = map[descriptor.FieldDescriptorProto_Type]bool{}
-var fixed32Types = map[descriptor.FieldDescriptorProto_Type]bool{}
-var fixed64Types = map[descriptor.FieldDescriptorProto_Type]bool{}
-
-func init() {
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_BOOL] = true
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_INT32] = true
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_INT64] = true
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_UINT32] = true
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_UINT64] = true
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_SINT32] = true
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_SINT64] = true
-	varintTypes[descriptor.FieldDescriptorProto_TYPE_ENUM] = true
-
-	fixed32Types[descriptor.FieldDescriptorProto_TYPE_FIXED32] = true
-	fixed32Types[descriptor.FieldDescriptorProto_TYPE_SFIXED32] = true
-	fixed32Types[descriptor.FieldDescriptorProto_TYPE_FLOAT] = true
-
-	fixed64Types[descriptor.FieldDescriptorProto_TYPE_FIXED64] = true
-	fixed64Types[descriptor.FieldDescriptorProto_TYPE_SFIXED64] = true
-	fixed64Types[descriptor.FieldDescriptorProto_TYPE_DOUBLE] = true
-}
 
 // Message is a dynamic protobuf message. Instead of a generated struct,
 // like most protobuf messages, this is a map of field number to values and
@@ -1776,9 +1754,9 @@ func (m *Message) parseUnknownField(fd *desc.FieldDescriptor) (interface{}, erro
 	for _, unk := range unks {
 		var val interface{}
 		if unk.Encoding == proto.WireBytes || unk.Encoding == proto.WireStartGroup {
-			val, err = unmarshalLengthDelimitedField(fd, unk.Contents, m.mf)
+			val, err = codec.DecodeLengthDelimitedField(fd, unk.Contents, m.mf)
 		} else {
-			val, err = unmarshalSimpleField(fd, unk.Value)
+			val, err = codec.DecodeScalarField(fd, unk.Value)
 		}
 		if err != nil {
 			return nil, err
@@ -2291,14 +2269,15 @@ func (m *Message) mergeInto(pm proto.Message) error {
 	// if we have fields that the given message doesn't know about, add to its unknown fields
 	if len(unknownTags) > 0 {
 		ub := u.Interface().([]byte)
-		var b codedBuffer
+		var b codec.Buffer
+		b.SetDeterministic(defaultDeterminism)
 		for tag := range unknownTags {
 			fd := m.FindFieldDescriptor(tag)
-			if err := marshalField(tag, fd, m.values[tag], &b, false); err != nil {
+			if err := b.EncodeFieldValue(fd, m.values[tag]); err != nil {
 				return err
 			}
 		}
-		ub = append(ub, b.buf...)
+		ub = append(ub, b.Bytes()...)
 		u.Set(reflect.ValueOf(ub))
 	}
 
@@ -2306,9 +2285,9 @@ func (m *Message) mergeInto(pm proto.Message) error {
 	// (this will append to its unknown fields if not known; if somehow the given message recognizes
 	// a field even though the dynamic message did not, it will get correctly unmarshalled)
 	if unknownTags != nil && len(m.unknownFields) > 0 {
-		var b codedBuffer
-		m.marshalUnknownFields(&b)
-		proto.UnmarshalMerge(b.buf, pm)
+		var b codec.Buffer
+		_ = m.marshalUnknownFields(&b)
+		_ = proto.UnmarshalMerge(b.Bytes(), pm)
 	}
 
 	return nil
@@ -2534,7 +2513,7 @@ func (m *Message) mergeFrom(pm proto.Message) error {
 	u := src.FieldByName("XXX_unrecognized")
 	if u.IsValid() && u.Type() == typeOfBytes {
 		// ignore any error returned: pulling in unknown fields is best-effort
-		m.UnmarshalMerge(u.Interface().([]byte))
+		_ = m.UnmarshalMerge(u.Interface().([]byte))
 	}
 
 	// lastly, also extract any unknown extensions the message may have (unknown extensions
@@ -2542,7 +2521,7 @@ func (m *Message) mergeFrom(pm proto.Message) error {
 	// more than just the step above...)
 	if len(unknownExtensions) > 0 {
 		// pulling in unknown fields is best-effort, so we just ignore errors
-		m.UnmarshalMerge(unknownExtensions)
+		_ = m.UnmarshalMerge(unknownExtensions)
 	}
 	return nil
 }

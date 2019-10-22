@@ -17,6 +17,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/protoc-gen-go/descriptor"
 
+	"github.com/jhump/protoreflect/codec"
 	"github.com/jhump/protoreflect/desc"
 )
 
@@ -124,7 +125,7 @@ func (m *Message) marshalText(b *indentBuffer) error {
 				if err != nil {
 					return err
 				}
-				in := newCodedBuffer(uf.Contents)
+				in := codec.NewBuffer(uf.Contents)
 				err = marshalUnknownGroupText(b, in, true)
 				if err != nil {
 					return err
@@ -360,17 +361,17 @@ func writeString(b *indentBuffer, s string) error {
 	return b.WriteByte('"')
 }
 
-func marshalUnknownGroupText(b *indentBuffer, in *codedBuffer, topLevel bool) error {
+func marshalUnknownGroupText(b *indentBuffer, in *codec.Buffer, topLevel bool) error {
 	first := true
 	for {
-		if in.eof() {
+		if in.EOF() {
 			if topLevel {
 				return nil
 			}
 			// this is a nested message: we are expecting an end-group tag, not EOF!
 			return io.ErrUnexpectedEOF
 		}
-		tag, wireType, err := in.decodeTagAndWireType()
+		tag, wireType, err := in.DecodeTagAndWireType()
 		if err != nil {
 			return err
 		}
@@ -413,7 +414,7 @@ func marshalUnknownGroupText(b *indentBuffer, in *codedBuffer, topLevel bool) er
 				return err
 			}
 			if wireType == proto.WireBytes {
-				contents, err := in.decodeRawBytes(false)
+				contents, err := in.DecodeRawBytes(false)
 				if err != nil {
 					return err
 				}
@@ -425,11 +426,11 @@ func marshalUnknownGroupText(b *indentBuffer, in *codedBuffer, topLevel bool) er
 				var v uint64
 				switch wireType {
 				case proto.WireVarint:
-					v, err = in.decodeVarint()
+					v, err = in.DecodeVarint()
 				case proto.WireFixed32:
-					v, err = in.decodeFixed32()
+					v, err = in.DecodeFixed32()
 				case proto.WireFixed64:
-					v, err = in.decodeFixed64()
+					v, err = in.DecodeFixed64()
 				default:
 					return proto.ErrInternalBadWireType
 				}

@@ -1,23 +1,6 @@
 package protoparse
 
-import "fmt"
-
 // This file defines all of the nodes in the proto AST.
-
-// ErrorWithSourcePos is an error about a proto source file includes information
-// about the location in the file that caused the error.
-type ErrorWithSourcePos struct {
-	Underlying error
-	Pos        *SourcePos
-}
-
-// Error implements the error interface
-func (e ErrorWithSourcePos) Error() string {
-	if e.Pos.Line <= 0 || e.Pos.Col <= 0 {
-		return fmt.Sprintf("%s: %v", e.Pos.Filename, e.Underlying)
-	}
-	return fmt.Sprintf("%s:%d:%d: %v", e.Pos.Filename, e.Pos.Line, e.Pos.Col, e.Underlying)
-}
 
 // SourcePos identifies a location in a proto source file.
 type SourcePos struct {
@@ -30,17 +13,18 @@ func unknownPos(filename string) *SourcePos {
 	return &SourcePos{Filename: filename}
 }
 
+// node is the interface implemented by all nodes in the AST
 type node interface {
 	start() *SourcePos
 	end() *SourcePos
-	leadingComments() []*comment
-	trailingComments() []*comment
+	leadingComments() []comment
+	trailingComments() []comment
 }
 
 type terminalNode interface {
 	node
-	popLeadingComment() *comment
-	pushTrailingComment(*comment)
+	popLeadingComment() comment
+	pushTrailingComment(comment)
 }
 
 var _ terminalNode = (*basicNode)(nil)
@@ -103,7 +87,6 @@ var _ enumValueDecl = (*noSourceNode)(nil)
 type msgDecl interface {
 	node
 	messageName() node
-	reservedNames() []*stringLiteralNode
 }
 
 var _ msgDecl = (*messageNode)(nil)
@@ -121,38 +104,38 @@ var _ methodDecl = (*methodNode)(nil)
 var _ methodDecl = (*noSourceNode)(nil)
 
 type posRange struct {
-	start, end *SourcePos
+	start, end SourcePos
 }
 
 type basicNode struct {
 	posRange
-	leading  []*comment
-	trailing []*comment
+	leading  []comment
+	trailing []comment
 }
 
 func (n *basicNode) start() *SourcePos {
-	return n.posRange.start
+	return &n.posRange.start
 }
 
 func (n *basicNode) end() *SourcePos {
-	return n.posRange.end
+	return &n.posRange.end
 }
 
-func (n *basicNode) leadingComments() []*comment {
+func (n *basicNode) leadingComments() []comment {
 	return n.leading
 }
 
-func (n *basicNode) trailingComments() []*comment {
+func (n *basicNode) trailingComments() []comment {
 	return n.trailing
 }
 
-func (n *basicNode) popLeadingComment() *comment {
+func (n *basicNode) popLeadingComment() comment {
 	c := n.leading[0]
 	n.leading = n.leading[1:]
 	return c
 }
 
-func (n *basicNode) pushTrailingComment(c *comment) {
+func (n *basicNode) pushTrailingComment(c comment) {
 	n.trailing = append(n.trailing, c)
 }
 
@@ -166,12 +149,6 @@ type basicCompositeNode struct {
 	last  node
 }
 
-func (n *basicCompositeNode) toBasicNode() basicNode {
-	// only works on terminals: composite nodes where first
-	// and last are *basicNode (and also equal)
-	return *n.first.(*basicNode)
-}
-
 func (n *basicCompositeNode) start() *SourcePos {
 	return n.first.start()
 }
@@ -180,11 +157,11 @@ func (n *basicCompositeNode) end() *SourcePos {
 	return n.last.end()
 }
 
-func (n *basicCompositeNode) leadingComments() []*comment {
+func (n *basicCompositeNode) leadingComments() []comment {
 	return n.first.leadingComments()
 }
 
-func (n *basicCompositeNode) trailingComments() []*comment {
+func (n *basicCompositeNode) trailingComments() []comment {
 	return n.last.trailingComments()
 }
 
@@ -198,13 +175,9 @@ type fileNode struct {
 	syntax *syntaxNode
 	decls  []*fileElement
 
-	// These fields are populated after parsing, to make it easier to find them
-	// without searching decls. The parse result has a map of descriptors to
-	// nodes which makes the other declarations easily discoverable. But these
-	// elements do not map to descriptors -- they are just stored as strings in
-	// the file descriptor.
+	// This field is populated after parsing, to make it easier to find
+	// source locations by import name for constructing link errors.
 	imports []*importNode
-	pkg     *packageNode
 }
 
 func (n *fileNode) getSyntax() node {
@@ -231,11 +204,11 @@ func (n *fileElement) end() *SourcePos {
 	return n.get().end()
 }
 
-func (n *fileElement) leadingComments() []*comment {
+func (n *fileElement) leadingComments() []comment {
 	return n.get().leadingComments()
 }
 
-func (n *fileElement) trailingComments() []*comment {
+func (n *fileElement) trailingComments() []comment {
 	return n.get().trailingComments()
 }
 
@@ -262,47 +235,51 @@ func (n *fileElement) get() node {
 
 type syntaxNode struct {
 	basicCompositeNode
-	syntax *stringLiteralNode
+	syntax *compoundStringNode
 }
 
 type importNode struct {
 	basicCompositeNode
-	name   *stringLiteralNode
+	name   *compoundStringNode
 	public bool
 	weak   bool
 }
 
 type packageNode struct {
 	basicCompositeNode
-	name *identNode
+	name *compoundIdentNode
 }
 
 type identifier string
 
-type identKind int
-
-const (
-	identSimpleName identKind = iota
-	identQualified
-	identTypeName
-)
-
 type identNode struct {
-	basicCompositeNode
-	val  string
-	kind identKind
+	basicNode
+	val string
 }
 
 func (n *identNode) value() interface{} {
 	return identifier(n.val)
 }
 
-func (n *identNode) popLeadingComment() *comment {
-	return n.first.(terminalNode).popLeadingComment()
+type compoundIdentNode struct {
+	basicCompositeNode
+	val string
 }
 
-func (n *identNode) pushTrailingComment(c *comment) {
-	n.last.(terminalNode).pushTrailingComment(c)
+func (n *compoundIdentNode) value() interface{} {
+	return identifier(n.val)
+}
+
+type compactOptionsNode struct {
+	basicCompositeNode
+	decls []*optionNode
+}
+
+func (n *compactOptionsNode) Elements() []*optionNode {
+	if n == nil {
+		return nil
+	}
+	return n.decls
 }
 
 type optionNode struct {
@@ -326,7 +303,7 @@ type optionNameNode struct {
 
 type optionNamePartNode struct {
 	basicCompositeNode
-	text        *identNode
+	text        *compoundIdentNode
 	offset      int
 	length      int
 	isExtension bool
@@ -364,17 +341,22 @@ type valueNode interface {
 	value() interface{}
 }
 
+var _ valueNode = (*identNode)(nil)
+var _ valueNode = (*compoundIdentNode)(nil)
 var _ valueNode = (*stringLiteralNode)(nil)
+var _ valueNode = (*compoundStringNode)(nil)
 var _ valueNode = (*intLiteralNode)(nil)
-var _ valueNode = (*negativeIntLiteralNode)(nil)
+var _ valueNode = (*compoundIntNode)(nil)
+var _ valueNode = (*compoundUintNode)(nil)
 var _ valueNode = (*floatLiteralNode)(nil)
+var _ valueNode = (*compoundFloatNode)(nil)
 var _ valueNode = (*boolLiteralNode)(nil)
 var _ valueNode = (*sliceLiteralNode)(nil)
 var _ valueNode = (*aggregateLiteralNode)(nil)
 var _ valueNode = (*noSourceNode)(nil)
 
 type stringLiteralNode struct {
-	basicCompositeNode
+	basicNode
 	val string
 }
 
@@ -382,12 +364,13 @@ func (n *stringLiteralNode) value() interface{} {
 	return n.val
 }
 
-func (n *stringLiteralNode) popLeadingComment() *comment {
-	return n.first.(terminalNode).popLeadingComment()
+type compoundStringNode struct {
+	basicCompositeNode
+	val string
 }
 
-func (n *stringLiteralNode) pushTrailingComment(c *comment) {
-	n.last.(terminalNode).pushTrailingComment(c)
+func (n *compoundStringNode) value() interface{} {
+	return n.val
 }
 
 type intLiteralNode struct {
@@ -399,17 +382,26 @@ func (n *intLiteralNode) value() interface{} {
 	return n.val
 }
 
-type negativeIntLiteralNode struct {
+type compoundUintNode struct {
+	basicCompositeNode
+	val uint64
+}
+
+func (n *compoundUintNode) value() interface{} {
+	return n.val
+}
+
+type compoundIntNode struct {
 	basicCompositeNode
 	val int64
 }
 
-func (n *negativeIntLiteralNode) value() interface{} {
+func (n *compoundIntNode) value() interface{} {
 	return n.val
 }
 
 type floatLiteralNode struct {
-	basicCompositeNode
+	basicNode
 	val float64
 }
 
@@ -417,16 +409,17 @@ func (n *floatLiteralNode) value() interface{} {
 	return n.val
 }
 
-func (n *floatLiteralNode) popLeadingComment() *comment {
-	return n.first.(terminalNode).popLeadingComment()
+type compoundFloatNode struct {
+	basicCompositeNode
+	val float64
 }
 
-func (n *floatLiteralNode) pushTrailingComment(c *comment) {
-	n.last.(terminalNode).pushTrailingComment(c)
+func (n *compoundFloatNode) value() interface{} {
+	return n.val
 }
 
 type boolLiteralNode struct {
-	basicNode
+	*identNode
 	val bool
 }
 
@@ -460,7 +453,7 @@ type aggregateEntryNode struct {
 
 type aggregateNameNode struct {
 	basicCompositeNode
-	name        *identNode
+	name        *compoundIdentNode
 	isExtension bool
 }
 
@@ -474,11 +467,11 @@ func (a *aggregateNameNode) value() string {
 
 type fieldNode struct {
 	basicCompositeNode
-	label   *labelNode
-	fldType *identNode
+	label   fieldLabel
+	fldType *compoundIdentNode
 	name    *identNode
 	tag     *intLiteralNode
-	options []*optionNode
+	options *compactOptionsNode
 
 	// This field is populated after parsing, to allow lookup of extendee source
 	// locations when field extendees cannot be linked. (Otherwise, this is just
@@ -491,10 +484,10 @@ func (n *fieldNode) fieldLabel() node {
 	// proto3 fields and fields inside one-ofs will not have a label and we need
 	// this check in order to return a nil node -- otherwise we'd return a
 	// non-nil node that has a nil pointer value in it :/
-	if n.label == nil {
+	if n.label.identNode == nil {
 		return nil
 	}
-	return n.label
+	return n.label.identNode
 }
 
 func (n *fieldNode) fieldName() node {
@@ -520,8 +513,8 @@ func (n *fieldNode) getGroupKeyword() node {
 	return nil
 }
 
-type labelNode struct {
-	basicNode
+type fieldLabel struct {
+	*identNode
 	repeated bool
 	required bool
 }
@@ -529,17 +522,11 @@ type labelNode struct {
 type groupNode struct {
 	basicCompositeNode
 	groupKeyword *identNode
-	label        *labelNode
+	label        fieldLabel
 	name         *identNode
 	tag          *intLiteralNode
 	decls        []*messageElement
 
-	// This field is populated after parsing, to make it easier to find them
-	// without searching decls. The parse result has a map of descriptors to
-	// nodes which makes the other declarations easily discoverable. But these
-	// elements do not map to descriptors -- they are just stored as strings in
-	// the message descriptor.
-	reserved []*stringLiteralNode
 	// This field is populated after parsing, to allow lookup of extendee source
 	// locations when field extendees cannot be linked. (Otherwise, this is just
 	// stored as a string in the field descriptors defined inside the extend
@@ -548,7 +535,11 @@ type groupNode struct {
 }
 
 func (n *groupNode) fieldLabel() node {
-	return n.label
+	if n.label.identNode == nil {
+		// return nil interface to indicate absence, not a typed nil
+		return nil
+	}
+	return n.label.identNode
 }
 
 func (n *groupNode) fieldName() node {
@@ -556,7 +547,7 @@ func (n *groupNode) fieldName() node {
 }
 
 func (n *groupNode) fieldType() node {
-	return n.name
+	return n.groupKeyword
 }
 
 func (n *groupNode) fieldTag() node {
@@ -578,10 +569,6 @@ func (n *groupNode) messageName() node {
 	return n.name
 }
 
-func (n *groupNode) reservedNames() []*stringLiteralNode {
-	return n.reserved
-}
-
 type oneOfNode struct {
 	basicCompositeNode
 	name  *identNode
@@ -592,6 +579,7 @@ type oneOfElement struct {
 	// a discriminated union: only one field will be set
 	option *optionNode
 	field  *fieldNode
+	group  *groupNode
 	empty  *basicNode
 }
 
@@ -603,11 +591,11 @@ func (n *oneOfElement) end() *SourcePos {
 	return n.get().end()
 }
 
-func (n *oneOfElement) leadingComments() []*comment {
+func (n *oneOfElement) leadingComments() []comment {
 	return n.get().leadingComments()
 }
 
-func (n *oneOfElement) trailingComments() []*comment {
+func (n *oneOfElement) trailingComments() []comment {
 	return n.get().trailingComments()
 }
 
@@ -622,18 +610,23 @@ func (n *oneOfElement) get() node {
 	}
 }
 
-type mapFieldNode struct {
+type mapTypeNode struct {
 	basicCompositeNode
 	mapKeyword *identNode
 	keyType    *identNode
-	valueType  *identNode
-	name       *identNode
-	tag        *intLiteralNode
-	options    []*optionNode
+	valueType  *compoundIdentNode
+}
+
+type mapFieldNode struct {
+	basicCompositeNode
+	mapType *mapTypeNode
+	name    *identNode
+	tag     *intLiteralNode
+	options *compactOptionsNode
 }
 
 func (n *mapFieldNode) fieldLabel() node {
-	return n.mapKeyword
+	return nil
 }
 
 func (n *mapFieldNode) fieldName() node {
@@ -641,7 +634,7 @@ func (n *mapFieldNode) fieldName() node {
 }
 
 func (n *mapFieldNode) fieldType() node {
-	return n.mapKeyword
+	return n.mapType
 }
 
 func (n *mapFieldNode) fieldTag() node {
@@ -660,32 +653,29 @@ func (n *mapFieldNode) messageName() node {
 	return n.name
 }
 
-func (n *mapFieldNode) reservedNames() []*stringLiteralNode {
-	return nil
-}
-
 func (n *mapFieldNode) keyField() *syntheticMapField {
-	tag := &intLiteralNode{
-		basicNode: basicNode{
-			posRange: posRange{start: n.keyType.start(), end: n.keyType.end()},
-		},
-		val: 1,
-	}
-	return &syntheticMapField{ident: n.keyType, tag: tag}
+	k := n.mapType.keyType
+	t := &compoundIdentNode{val: k.val}
+	t.setRange(k, k)
+	return newSyntheticMapField(t, 1)
 }
 
 func (n *mapFieldNode) valueField() *syntheticMapField {
+	return newSyntheticMapField(n.mapType.valueType, 2)
+}
+
+func newSyntheticMapField(ident *compoundIdentNode, tagNum uint64) *syntheticMapField {
 	tag := &intLiteralNode{
 		basicNode: basicNode{
-			posRange: posRange{start: n.valueType.start(), end: n.valueType.end()},
+			posRange: posRange{start: *ident.start(), end: *ident.end()},
 		},
-		val: 2,
+		val: tagNum,
 	}
-	return &syntheticMapField{ident: n.valueType, tag: tag}
+	return &syntheticMapField{ident: ident, tag: tag}
 }
 
 type syntheticMapField struct {
-	ident *identNode
+	ident *compoundIdentNode
 	tag   *intLiteralNode
 }
 
@@ -697,11 +687,11 @@ func (n *syntheticMapField) end() *SourcePos {
 	return n.ident.end()
 }
 
-func (n *syntheticMapField) leadingComments() []*comment {
+func (n *syntheticMapField) leadingComments() []comment {
 	return nil
 }
 
-func (n *syntheticMapField) trailingComments() []*comment {
+func (n *syntheticMapField) trailingComments() []comment {
 	return nil
 }
 
@@ -732,7 +722,7 @@ func (n *syntheticMapField) getGroupKeyword() node {
 type extensionRangeNode struct {
 	basicCompositeNode
 	ranges  []*rangeNode
-	options []*optionNode
+	options *compactOptionsNode
 }
 
 type rangeNode struct {
@@ -752,20 +742,13 @@ func (n *rangeNode) rangeEnd() node {
 type reservedNode struct {
 	basicCompositeNode
 	ranges []*rangeNode
-	names  []*stringLiteralNode
+	names  []*compoundStringNode
 }
 
 type enumNode struct {
 	basicCompositeNode
 	name  *identNode
 	decls []*enumElement
-
-	// This field is populated after parsing, to make it easier to find them
-	// without searching decls. The parse result has a map of descriptors to
-	// nodes which makes the other declarations easily discoverable. But these
-	// elements do not map to descriptors -- they are just stored as strings in
-	// the message descriptor.
-	reserved []*stringLiteralNode
 }
 
 type enumElement struct {
@@ -784,11 +767,11 @@ func (n *enumElement) end() *SourcePos {
 	return n.get().end()
 }
 
-func (n *enumElement) leadingComments() []*comment {
+func (n *enumElement) leadingComments() []comment {
 	return n.get().leadingComments()
 }
 
-func (n *enumElement) trailingComments() []*comment {
+func (n *enumElement) trailingComments() []comment {
 	return n.get().trailingComments()
 }
 
@@ -806,12 +789,8 @@ func (n *enumElement) get() node {
 type enumValueNode struct {
 	basicCompositeNode
 	name    *identNode
-	options []*optionNode
-
-	// only one of these two will be set:
-
-	numberP *intLiteralNode         // positive numeric value
-	numberN *negativeIntLiteralNode // negative numeric value
+	options *compactOptionsNode
+	number  *compoundIntNode
 }
 
 func (n *enumValueNode) getName() node {
@@ -819,31 +798,17 @@ func (n *enumValueNode) getName() node {
 }
 
 func (n *enumValueNode) getNumber() node {
-	if n.numberP != nil {
-		return n.numberP
-	}
-	return n.numberN
+	return n.number
 }
 
 type messageNode struct {
 	basicCompositeNode
 	name  *identNode
 	decls []*messageElement
-
-	// This field is populated after parsing, to make it easier to find them
-	// without searching decls. The parse result has a map of descriptors to
-	// nodes which makes the other declarations easily discoverable. But these
-	// elements do not map to descriptors -- they are just stored as strings in
-	// the message descriptor.
-	reserved []*stringLiteralNode
 }
 
 func (n *messageNode) messageName() node {
 	return n.name
-}
-
-func (n *messageNode) reservedNames() []*stringLiteralNode {
-	return n.reserved
 }
 
 type messageElement struct {
@@ -869,11 +834,11 @@ func (n *messageElement) end() *SourcePos {
 	return n.get().end()
 }
 
-func (n *messageElement) leadingComments() []*comment {
+func (n *messageElement) leadingComments() []comment {
 	return n.get().leadingComments()
 }
 
-func (n *messageElement) trailingComments() []*comment {
+func (n *messageElement) trailingComments() []comment {
 	return n.get().trailingComments()
 }
 
@@ -906,7 +871,7 @@ func (n *messageElement) get() node {
 
 type extendNode struct {
 	basicCompositeNode
-	extendee *identNode
+	extendee *compoundIdentNode
 	decls    []*extendElement
 }
 
@@ -925,11 +890,11 @@ func (n *extendElement) end() *SourcePos {
 	return n.get().end()
 }
 
-func (n *extendElement) leadingComments() []*comment {
+func (n *extendElement) leadingComments() []comment {
 	return n.get().leadingComments()
 }
 
-func (n *extendElement) trailingComments() []*comment {
+func (n *extendElement) trailingComments() []comment {
 	return n.get().trailingComments()
 }
 
@@ -965,11 +930,11 @@ func (n *serviceElement) end() *SourcePos {
 	return n.get().end()
 }
 
-func (n *serviceElement) leadingComments() []*comment {
+func (n *serviceElement) leadingComments() []comment {
 	return n.get().leadingComments()
 }
 
-func (n *serviceElement) trailingComments() []*comment {
+func (n *serviceElement) trailingComments() []comment {
 	return n.get().trailingComments()
 }
 
@@ -1002,7 +967,7 @@ func (n *methodNode) getOutputType() node {
 
 type rpcTypeNode struct {
 	basicCompositeNode
-	msgType       *identNode
+	msgType       *compoundIdentNode
 	streamKeyword node
 }
 
@@ -1018,11 +983,11 @@ func (n noSourceNode) end() *SourcePos {
 	return n.pos
 }
 
-func (n noSourceNode) leadingComments() []*comment {
+func (n noSourceNode) leadingComments() []comment {
 	return nil
 }
 
-func (n noSourceNode) trailingComments() []*comment {
+func (n noSourceNode) trailingComments() []comment {
 	return nil
 }
 
@@ -1076,10 +1041,6 @@ func (n noSourceNode) getNumber() node {
 
 func (n noSourceNode) messageName() node {
 	return n
-}
-
-func (n noSourceNode) reservedNames() []*stringLiteralNode {
-	return nil
 }
 
 func (n noSourceNode) getInputType() node {

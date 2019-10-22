@@ -5,6 +5,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/jhump/protoreflect/codec"
 	"github.com/jhump/protoreflect/desc"
 )
 
@@ -35,10 +36,11 @@ func SetExtension(msg proto.Message, extd *desc.FieldDescriptor, val interface{}
 		return err
 	}
 
-	var b codedBuffer
-	if err := marshalField(extd.GetNumber(), extd, val, &b, defaultDeterminism); err != nil {
+	var b codec.Buffer
+	b.SetDeterministic(defaultDeterminism)
+	if err := b.EncodeFieldValue(extd, val); err != nil {
 		return err
 	}
-	proto.SetRawExtension(msg, extd.GetNumber(), b.buf)
+	proto.SetRawExtension(msg, extd.GetNumber(), b.Bytes())
 	return nil
 }

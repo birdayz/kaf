@@ -15,12 +15,14 @@ import (
 
 type linker struct {
 	files          map[string]*parseResult
+	filenames      []string
+	errs           *errorHandler
 	descriptorPool map[*dpb.FileDescriptorProto]map[string]proto.Message
 	extensions     map[string]map[int32]string
 }
 
-func newLinker(files map[string]*parseResult) *linker {
-	return &linker{files: files}
+func newLinker(files *parseResults, errs *errorHandler) *linker {
+	return &linker{files: files.resultsByFilename, filenames: files.filenames, errs: errs}
 }
 
 func (l *linker) linkFiles() (map[string]*desc.FileDescriptor, error) {
@@ -38,6 +40,12 @@ func (l *linker) linkFiles() (map[string]*desc.FileDescriptor, error) {
 	// link time), and references will be re-written to be fully-qualified
 	// references (e.g. start with a dot ".").
 	if err := l.resolveReferences(); err != nil {
+		return nil, err
+	}
+
+	if err := l.errs.getError(); err != nil {
+		// we won't be able to create real descriptors if we've encountered
+		// errors up to this point, so bail at this point
 		return nil, err
 	}
 
@@ -65,7 +73,8 @@ func (l *linker) linkFiles() (map[string]*desc.FileDescriptor, error) {
 
 func (l *linker) createDescriptorPool() error {
 	l.descriptorPool = map[*dpb.FileDescriptorProto]map[string]proto.Message{}
-	for _, r := range l.files {
+	for _, filename := range l.filenames {
+		r := l.files[filename]
 		fd := r.fd
 		pool := map[string]proto.Message{}
 		l.descriptorPool[fd] = pool
@@ -74,22 +83,22 @@ func (l *linker) createDescriptorPool() error {
 			prefix += "."
 		}
 		for _, md := range fd.MessageType {
-			if err := addMessageToPool(r, pool, prefix, md); err != nil {
+			if err := addMessageToPool(r, pool, l.errs, prefix, md); err != nil {
 				return err
 			}
 		}
 		for _, fld := range fd.Extension {
-			if err := addFieldToPool(r, pool, prefix, fld); err != nil {
+			if err := addFieldToPool(r, pool, l.errs, prefix, fld); err != nil {
 				return err
 			}
 		}
 		for _, ed := range fd.EnumType {
-			if err := addEnumToPool(r, pool, prefix, ed); err != nil {
+			if err := addEnumToPool(r, pool, l.errs, prefix, ed); err != nil {
 				return err
 			}
 		}
 		for _, sd := range fd.Service {
-			if err := addServiceToPool(r, pool, prefix, sd); err != nil {
+			if err := addServiceToPool(r, pool, l.errs, prefix, sd); err != nil {
 				return err
 			}
 		}
@@ -101,8 +110,16 @@ func (l *linker) createDescriptorPool() error {
 		msg  proto.Message
 	}
 	pool := map[string]entry{}
-	for f, p := range l.descriptorPool {
-		for k, v := range p {
+	for _, filename := range l.filenames {
+		f := l.files[filename].fd
+		p := l.descriptorPool[f]
+		keys := make([]string, 0, len(p))
+		for k := range p {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys) // for deterministic error reporting
+		for _, k := range keys {
+			v := p[k]
 			if e, ok := pool[k]; ok {
 				desc1 := e.msg
 				file1 := e.file
@@ -113,7 +130,9 @@ func (l *linker) createDescriptorPool() error {
 					desc1, desc2 = desc2, desc1
 				}
 				node := l.files[file2].nodes[desc2]
-				return ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("duplicate symbol %s: already defined as %s in %q", k, descriptorType(desc1), file1)}
+				if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("duplicate symbol %s: already defined as %s in %q", k, descriptorType(desc1), file1)}); err != nil {
+					return err
+				}
 			}
 			pool[k] = entry{file: f.GetName(), msg: v}
 		}
@@ -122,72 +141,74 @@ func (l *linker) createDescriptorPool() error {
 	return nil
 }
 
-func addMessageToPool(r *parseResult, pool map[string]proto.Message, prefix string, md *dpb.DescriptorProto) error {
+func addMessageToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, prefix string, md *dpb.DescriptorProto) error {
 	fqn := prefix + md.GetName()
-	if err := addToPool(r, pool, fqn, md); err != nil {
+	if err := addToPool(r, pool, errs, fqn, md); err != nil {
 		return err
 	}
 	prefix = fqn + "."
 	for _, fld := range md.Field {
-		if err := addFieldToPool(r, pool, prefix, fld); err != nil {
+		if err := addFieldToPool(r, pool, errs, prefix, fld); err != nil {
 			return err
 		}
 	}
 	for _, fld := range md.Extension {
-		if err := addFieldToPool(r, pool, prefix, fld); err != nil {
+		if err := addFieldToPool(r, pool, errs, prefix, fld); err != nil {
 			return err
 		}
 	}
 	for _, nmd := range md.NestedType {
-		if err := addMessageToPool(r, pool, prefix, nmd); err != nil {
+		if err := addMessageToPool(r, pool, errs, prefix, nmd); err != nil {
 			return err
 		}
 	}
 	for _, ed := range md.EnumType {
-		if err := addEnumToPool(r, pool, prefix, ed); err != nil {
+		if err := addEnumToPool(r, pool, errs, prefix, ed); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func addFieldToPool(r *parseResult, pool map[string]proto.Message, prefix string, fld *dpb.FieldDescriptorProto) error {
+func addFieldToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, prefix string, fld *dpb.FieldDescriptorProto) error {
 	fqn := prefix + fld.GetName()
-	return addToPool(r, pool, fqn, fld)
+	return addToPool(r, pool, errs, fqn, fld)
 }
 
-func addEnumToPool(r *parseResult, pool map[string]proto.Message, prefix string, ed *dpb.EnumDescriptorProto) error {
+func addEnumToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, prefix string, ed *dpb.EnumDescriptorProto) error {
 	fqn := prefix + ed.GetName()
-	if err := addToPool(r, pool, fqn, ed); err != nil {
+	if err := addToPool(r, pool, errs, fqn, ed); err != nil {
 		return err
 	}
 	for _, evd := range ed.Value {
 		vfqn := fqn + "." + evd.GetName()
-		if err := addToPool(r, pool, vfqn, evd); err != nil {
+		if err := addToPool(r, pool, errs, vfqn, evd); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func addServiceToPool(r *parseResult, pool map[string]proto.Message, prefix string, sd *dpb.ServiceDescriptorProto) error {
+func addServiceToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, prefix string, sd *dpb.ServiceDescriptorProto) error {
 	fqn := prefix + sd.GetName()
-	if err := addToPool(r, pool, fqn, sd); err != nil {
+	if err := addToPool(r, pool, errs, fqn, sd); err != nil {
 		return err
 	}
 	for _, mtd := range sd.Method {
 		mfqn := fqn + "." + mtd.GetName()
-		if err := addToPool(r, pool, mfqn, mtd); err != nil {
+		if err := addToPool(r, pool, errs, mfqn, mtd); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func addToPool(r *parseResult, pool map[string]proto.Message, fqn string, dsc proto.Message) error {
+func addToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, fqn string, dsc proto.Message) error {
 	if d, ok := pool[fqn]; ok {
 		node := r.nodes[dsc]
-		return ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("duplicate symbol %s: already defined as %s", fqn, descriptorType(d))}
+		if err := errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("duplicate symbol %s: already defined as %s", fqn, descriptorType(d))}); err != nil {
+			return err
+		}
 	}
 	pool[fqn] = dsc
 	return nil
@@ -223,7 +244,8 @@ func descriptorType(m proto.Message) string {
 
 func (l *linker) resolveReferences() error {
 	l.extensions = map[string]map[int32]string{}
-	for _, r := range l.files {
+	for _, filename := range l.filenames {
+		r := l.files[filename]
 		fd := r.fd
 		prefix := fd.GetPackage()
 		scopes := []scope{fileScope(fd, l)}
@@ -326,14 +348,15 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 	node := r.getFieldNode(fld)
 	elemType := "field"
 	if fld.GetExtendee() != "" {
+		elemType = "extension"
 		fqn, dsc, _ := l.resolve(fd, fld.GetExtendee(), isMessage, scopes)
 		if dsc == nil {
-			return ErrorWithSourcePos{Pos: node.fieldExtendee().start(), Underlying: fmt.Errorf("unknown extendee type %s", fld.GetExtendee())}
+			return l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldExtendee().start(), Underlying: fmt.Errorf("unknown extendee type %s", fld.GetExtendee())})
 		}
 		extd, ok := dsc.(*dpb.DescriptorProto)
 		if !ok {
 			otherType := descriptorType(dsc)
-			return ErrorWithSourcePos{Pos: node.fieldExtendee().start(), Underlying: fmt.Errorf("extendee is invalid: %s is a %s, not a message", fqn, otherType)}
+			return l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldExtendee().start(), Underlying: fmt.Errorf("extendee is invalid: %s is a %s, not a message", fqn, otherType)})
 		}
 		fld.Extendee = proto.String("." + fqn)
 		// make sure the tag number is in range
@@ -346,19 +369,24 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 			}
 		}
 		if !found {
-			return ErrorWithSourcePos{Pos: node.fieldTag().start(), Underlying: fmt.Errorf("%s: tag %d is not in valid range for extended type %s", scope, tag, fqn)}
+			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldTag().start(), Underlying: fmt.Errorf("%s: tag %d is not in valid range for extended type %s", scope, tag, fqn)}); err != nil {
+				return err
+			}
+		} else {
+			// make sure tag is not a duplicate
+			usedExtTags := l.extensions[fqn]
+			if usedExtTags == nil {
+				usedExtTags = map[int32]string{}
+				l.extensions[fqn] = usedExtTags
+			}
+			if other := usedExtTags[fld.GetNumber()]; other != "" {
+				if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldTag().start(), Underlying: fmt.Errorf("%s: duplicate extension: %s and %s are both using tag %d", scope, other, thisName, fld.GetNumber())}); err != nil {
+					return err
+				}
+			} else {
+				usedExtTags[fld.GetNumber()] = thisName
+			}
 		}
-		// make sure tag is not a duplicate
-		usedExtTags := l.extensions[fqn]
-		if usedExtTags == nil {
-			usedExtTags = map[int32]string{}
-			l.extensions[fqn] = usedExtTags
-		}
-		if other := usedExtTags[fld.GetNumber()]; other != "" {
-			return ErrorWithSourcePos{Pos: node.fieldTag().start(), Underlying: fmt.Errorf("%s: duplicate extension: %s and %s are both using tag %d", scope, other, thisName, fld.GetNumber())}
-		}
-		usedExtTags[fld.GetNumber()] = thisName
-		elemType = "extension"
 	}
 
 	if fld.Options != nil {
@@ -374,18 +402,22 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 
 	fqn, dsc, proto3 := l.resolve(fd, fld.GetTypeName(), isType, scopes)
 	if dsc == nil {
-		return ErrorWithSourcePos{Pos: node.fieldType().start(), Underlying: fmt.Errorf("%s: unknown type %s", scope, fld.GetTypeName())}
+		return l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldType().start(), Underlying: fmt.Errorf("%s: unknown type %s", scope, fld.GetTypeName())})
 	}
 	switch dsc := dsc.(type) {
 	case *dpb.DescriptorProto:
 		fld.TypeName = proto.String("." + fqn)
+		// if type was tentatively unset, we now know it's actually a message
+		if fld.Type == nil {
+			fld.Type = dpb.FieldDescriptorProto_TYPE_MESSAGE.Enum()
+		}
 	case *dpb.EnumDescriptorProto:
 		if fld.GetExtendee() == "" && isProto3(fd) && !proto3 {
 			// fields in a proto3 message cannot refer to proto2 enums
 			return ErrorWithSourcePos{Pos: node.fieldType().start(), Underlying: fmt.Errorf("%s: cannot use proto2 enum %s in a proto3 message", scope, fld.GetTypeName())}
 		}
 		fld.TypeName = proto.String("." + fqn)
-		// the type was tentatively set to message, but now we know it's actually an enum
+		// the type was tentatively unset, but now we know it's actually an enum
 		fld.Type = dpb.FieldDescriptorProto_TYPE_ENUM.Enum()
 	default:
 		otherType := descriptorType(dsc)
@@ -412,23 +444,31 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 		node := r.getMethodNode(mtd)
 		fqn, dsc, _ := l.resolve(fd, mtd.GetInputType(), isMessage, scopes)
 		if dsc == nil {
-			return ErrorWithSourcePos{Pos: node.getInputType().start(), Underlying: fmt.Errorf("%s: unknown request type %s", scope, mtd.GetInputType())}
-		}
-		if _, ok := dsc.(*dpb.DescriptorProto); !ok {
+			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getInputType().start(), Underlying: fmt.Errorf("%s: unknown request type %s", scope, mtd.GetInputType())}); err != nil {
+				return err
+			}
+		} else if _, ok := dsc.(*dpb.DescriptorProto); !ok {
 			otherType := descriptorType(dsc)
-			return ErrorWithSourcePos{Pos: node.getInputType().start(), Underlying: fmt.Errorf("%s: invalid request type: %s is a %s, not a message", scope, fqn, otherType)}
+			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getInputType().start(), Underlying: fmt.Errorf("%s: invalid request type: %s is a %s, not a message", scope, fqn, otherType)}); err != nil {
+				return err
+			}
+		} else {
+			mtd.InputType = proto.String("." + fqn)
 		}
-		mtd.InputType = proto.String("." + fqn)
 
 		fqn, dsc, _ = l.resolve(fd, mtd.GetOutputType(), isMessage, scopes)
 		if dsc == nil {
-			return ErrorWithSourcePos{Pos: node.getOutputType().start(), Underlying: fmt.Errorf("%s: unknown response type %s", scope, mtd.GetOutputType())}
-		}
-		if _, ok := dsc.(*dpb.DescriptorProto); !ok {
+			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getOutputType().start(), Underlying: fmt.Errorf("%s: unknown response type %s", scope, mtd.GetOutputType())}); err != nil {
+				return err
+			}
+		} else if _, ok := dsc.(*dpb.DescriptorProto); !ok {
 			otherType := descriptorType(dsc)
-			return ErrorWithSourcePos{Pos: node.getOutputType().start(), Underlying: fmt.Errorf("%s: invalid response type: %s is a %s, not a message", scope, fqn, otherType)}
+			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getOutputType().start(), Underlying: fmt.Errorf("%s: invalid response type: %s is a %s, not a message", scope, fqn, otherType)}); err != nil {
+				return err
+			}
+		} else {
+			mtd.OutputType = proto.String("." + fqn)
 		}
-		mtd.OutputType = proto.String("." + fqn)
 	}
 	return nil
 }
@@ -438,19 +478,29 @@ func (l *linker) resolveOptions(r *parseResult, fd *dpb.FileDescriptorProto, ele
 	if elemType != "file" {
 		scope = fmt.Sprintf("%s %s: ", elemType, elemName)
 	}
+opts:
 	for _, opt := range opts {
 		for _, nm := range opt.Name {
 			if nm.GetIsExtension() {
 				node := r.getOptionNamePartNode(nm)
 				fqn, dsc, _ := l.resolve(fd, nm.GetNamePart(), isField, scopes)
 				if dsc == nil {
-					return ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sunknown extension %s", scope, nm.GetNamePart())}
+					if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sunknown extension %s", scope, nm.GetNamePart())}); err != nil {
+						return err
+					}
+					continue opts
 				}
 				if ext, ok := dsc.(*dpb.FieldDescriptorProto); !ok {
 					otherType := descriptorType(dsc)
-					return ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sinvalid extension: %s is a %s, not an extension", scope, nm.GetNamePart(), otherType)}
+					if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sinvalid extension: %s is a %s, not an extension", scope, nm.GetNamePart(), otherType)}); err != nil {
+						return err
+					}
+					continue opts
 				} else if ext.GetExtendee() == "" {
-					return ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sinvalid extension: %s is a field but not an extension", scope, nm.GetNamePart())}
+					if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sinvalid extension: %s is a field but not an extension", scope, nm.GetNamePart())}); err != nil {
+						return err
+					}
+					continue opts
 				}
 				nm.NamePart = proto.String("." + fqn)
 			}
@@ -599,14 +649,14 @@ func (l *linker) createdLinkedDescriptors() (map[string]*desc.FileDescriptor, er
 	sort.Strings(names)
 	linked := map[string]*desc.FileDescriptor{}
 	for _, name := range names {
-		if _, err := l.linkFile(name, nil, linked); err != nil {
+		if _, err := l.linkFile(name, nil, nil, linked); err != nil {
 			return nil, err
 		}
 	}
 	return linked, nil
 }
 
-func (l *linker) linkFile(name string, seen []string, linked map[string]*desc.FileDescriptor) (*desc.FileDescriptor, error) {
+func (l *linker) linkFile(name string, rootImportLoc *SourcePos, seen []string, linked map[string]*desc.FileDescriptor) (*desc.FileDescriptor, error) {
 	// check for import cycle
 	for _, s := range seen {
 		if name == s {
@@ -621,7 +671,10 @@ func (l *linker) linkFile(name string, seen []string, linked map[string]*desc.Fi
 				fmt.Fprintf(&msg, "%q", s)
 			}
 			fmt.Fprintf(&msg, " -> %q", name)
-			return nil, fmt.Errorf("cycle found in imports: %s", msg.String())
+			return nil, ErrorWithSourcePos{
+				Underlying: fmt.Errorf("cycle found in imports: %s", msg.String()),
+				Pos:        rootImportLoc,
+			}
 		}
 	}
 	seen = append(seen, name)
@@ -636,12 +689,38 @@ func (l *linker) linkFile(name string, seen []string, linked map[string]*desc.Fi
 		return nil, fmt.Errorf("no descriptor found for %q, imported by %q", name, importer)
 	}
 	var deps []*desc.FileDescriptor
-	for _, dep := range r.fd.Dependency {
-		ldep, err := l.linkFile(dep, seen, linked)
-		if err != nil {
-			return nil, err
+	if rootImportLoc == nil {
+		// try to find a source location for this "root" import
+		decl := r.getFileNode(r.fd)
+		fnode, ok := decl.(*fileNode)
+		if ok {
+			for _, dep := range fnode.imports {
+				ldep, err := l.linkFile(dep.name.val, dep.name.start(), seen, linked)
+				if err != nil {
+					return nil, err
+				}
+				deps = append(deps, ldep)
+			}
+		} else {
+			// no AST? just use the descriptor
+			for _, dep := range r.fd.Dependency {
+				ldep, err := l.linkFile(dep, decl.start(), seen, linked)
+				if err != nil {
+					return nil, err
+				}
+				deps = append(deps, ldep)
+			}
 		}
-		deps = append(deps, ldep)
+	} else {
+		// we can just use the descriptor since we don't need source location
+		// (we'll just attribute any import cycles found to the "root" import)
+		for _, dep := range r.fd.Dependency {
+			ldep, err := l.linkFile(dep, rootImportLoc, seen, linked)
+			if err != nil {
+				return nil, err
+			}
+			deps = append(deps, ldep)
+		}
 	}
 	lfd, err := desc.CreateFileDescriptor(r.fd, deps...)
 	if err != nil {

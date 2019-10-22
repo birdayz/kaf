@@ -6,16 +6,26 @@ import (
 
 // SourceInfoMap is a map of paths in a descriptor to the corresponding source
 // code info.
-type SourceInfoMap map[string]*dpb.SourceCodeInfo_Location
+type SourceInfoMap map[string][]*dpb.SourceCodeInfo_Location
 
-// Get returns the source code info for the given path.
+// Get returns the source code info for the given path. If there are
+// multiple locations for the same path, the first one is returned.
 func (m SourceInfoMap) Get(path []int32) *dpb.SourceCodeInfo_Location {
+	v := m[asMapKey(path)]
+	if len(v) > 0 {
+		return v[0]
+	}
+	return nil
+}
+
+// GetAll returns all source code info for the given path.
+func (m SourceInfoMap) GetAll(path []int32) []*dpb.SourceCodeInfo_Location {
 	return m[asMapKey(path)]
 }
 
-// Put stores the given source code info for the given path.
-func (m SourceInfoMap) Put(path []int32, loc *dpb.SourceCodeInfo_Location) {
-	m[asMapKey(path)] = loc
+// Add stores the given source code info for the given path.
+func (m SourceInfoMap) Add(path []int32, loc *dpb.SourceCodeInfo_Location) {
+	m[asMapKey(path)] = append(m[asMapKey(path)], loc)
 }
 
 // PutIfAbsent stores the given source code info for the given path only if the
@@ -26,7 +36,7 @@ func (m SourceInfoMap) PutIfAbsent(path []int32, loc *dpb.SourceCodeInfo_Locatio
 	if _, ok := m[k]; ok {
 		return false
 	}
-	m[k] = loc
+	m[k] = []*dpb.SourceCodeInfo_Location{loc}
 	return true
 }
 
@@ -40,12 +50,13 @@ func asMapKey(slice []int32) string {
 	//return array.Interface()
 
 	b := make([]byte, len(slice)*4)
-	for i, s := range slice {
-		j := i * 4
+	j := 0
+	for _, s := range slice {
 		b[j] = byte(s)
 		b[j+1] = byte(s >> 8)
 		b[j+2] = byte(s >> 16)
 		b[j+3] = byte(s >> 24)
+		j += 4
 	}
 	return string(b)
 }
@@ -62,7 +73,7 @@ func CreateSourceInfoMap(fd *dpb.FileDescriptorProto) SourceInfoMap {
 // the given file descriptor.
 func PopulateSourceInfoMap(fd *dpb.FileDescriptorProto, m SourceInfoMap) {
 	for _, l := range fd.GetSourceCodeInfo().GetLocation() {
-		m.Put(l.Path, l)
+		m.Add(l.Path, l)
 	}
 }
 

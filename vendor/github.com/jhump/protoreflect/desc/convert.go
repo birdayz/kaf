@@ -166,16 +166,31 @@ func CreateFileDescriptorFromSet(fds *dpb.FileDescriptorSet) (*FileDescriptor, e
 }
 
 func createFileDescriptorFromSet(fds *dpb.FileDescriptorSet, r *ImportResolver) (*FileDescriptor, error) {
+	result, err := createFileDescriptorsFromSet(fds, r)
+	if err != nil {
+		return nil, err
+	}
+	files := fds.GetFile()
+	lastFilename := files[len(files)-1].GetName()
+	return result[lastFilename], nil
+}
+
+// CreateFileDescriptorsFromSet creates file descriptors from the given file descriptor set.
+// The returned map includes all files in the set, keyed b name. The set must include the
+// full set of transitive dependencies for all files therein or else a link error will occur
+// and be returned instead of the slice of descriptors. This is the same format used by
+// protoc when a FileDescriptorSet file with an invocation like so:
+//    protoc --descriptor_set_out=./test.protoset --include_imports -I. test.proto
+func CreateFileDescriptorsFromSet(fds *dpb.FileDescriptorSet) (map[string]*FileDescriptor, error) {
+	return createFileDescriptorsFromSet(fds, nil)
+}
+
+func createFileDescriptorsFromSet(fds *dpb.FileDescriptorSet, r *ImportResolver) (map[string]*FileDescriptor, error) {
 	files := fds.GetFile()
 	if len(files) == 0 {
 		return nil, errors.New("file descriptor set is empty")
 	}
-	resolved, err := createFileDescriptors(files, r)
-	if err != nil {
-		return nil, err
-	}
-	lastFilename := files[len(files)-1].GetName()
-	return resolved[lastFilename], nil
+	return createFileDescriptors(files, r)
 }
 
 // createFromSet creates a descriptor for the given filename. It recursively

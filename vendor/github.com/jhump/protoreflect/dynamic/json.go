@@ -308,6 +308,39 @@ func marshalKnownFieldJSON(b *indentBuffer, fd *desc.FieldDescriptor, v interfac
 	}
 }
 
+// sortable is used to sort map keys. Values will be integers (int32, int64, uint32, and uint64),
+// bools, or strings.
+type sortable []interface{}
+
+func (s sortable) Len() int {
+	return len(s)
+}
+
+func (s sortable) Less(i, j int) bool {
+	vi := s[i]
+	vj := s[j]
+	switch reflect.TypeOf(vi).Kind() {
+	case reflect.Int32:
+		return vi.(int32) < vj.(int32)
+	case reflect.Int64:
+		return vi.(int64) < vj.(int64)
+	case reflect.Uint32:
+		return vi.(uint32) < vj.(uint32)
+	case reflect.Uint64:
+		return vi.(uint64) < vj.(uint64)
+	case reflect.String:
+		return vi.(string) < vj.(string)
+	case reflect.Bool:
+		return !vi.(bool) && vj.(bool)
+	default:
+		panic(fmt.Sprintf("cannot compare keys of type %v", reflect.TypeOf(vi)))
+	}
+}
+
+func (s sortable) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
 func isNil(v interface{}) bool {
 	if v == nil {
 		return true
@@ -345,7 +378,9 @@ func marshalKnownFieldMapEntryJSON(b *indentBuffer, mk interface{}, vfd *desc.Fi
 func marshalKnownFieldValueJSON(b *indentBuffer, fd *desc.FieldDescriptor, v interface{}, opts *jsonpb.Marshaler) error {
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
-	case reflect.Int32, reflect.Int64:
+	case reflect.Int64:
+		return writeJsonString(b, strconv.FormatInt(rv.Int(), 10))
+	case reflect.Int32:
 		ed := fd.GetEnumType()
 		if !opts.EnumsAsInts && ed != nil {
 			n := int32(rv.Int())
@@ -360,7 +395,9 @@ func marshalKnownFieldValueJSON(b *indentBuffer, fd *desc.FieldDescriptor, v int
 			_, err := b.WriteString(strconv.FormatInt(rv.Int(), 10))
 			return err
 		}
-	case reflect.Uint32, reflect.Uint64:
+	case reflect.Uint64:
+		return writeJsonString(b, strconv.FormatUint(rv.Uint(), 10))
+	case reflect.Uint32:
 		_, err := b.WriteString(strconv.FormatUint(rv.Uint(), 10))
 		return err
 	case reflect.Float32, reflect.Float64:

@@ -292,6 +292,13 @@ func (r *ImportResolver) CreateFileDescriptorFromSet(fds *dpb.FileDescriptorSet)
 	return createFileDescriptorFromSet(fds, r)
 }
 
+// CreateFileDescriptorsFromSet is the same as the package function of the same
+// name, but any alternate paths configured in this resolver are used when
+// linking the descriptor protos in the given set.
+func (r *ImportResolver) CreateFileDescriptorsFromSet(fds *dpb.FileDescriptorSet) (map[string]*FileDescriptor, error) {
+	return createFileDescriptorsFromSet(fds, r)
+}
+
 const dotPrefix = "." + string(filepath.Separator)
 
 func clean(path string) string {

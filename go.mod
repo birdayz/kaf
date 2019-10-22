@@ -1,6 +1,6 @@
 module github.com/birdayz/kaf
 
-go 1.12
+go 1.13
 
 require (
 	github.com/DataDog/zstd v1.4.0 // indirect
@@ -10,6 +10,7 @@ require (
 	github.com/avast/retry-go v2.4.1+incompatible
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/fatih/color v1.7.0 // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
 	github.com/golang/protobuf v1.3.1
 	github.com/hokaccha/go-prettyjson v0.0.0-20180920040306-f579f869bbfe
 	github.com/jcmturner/gofork v1.0.0 // indirect
@@ -19,6 +20,7 @@ require (
 	github.com/manifoldco/promptui v0.3.2
 	github.com/mattn/go-colorable v0.1.2
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/nicksnyder/go-i18n v1.10.1 // indirect
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20190706150252-9beb055b7962 // indirect
 	github.com/spf13/cobra v0.0.5

@@ -105,6 +105,9 @@ const (
 	// Field_typeTag is the tag number of the type element in a field descriptor
 	// proto.
 	Field_typeTag = 5
+	// Field_typeNameTag is the tag number of the type name element in a field
+	// descriptor proto.
+	Field_typeNameTag = 6
 	// Field_defaultTag is the tag number of the default value element in a
 	// field descriptor proto.
 	Field_defaultTag = 7

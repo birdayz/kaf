@@ -1004,7 +1004,7 @@ func interpretOptions(res *parseResult, element descriptorish, opts proto.Messag
 
 	} else {
 		// not lenient: try to convert into the passed in message
-		// and fail is not successful
+		// and fail if not successful
 		if err := dm.ConvertTo(opts); err != nil {
 			node := res.nodes[element.AsProto()]
 			return nil, ErrorWithSourcePos{Pos: node.start(), Underlying: err}
