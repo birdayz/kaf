@@ -28,7 +28,7 @@ func init() {
 
 	createTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(1), "Number of partitions")
 	createTopicCmd.Flags().Int16VarP(&replicasFlag, "replicas", "r", int16(1), "Number of replicas")
-	createTopicCmd.Flags().BoolVarP(&compactFlag, "compact", "c", false, "Enable topic compaction")
+	createTopicCmd.Flags().BoolVarP(&compactFlag, "compact", "C", false, "Enable topic compaction")
 
 	lsTopicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
