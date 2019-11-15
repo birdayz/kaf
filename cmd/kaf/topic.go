@@ -6,6 +6,8 @@ import (
 	"sort"
 	"text/tabwriter"
 
+	"strings"
+
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 )
@@ -25,6 +27,7 @@ func init() {
 	topicCmd.AddCommand(lsTopicsCmd)
 	topicCmd.AddCommand(describeTopicCmd)
 	topicCmd.AddCommand(addConfigCmd)
+	topicCmd.AddCommand(topicSetConfig)
 
 	createTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(1), "Number of partitions")
 	createTopicCmd.Flags().Int16VarP(&replicasFlag, "replicas", "r", int16(1), "Number of replicas")
@@ -42,6 +45,43 @@ var topicsCmd = &cobra.Command{
 	Use:   "topics",
 	Short: "List topics",
 	Run:   lsTopicsCmd.Run,
+}
+
+var topicSetConfig = &cobra.Command{
+	Use:     "set-config",
+	Short:   "set topic config",
+	Example: "kaf topic set-config cleanup.policy delete",
+	Args:    cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		admin := getClusterAdmin()
+
+		topic := args[0]
+
+		splt := strings.Split(args[1], ",")
+		configs := make(map[string]*string)
+
+		for _, kv := range splt {
+			s := strings.Split(kv, "=")
+
+			if len(s) != 2 {
+				continue
+			}
+
+			key := s[0]
+			value := s[1]
+			configs[key] = &value
+		}
+
+		if len(configs) < 1 {
+			errorExit("No valid configs found")
+		}
+
+		err := admin.AlterConfig(sarama.TopicResource, topic, configs, false)
+		if err != nil {
+			errorExit("Unable to alter topic config: %v\n", err)
+		}
+		fmt.Printf("\xE2\x9C\x85 Updated config.")
+	},
 }
 
 var lsTopicsCmd = &cobra.Command{
