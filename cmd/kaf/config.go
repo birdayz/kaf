@@ -81,8 +81,15 @@ var configAddClusterCmd = &cobra.Command{
 	Short: "add cluster",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+		for _, cluster := range config.Clusters {
+			if cluster.Name == name {
+				errorExit("Could not add cluster: cluster with name '%v' exists already.", name)
+			}
+		}
+
 		config.Clusters = append(config.Clusters, &kaf.Cluster{
-			Name:              args[0],
+			Name:              name,
 			Brokers:           brokersFlag,
 			SchemaRegistryURL: schemaRegistryURL,
 		})
