@@ -76,7 +76,11 @@ func (c *Config) ActiveCluster() *Cluster {
 
 	for _, cluster := range c.Clusters {
 		if cluster.Name == toSearch {
-			return cluster
+			// Make copy of cluster struct, using a pointer leads to unintended
+			// behavior where modifications on currentCluster are written back
+			// into the config
+			c := *cluster
+			return &c
 		}
 	}
 	return nil
