@@ -97,8 +97,9 @@ func getConfig() (saramaConfig *sarama.Config) {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "kaf",
-	Short: "Kafka Command Line utility for cluster management",
+	Use:                    "kaf",
+	Short:                  "Kafka Command Line utility for cluster management",
+	BashCompletionFunction: bashCompletion,
 }
 
 func main() {

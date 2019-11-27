@@ -31,6 +31,7 @@ func init() {
 	groupCmd.AddCommand(createGroupCommitOffsetCmd())
 
 	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+	groupsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 }
 
 const (
@@ -42,7 +43,8 @@ const (
 	tabwriterFlags          = 0
 )
 
-var groupCmd = &cobra.Command{Use: "group",
+var groupCmd = &cobra.Command{
+	Use:   "group",
 	Short: "Display information about consumer groups.",
 }
 
@@ -113,7 +115,8 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 	var offset int64
 	var partition int32
 	res := &cobra.Command{
-		Use: "commit",
+		Use:  "commit",
+		Args: cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getClient()
 			config := getConfig()
@@ -231,13 +234,7 @@ var groupLsCmd = &cobra.Command{
 			fmt.Fprintf(w, "%v\t%v\t%v\t\n", detail.GroupId, state, consumers)
 		}
 
-		if len(groupDescs) != 0 {
-			w.Flush()
-		} else {
-			fmt.Printf("No Groups found\n")
-		}
-
-		return
+		w.Flush()
 	},
 }
 
@@ -288,7 +285,7 @@ var groupDescribeCmd = &cobra.Command{
 
 			var p []int32
 
-			for partition, _ := range partitions {
+			for partition := range partitions {
 				p = append(p, partition)
 			}
 
