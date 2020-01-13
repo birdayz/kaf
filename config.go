@@ -24,6 +24,7 @@ type TLS struct {
 
 type Cluster struct {
 	Name              string
+	Version           string   `yaml:"version"`
 	Brokers           []string `yaml:"brokers"`
 	SASL              *SASL    `yaml:"SASL"`
 	TLS               *TLS     `yaml:"TLS"`

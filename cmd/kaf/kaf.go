@@ -25,6 +25,13 @@ func getConfig() (saramaConfig *sarama.Config) {
 	saramaConfig.Producer.Return.Successes = true
 
 	cluster := currentCluster
+	if cluster.Version != "" {
+		parsedVersion, err := sarama.ParseKafkaVersion(cluster.Version)
+		if err != nil {
+			errorExit("Unable to parse Kafka version: %v\n", err)
+		}
+		saramaConfig.Version = parsedVersion
+	}
 	if cluster.SASL != nil {
 		saramaConfig.Net.SASL.Enable = true
 		saramaConfig.Net.SASL.User = cluster.SASL.Username
