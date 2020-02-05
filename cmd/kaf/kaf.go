@@ -53,22 +53,24 @@ func getConfig() (saramaConfig *sarama.Config) {
 			tlsConfig.RootCAs = caCertPool
 		}
 
-		clientCert, err := ioutil.ReadFile(cluster.TLS.Clientfile)
-		if err != nil {
-			errorExit("Unable to read Clientfile :%v\n", err)
-		}
-		clientKey, err := ioutil.ReadFile(cluster.TLS.Clientkeyfile)
-		if err != nil {
-			errorExit("Unable to read Clientkeyfile :%v\n", err)
-		}
+		if cluster.TLS.Clientfile != "" && cluster.TLS.Clientkeyfile != "" {
+			clientCert, err := ioutil.ReadFile(cluster.TLS.Clientfile)
+			if err != nil {
+				errorExit("Unable to read Clientfile :%v\n", err)
+			}
+			clientKey, err := ioutil.ReadFile(cluster.TLS.Clientkeyfile)
+			if err != nil {
+				errorExit("Unable to read Clientkeyfile :%v\n", err)
+			}
 
-		cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
-		if err != nil {
-			errorExit("Unable to creatre KeyPair: %v\n", err)
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
+			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+			if err != nil {
+				errorExit("Unable to creatre KeyPair: %v\n", err)
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
 
-		tlsConfig.BuildNameToCertificate()
+			tlsConfig.BuildNameToCertificate()
+		}
 		saramaConfig.Net.TLS.Config = tlsConfig
 	}
 	if cluster.SecurityProtocol == "SASL_SSL" {
