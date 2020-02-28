@@ -51,7 +51,7 @@ var topicsCmd = &cobra.Command{
 var topicSetConfig = &cobra.Command{
 	Use:     "set-config",
 	Short:   "set topic config",
-	Example: "kaf topic set-config cleanup.policy delete",
+	Example: "kaf topic set-config topic.name \"cleanup.policy=delete\"",
 	Args:    cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
