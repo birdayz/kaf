@@ -8,8 +8,8 @@ before:
     - go generate ./...
 builds:
 - env:
-  main: ./cmd/kaf
   - CGO_ENABLED=0
+  main: ./cmd/kaf
 archives:
 - replacements:
     darwin: Darwin
