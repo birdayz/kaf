@@ -10,6 +10,12 @@ builds:
 - env:
   - CGO_ENABLED=0
   main: ./cmd/kaf
+  goarch:
+  - amd64
+  goos:
+  - linux
+  - darwin
+  - windows
 archives:
 - replacements:
     darwin: Darwin
