@@ -8,6 +8,7 @@ before:
     - go generate ./...
 builds:
 - env:
+  main: ./cmd/kaf
   - CGO_ENABLED=0
 archives:
 - replacements:
