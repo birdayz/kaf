@@ -6,12 +6,14 @@ import (
 	"os"
 
 	"github.com/Shopify/sarama"
+	"github.com/burdiyan/kafkautil"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
 
 var keyFlag string
 var numFlag int
+var partitionerFlag string
 
 func init() {
 	rootCmd.AddCommand(produceCmd)
@@ -22,6 +24,7 @@ func init() {
 	produceCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
 	produceCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	produceCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
+	produceCmd.Flags().StringVar(&partitionerFlag, "partitioner", "", "Select partitioner: Default or jvm")
 
 }
 
@@ -31,7 +34,11 @@ var produceCmd = &cobra.Command{
 	Args:   cobra.ExactArgs(1),
 	PreRun: setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
-		producer, err := sarama.NewSyncProducer(currentCluster.Brokers, getConfig())
+		cfg := getConfig()
+		if partitionerFlag != "" {
+			cfg.Producer.Partitioner = kafkautil.NewJVMCompatiblePartitioner
+		}
+		producer, err := sarama.NewSyncProducer(currentCluster.Brokers, cfg)
 		if err != nil {
 			errorExit("Unable to create new sync producer: %v\n", err)
 		}
