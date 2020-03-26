@@ -70,6 +70,8 @@ var produceCmd = &cobra.Command{
 				}
 
 				data = pb
+			} else {
+				errorExit("Failed to load payload proto type")
 			}
 		}
 
@@ -86,7 +88,10 @@ var produceCmd = &cobra.Command{
 				}
 
 				key = sarama.ByteEncoder(pb)
+			} else {
+				errorExit("Failed to load key proto type")
 			}
+
 		}
 
 		var ts time.Time
@@ -110,7 +115,6 @@ var produceCmd = &cobra.Command{
 			}
 
 			fmt.Printf("Sent record to partition %v at offset %v.\n", partition, offset)
-
 		}
 
 	},
