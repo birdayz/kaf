@@ -135,7 +135,6 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 				if err != nil {
 					errorExit("offset is neither offset nor timestamp", nil)
 				}
-				_ = t
 
 				o, err := client.GetOffset(topic, partition, t.UnixNano()/(int64(time.Millisecond)/int64(time.Nanosecond)))
 				if err != nil {
