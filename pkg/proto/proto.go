@@ -24,9 +24,7 @@ func NewDescriptorRegistry(importPaths []string, exclusions []string) (*Descript
 
 	for _, importPath := range importPaths {
 		filepath.Walk(importPath, func(path string, info os.FileInfo, err error) error {
-			// protoparse.ResolveFilenames(importPaths []string, fileNames ...string)
 			if info != nil && !info.IsDir() && strings.HasSuffix(path, ".proto") {
-				// _, err = desc.LoadFileDescriptor(path)
 				protoFiles = append(protoFiles, path)
 			}
 
