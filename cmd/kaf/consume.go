@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/birdayz/kaf/avro"
+	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/proto"
 	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
@@ -45,7 +45,6 @@ func init() {
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
 	keyfmt.Indent = 0
-
 }
 
 func getAvailableOffsetsRetry(

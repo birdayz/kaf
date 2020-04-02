@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf"
-	"github.com/birdayz/kaf/avro"
+	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/proto"
 )
 
