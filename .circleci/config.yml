@@ -1,12 +1,19 @@
-version: 2
+version: 2.1
+orbs:
+  golangci-lint: timakin/golangci-lint@volatile
+  go: circleci/go@1.1.1
 jobs:
   build:
-    docker:
-      - image: circleci/golang:1.11
-        environment:
-          GO111MODULE: "on"
-    working_directory: /go/src/github.com/birdayz/kaf
+    executor:
+      name: go/default
+      tag: '1.14'
     steps:
       - checkout
-      - run: go mod verify
-      - run: make build
+      - go/load-cache
+      - go/mod-download
+      - go/save-cache
+workflows:
+  build:
+    jobs:
+      - golangci-lint/lint
+      - build
