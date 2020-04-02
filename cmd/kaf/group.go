@@ -17,13 +17,12 @@ import (
 	"sync"
 
 	"github.com/Shopify/sarama"
+	"github.com/birdayz/kaf/pkg/streams"
 	"github.com/spf13/cobra"
 
 	"strconv"
 
 	"time"
-
-	"github.com/birdayz/kaf"
 )
 
 func init() {
@@ -316,7 +315,7 @@ var groupDescribeCmd = &cobra.Command{
 				}
 			} else {
 				switch d := decodedUserData.(type) {
-				case kaf.SubscriptionInfo:
+				case streams.SubscriptionInfo:
 					fmt.Fprintf(w, "\f\t\tMetadata:\t\n")
 					fmt.Fprintf(w, "\t\t  UUID:\t0x%v\n", hex.EncodeToString(d.UUID))
 					fmt.Fprintf(w, "\t\t  UserEndpoint:\t%v\n", d.UserEndpoint)
@@ -397,11 +396,11 @@ func IsASCIIPrintable(s string) bool {
 
 func tryDecodeUserData(protocol string, raw []byte) (data interface{}, err error) {
 	// Interpret userdata here
-	decoder := kaf.NewDecoder(raw)
+	decoder := streams.NewDecoder(raw)
 
 	switch protocol {
 	case "stream":
-		subscriptionInfo := kaf.SubscriptionInfo{}
+		subscriptionInfo := streams.SubscriptionInfo{}
 		err = subscriptionInfo.Decode(decoder)
 		if err != nil {
 			return nil, err

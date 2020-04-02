@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/birdayz/kaf"
+	"github.com/birdayz/kaf/pkg/config"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +31,7 @@ var configUseCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		if err := config.SetCurrentCluster(name); err != nil {
+		if err := cfg.SetCurrentCluster(name); err != nil {
 			fmt.Printf("Cluster with name %v not found\n", name)
 		} else {
 			fmt.Printf("Switched to cluster \"%v\".\n", name)
@@ -47,7 +47,7 @@ var configLsCmd = &cobra.Command{
 		if !noHeaderFlag {
 			fmt.Println("NAME")
 		}
-		for _, cluster := range config.Clusters {
+		for _, cluster := range cfg.Clusters {
 			fmt.Println(cluster.Name)
 		}
 	},
@@ -58,7 +58,7 @@ var configSelectCluster = &cobra.Command{
 	Short: "Interactively select a cluster",
 	Run: func(cmd *cobra.Command, args []string) {
 		var clusterNames []string
-		for _, cluster := range config.Clusters {
+		for _, cluster := range cfg.Clusters {
 			clusterNames = append(clusterNames, cluster.Name)
 		}
 		p := promptui.Select{
@@ -74,7 +74,7 @@ var configSelectCluster = &cobra.Command{
 		// How to have selection on currently selected cluster?
 
 		// TODO copy pasta
-		if err := config.SetCurrentCluster(selected); err != nil {
+		if err := cfg.SetCurrentCluster(selected); err != nil {
 			fmt.Printf("Cluster with selected %v not found\n", selected)
 		}
 	},
@@ -86,18 +86,18 @@ var configAddClusterCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
-		for _, cluster := range config.Clusters {
+		for _, cluster := range cfg.Clusters {
 			if cluster.Name == name {
 				errorExit("Could not add cluster: cluster with name '%v' exists already.", name)
 			}
 		}
 
-		config.Clusters = append(config.Clusters, &kaf.Cluster{
+		cfg.Clusters = append(cfg.Clusters, &config.Cluster{
 			Name:              name,
 			Brokers:           brokersFlag,
 			SchemaRegistryURL: schemaRegistryURL,
 		})
-		err := config.Write()
+		err := cfg.Write()
 		if err != nil {
 			errorExit("Unable to write config: %v\n", err)
 		}
@@ -109,14 +109,14 @@ var configImportCmd = &cobra.Command{
 	Use:   "import [ccloud]",
 	Short: "Import configurations into the $HOME/.kaf/config file",
 	Run: func(cmd *cobra.Command, args []string) {
-		if path, err := kaf.TryFindCcloudConfigFile(); err == nil {
+		if path, err := config.TryFindCcloudConfigFile(); err == nil {
 			fmt.Printf("Detected Confluent Cloud config in file %v\n", path)
-			if username, password, broker, err := kaf.ParseConfluentCloudConfig(path); err == nil {
+			if username, password, broker, err := config.ParseConfluentCloudConfig(path); err == nil {
 
-				newCluster := &kaf.Cluster{
+				newCluster := &config.Cluster{
 					Name:    "ccloud",
 					Brokers: []string{broker},
-					SASL: &kaf.SASL{
+					SASL: &config.SASL{
 						Username:  username,
 						Password:  password,
 						Mechanism: "PLAIN",
@@ -125,23 +125,23 @@ var configImportCmd = &cobra.Command{
 				}
 
 				var found bool
-				for i, newCluster := range config.Clusters {
+				for i, newCluster := range cfg.Clusters {
 					if newCluster.Name == "confluent cloud" {
 						found = true
-						config.Clusters[i] = newCluster
+						cfg.Clusters[i] = newCluster
 						break
 					}
 				}
 
 				if !found {
 					fmt.Println("Wrote new entry to config file")
-					config.Clusters = append(config.Clusters, newCluster)
+					cfg.Clusters = append(cfg.Clusters, newCluster)
 				}
 
-				if config.CurrentCluster == "" {
-					config.CurrentCluster = newCluster.Name
+				if cfg.CurrentCluster == "" {
+					cfg.CurrentCluster = newCluster.Name
 				}
-				config.Write()
+				cfg.Write()
 
 			}
 		}

@@ -1,4 +1,4 @@
-package kaf
+package config
 
 import (
 	"errors"

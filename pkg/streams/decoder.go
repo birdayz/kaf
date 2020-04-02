@@ -1,4 +1,4 @@
-package kaf
+package streams
 
 import (
 	"encoding/binary"

@@ -12,8 +12,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 
-	"github.com/birdayz/kaf"
 	"github.com/birdayz/kaf/pkg/avro"
+	"github.com/birdayz/kaf/pkg/config"
 	"github.com/birdayz/kaf/pkg/proto"
 )
 
@@ -118,8 +118,8 @@ func main() {
 	}
 }
 
-var config kaf.Config
-var currentCluster *kaf.Cluster
+var cfg config.Config
+var currentCluster *config.Cluster
 
 var (
 	brokersFlag       []string
@@ -151,20 +151,20 @@ var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
 
 func onInit() {
 	var err error
-	config, err = kaf.ReadConfig(cfgFile)
+	cfg, err = config.ReadConfig(cfgFile)
 	if err != nil {
 		errorExit("Invalid config: %v", err)
 	}
 
-	config.ClusterOverride = clusterOverride
+	cfg.ClusterOverride = clusterOverride
 
-	cluster := config.ActiveCluster()
+	cluster := cfg.ActiveCluster()
 	if cluster != nil {
 		// Use active cluster from config
 		currentCluster = cluster
 	} else {
 		// Create sane default if not configured
-		currentCluster = &kaf.Cluster{
+		currentCluster = &config.Cluster{
 			Brokers: []string{"localhost:9092"},
 		}
 	}

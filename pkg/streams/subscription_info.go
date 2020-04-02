@@ -1,4 +1,4 @@
-package kaf
+package streams
 
 type SubscriptionInfo struct {
 	Version      int32
