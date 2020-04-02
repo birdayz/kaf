@@ -10,11 +10,15 @@ Kafka CLI inspired by kubectl & docker
 ## Install
 Install from source:
 
-```go get github.com/birdayz/kaf/cmd/kaf```
+```
+go get github.com/birdayz/kaf/cmd/kaf
+```
 
 Install binary:
 
-```curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BINDIR=$HOME/bin bash```
+```
+curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BINDIR=$HOME/bin bash
+```
 
 
 ## Configuration
