@@ -97,7 +97,7 @@ func (r *resetHandler) Setup(s sarama.ConsumerGroupSession) error {
 	if err != nil {
 		return err
 	}
-	br.Open(getConfig())
+	_ = br.Open(getConfig())
 	_, err = br.CommitOffset(req)
 	if err != nil {
 		return err
@@ -330,7 +330,6 @@ var groupDescribeCmd = &cobra.Command{
 }
 
 func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]int64) {
-	watermarks = make(map[int32]int64)
 	client := getClient()
 	leaders := make(map[*sarama.Broker][]int32)
 

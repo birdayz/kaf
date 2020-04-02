@@ -8,9 +8,11 @@ import (
 
 var errInvalidArrayLength = errors.New("invalid array length")
 var errInvalidByteSliceLength = errors.New("invalid byteslice length")
-var errInvalidByteSliceLengthType = errors.New("invalid byteslice length type")
+
+//var errInvalidByteSliceLengthType = errors.New("invalid byteslice length type")
 var errInvalidStringLength = errors.New("invalid string length")
-var errInvalidSubsetSize = errors.New("invalid subset size")
+
+//var errInvalidSubsetSize = errors.New("invalid subset size")
 var errVarintOverflow = errors.New("varint overflow")
 var errInvalidBool = errors.New("invalid bool")
 

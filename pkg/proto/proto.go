@@ -23,13 +23,16 @@ func NewDescriptorRegistry(importPaths []string, exclusions []string) (*Descript
 	var protoFiles []string
 
 	for _, importPath := range importPaths {
-		filepath.Walk(importPath, func(path string, info os.FileInfo, err error) error {
+		err := filepath.Walk(importPath, func(path string, info os.FileInfo, err error) error {
 			if info != nil && !info.IsDir() && strings.HasSuffix(path, ".proto") {
 				protoFiles = append(protoFiles, path)
 			}
 
 			return nil
 		})
+		if err != nil {
+			return nil, err
+		}
 
 	}
 

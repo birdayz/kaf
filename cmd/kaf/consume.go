@@ -205,7 +205,7 @@ var consumeCmd = &cobra.Command{
 
 					mu.Lock()
 					stderr.WriteTo(os.Stderr)
-					colorable.NewColorableStdout().Write(dataToDisplay)
+					_, _ = colorable.NewColorableStdout().Write(dataToDisplay)
 					fmt.Print("\n")
 					mu.Unlock()
 				}
@@ -224,12 +224,15 @@ func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte,
 		return b, nil
 	}
 
-	dynamicMessage.Unmarshal(b)
+	err := dynamicMessage.Unmarshal(b)
+	if err != nil {
+		return nil, err
+	}
 
 	var m jsonpb.Marshaler
 	var w bytes.Buffer
 
-	err := m.Marshal(&w, dynamicMessage)
+	err = m.Marshal(&w, dynamicMessage)
 	if err != nil {
 		return nil, err
 	}

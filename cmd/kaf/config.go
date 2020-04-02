@@ -141,7 +141,10 @@ var configImportCmd = &cobra.Command{
 				if cfg.CurrentCluster == "" {
 					cfg.CurrentCluster = newCluster.Name
 				}
-				cfg.Write()
+				err = cfg.Write()
+				if err != nil {
+					errorExit("Failed to write config: %w", err)
+				}
 
 			}
 		}

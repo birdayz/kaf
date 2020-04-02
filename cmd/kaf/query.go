@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var queryKey string
 var grepValue string
 
 func init() {
