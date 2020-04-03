@@ -1,0 +1,14 @@
+excludes:
+  - vendor/
+
+protoc:
+  version: 3.9.1
+
+generate:
+  go_options:
+    import_path: "github.com/birdayz/kaf"
+  plugins:
+    - name: go
+      type: go
+      flags: plugins=grpc
+      output: .

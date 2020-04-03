@@ -1,0 +1,31 @@
+syntax = "proto3";
+package kaf.topic;
+option go_package = "topic";
+
+import "google/protobuf/empty.proto";
+
+message CreateTopicRequest {}
+
+message CreateTopicResponse {}
+
+message ListTopicsRequest {}
+
+message ListTopicsResponse {
+  repeated Topic topics = 1;
+}
+
+message GetTopicRequest {}
+
+message DeleteTopicRequest {}
+
+message UpdateTopicRequest {}
+
+message Topic {}
+
+service TopicService {
+  rpc CreateTopic(CreateTopicRequest) returns (Topic);
+  rpc GetTopic(GetTopicRequest) returns (Topic);
+  rpc UpdateTopic(UpdateTopicRequest) returns (Topic);
+  rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
+  rpc DeleteTopic(DeleteTopicRequest) returns (google.protobuf.Empty);
+}
