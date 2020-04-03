@@ -29,6 +29,8 @@ var (
 	protoType    string
 	keyProtoType string
 
+	flagPartitions []int32
+
 	reg *proto.DescriptorRegistry
 )
 
@@ -41,6 +43,7 @@ func init() {
 	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 	consumeCmd.Flags().StringVar(&keyProtoType, "key-proto-type", "", "Fully qualified name of the proto key type. Example: com.test.SampleMessage")
+	consumeCmd.Flags().Int32SliceVarP(&flagPartitions, "partitions", "p", []int32{}, "Partitions to consume from")
 
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
@@ -99,9 +102,14 @@ var consumeCmd = &cobra.Command{
 			errorExit("Unable to create consumer from client: %v\n", err)
 		}
 
-		partitions, err := consumer.Partitions(topic)
-		if err != nil {
-			errorExit("Unable to get partitions: %v\n", err)
+		var partitions []int32
+		if len(flagPartitions) == 0 {
+			partitions, err = consumer.Partitions(topic)
+			if err != nil {
+				errorExit("Unable to get partitions: %v\n", err)
+			}
+		} else {
+			partitions = flagPartitions
 		}
 
 		schemaCache = getSchemaCache()

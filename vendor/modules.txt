@@ -105,9 +105,9 @@ github.com/pkg/errors
 github.com/rcrowley/go-metrics
 # github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da
 github.com/samuel/go-zookeeper/zk
-# github.com/spf13/cobra v0.0.5
+# github.com/spf13/cobra v0.0.7
 github.com/spf13/cobra
-# github.com/spf13/pflag v1.0.3
+# github.com/spf13/pflag v1.0.5
 github.com/spf13/pflag
 # github.com/syndtr/goleveldb v1.0.0
 github.com/syndtr/goleveldb/leveldb
@@ -133,7 +133,7 @@ github.com/xdg/stringprep
 # golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
 golang.org/x/crypto/md4
 golang.org/x/crypto/pbkdf2
-# golang.org/x/lint v0.0.0-20181026193005-c67002cb31c3
+# golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3
 golang.org/x/lint
 # golang.org/x/net v0.0.0-20190628185345-da137c7871d7
 golang.org/x/net/internal/socks
@@ -149,7 +149,7 @@ golang.org/x/text/unicode/norm
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/internal/gcimporter
-# google.golang.org/genproto v0.0.0-20170818010345-ee236bd376b0
+# google.golang.org/genproto v0.0.0-20180817151627-c66870c02cf8
 google.golang.org/genproto/protobuf/api
 google.golang.org/genproto/protobuf/field_mask
 google.golang.org/genproto/protobuf/ptype
