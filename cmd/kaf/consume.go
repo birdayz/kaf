@@ -120,7 +120,7 @@ var consumeCmd = &cobra.Command{
 
 			wg.Add(1)
 
-			go func(partition int32) {
+			go func(partition int32, offset int64) {
 				req := &sarama.OffsetRequest{
 					Version: int16(1),
 				}
@@ -141,9 +141,14 @@ var consumeCmd = &cobra.Command{
 					fmt.Fprintf(os.Stderr, "Starting on partition %v with offset %v\n", partition, offset)
 				}
 
+				// Ignore invalid partitions
+				if offset < 0 {
+					return
+				}
+
 				pc, err := consumer.ConsumePartition(topic, partition, offset)
 				if err != nil {
-					errorExit("Unable to consume partition: %v\n", err)
+					errorExit("Unable to consume partition: %v %v %v %v\n", topic, partition, offset, err)
 				}
 
 				for msg := range pc.Messages() {
@@ -218,7 +223,7 @@ var consumeCmd = &cobra.Command{
 					mu.Unlock()
 				}
 				wg.Done()
-			}(partition)
+			}(partition, offset)
 		}
 		wg.Wait()
 
