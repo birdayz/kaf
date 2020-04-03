@@ -15,6 +15,7 @@ func init() {
 	configCmd.AddCommand(configLsCmd)
 	configCmd.AddCommand(configAddClusterCmd)
 	configCmd.AddCommand(configSelectCluster)
+	configCmd.AddCommand(configCurrentContext)
 	rootCmd.AddCommand(configCmd)
 
 	configLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
@@ -23,6 +24,15 @@ func init() {
 var configCmd = &cobra.Command{
 	Use:   "config",
 	Short: "Handle kaf configuration",
+}
+
+var configCurrentContext = &cobra.Command{
+	Use:   "current-context",
+	Short: "Displays the current context",
+	Args:  cobra.ExactArgs(0),
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println(cfg.CurrentCluster)
+	},
 }
 
 var configUseCmd = &cobra.Command{
