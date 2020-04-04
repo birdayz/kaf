@@ -20,7 +20,9 @@ message DeleteTopicRequest {}
 
 message UpdateTopicRequest {}
 
-message Topic {}
+message Topic {
+  string name = 1;
+}
 
 service TopicService {
   rpc CreateTopic(CreateTopicRequest) returns (Topic);
