@@ -8,15 +8,18 @@ import (
 
 	"strings"
 
+	"encoding/json"
+
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
 )
 
 var (
-	partitionsFlag int32
-	replicasFlag   int16
-	noHeaderFlag   bool
-	compactFlag    bool
+	partitionsFlag           int32
+	partitionAssignmentsFlag string
+	replicasFlag             int16
+	noHeaderFlag             bool
+	compactFlag              bool
 )
 
 func init() {
@@ -28,6 +31,7 @@ func init() {
 	topicCmd.AddCommand(describeTopicCmd)
 	topicCmd.AddCommand(addConfigCmd)
 	topicCmd.AddCommand(topicSetConfig)
+	topicCmd.AddCommand(updateTopicCmd)
 
 	createTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(1), "Number of partitions")
 	createTopicCmd.Flags().Int16VarP(&replicasFlag, "replicas", "r", int16(1), "Number of replicas")
@@ -35,6 +39,8 @@ func init() {
 
 	lsTopicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	topicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+	updateTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(-1), "Number of partitions")
+	updateTopicCmd.Flags().StringVar(&partitionAssignmentsFlag, "partition-assignments", "", "Partition Assignments. Optional. If set, an assignment must be provided for each new partition. Example: '[[1,2,3],[1,2,3]]' (JSON Array syntax) assigns two new partitions to brokers 1,2,3")
 }
 
 var topicCmd = &cobra.Command{
@@ -82,6 +88,34 @@ var topicSetConfig = &cobra.Command{
 			errorExit("Unable to alter topic config: %v\n", err)
 		}
 		fmt.Printf("\xE2\x9C\x85 Updated config.")
+	},
+}
+
+var updateTopicCmd = &cobra.Command{
+	Use:     "update",
+	Short:   "Update topic",
+	Example: "kaf topic update -p 5 --partition-assignments '[[1,2,3],[1,2,3]]'",
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		admin := getClusterAdmin()
+
+		if partitionsFlag == -1 {
+			errorExit("Number of partitions must be given")
+		}
+
+		var assignments [][]int32
+		if partitionAssignmentsFlag != "" {
+			if err := json.Unmarshal([]byte(partitionAssignmentsFlag), &assignments); err != nil {
+				errorExit("Invalid partition assignments: %v", err)
+			}
+		}
+
+		err := admin.CreatePartitions(args[0], partitionsFlag, assignments, false)
+		if err != nil {
+			errorExit("Failed to create partitions: %v", err)
+		}
+
+		fmt.Printf("\xE2\x9C\x85 Updated topic!\n")
 	},
 }
 
