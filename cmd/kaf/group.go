@@ -139,6 +139,11 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 				if err != nil {
 					errorExit("Failed to determine offset for timestamp: %v", err)
 				}
+
+				if o == -1 {
+					errorExit("Determined offset -1 from timestamp. Skipping.", o)
+				}
+
 				off = o
 
 				fmt.Printf("Determined offset %v from timestamp.\n", off)
