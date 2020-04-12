@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"os"
 
+	"regexp"
+
 	"github.com/birdayz/kaf/pkg/config"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
+
+var flagEhConnString string
 
 func init() {
 	configCmd.AddCommand(configImportCmd)
@@ -16,9 +20,11 @@ func init() {
 	configCmd.AddCommand(configAddClusterCmd)
 	configCmd.AddCommand(configSelectCluster)
 	configCmd.AddCommand(configCurrentContext)
+	configCmd.AddCommand(configAddEventhub)
 	rootCmd.AddCommand(configCmd)
 
 	configLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+	configAddEventhub.Flags().StringVar(&flagEhConnString, "eh-connstring", "", "EventHub ConnectionString")
 }
 
 var configCmd = &cobra.Command{
@@ -60,6 +66,45 @@ var configLsCmd = &cobra.Command{
 		for _, cluster := range cfg.Clusters {
 			fmt.Println(cluster.Name)
 		}
+	},
+}
+
+var configAddEventhub = &cobra.Command{
+	Use:     "add-eventhub [NAME]",
+	Example: "esp config add-eventhub my-eventhub --eh-name my-eventhub-on-azure --eh-connstring Enpoint=sb://......AccessKey=....",
+	Short:   "Add Azure EventHub",
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+		for _, cluster := range cfg.Clusters {
+			if cluster.Name == name {
+				errorExit("Could not add cluster: cluster with name '%v' exists already.", name)
+			}
+		}
+
+		// Parse hub name from ConnString
+		r, _ := regexp.Compile(`^Endpoint=sb://(.*)\.servicebus.*$`)
+		hubName := r.FindStringSubmatch(flagEhConnString)
+		if len(hubName) != 2 {
+			errorExit("Failed to determine EventHub name from Connection String. Check your ConnectionString")
+		}
+
+		cfg.Clusters = append(cfg.Clusters, &config.Cluster{
+			Name:              name,
+			Brokers:           []string{hubName[1] + ".servicebus.windows.net:9093"},
+			SchemaRegistryURL: schemaRegistryURL,
+			SASL: &config.SASL{
+				Mechanism: "PLAIN",
+				Username:  "$ConnectionString",
+				Password:  flagEhConnString,
+			},
+			SecurityProtocol: "SASL_SSL",
+		})
+		err := cfg.Write()
+		if err != nil {
+			errorExit("Unable to write config: %v\n", err)
+		}
+		fmt.Println("Added EventHub.")
 	},
 }
 
