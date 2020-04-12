@@ -119,6 +119,7 @@ var configSelectCluster = &cobra.Command{
 		p := promptui.Select{
 			Label: "Select cluster",
 			Items: clusterNames,
+			Size:  10,
 		}
 
 		_, selected, err := p.Run()
