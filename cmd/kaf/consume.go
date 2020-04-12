@@ -141,11 +141,6 @@ var consumeCmd = &cobra.Command{
 					fmt.Fprintf(os.Stderr, "Starting on partition %v with offset %v\n", partition, offset)
 				}
 
-				// Ignore invalid partitions
-				if offset < 0 {
-					return
-				}
-
 				pc, err := consumer.ConsumePartition(topic, partition, offset)
 				if err != nil {
 					errorExit("Unable to consume partition: %v %v %v %v\n", topic, partition, offset, err)
