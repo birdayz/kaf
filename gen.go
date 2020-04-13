@@ -12,7 +12,7 @@ import (
 	"github.com/shurcooL/vfsgen"
 )
 
-//go:generate bash -c "npm i && npm run build -- --spa"
+//go:generate bash -c "cd client && npm i && npm run build -- --spa"
 //go:generate bash -c "go run gen.go"
 
 func main() {
@@ -21,6 +21,7 @@ func main() {
 	err := vfsgen.Generate(modTimeFS{fs: fs}, vfsgen.Options{
 		PackageName:  "client",
 		VariableName: "Assets",
+		Filename:     "./client/assets_vfsdata.go",
 	})
 	if err != nil {
 		log.Fatalln(err)
