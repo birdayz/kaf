@@ -71,7 +71,7 @@ var configLsCmd = &cobra.Command{
 
 var configAddEventhub = &cobra.Command{
 	Use:     "add-eventhub [NAME]",
-	Example: "esp config add-eventhub my-eventhub --eh-name my-eventhub-on-azure --eh-connstring Enpoint=sb://......AccessKey=....",
+	Example: "esp config add-eventhub my-eventhub --eh-connstring 'Endpoint=sb://......AccessKey=....'",
 	Short:   "Add Azure EventHub",
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
