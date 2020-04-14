@@ -1,4 +1,6 @@
 /cmd/kaf/kaf
 /dist
 /kaf
+/client/node_modules
+/client/dist
 
