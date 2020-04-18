@@ -47,9 +47,9 @@ var serveCmd = &cobra.Command{
 			IdleTimeout:       120 * time.Second,
 			Addr:              "localhost:8081",
 			Handler: grpcTrafficSplitter(
-				folderReader(
+				fallback(folderReader(
 					gzipped.FileServer(client.Assets).ServeHTTP,
-				),
+				)),
 				wrappedServer,
 			),
 		}
@@ -59,7 +59,7 @@ var serveCmd = &cobra.Command{
 	},
 }
 
-type test struct {
+type TempResponseWriter struct {
 	path string
 	w    http.ResponseWriter
 	r    *http.Request
@@ -71,24 +71,24 @@ type test struct {
 	statusCode int
 }
 
-func (t *test) Header() http.Header {
+func (t *TempResponseWriter) Header() http.Header {
 	return t.hdr
 }
 
-func (t *test) Write(b []byte) (int, error) {
+func (t *TempResponseWriter) Write(b []byte) (int, error) {
 	return t.b.Write(b)
 }
 
-func (t *test) WriteHeader(statusCode int) {
+func (t *TempResponseWriter) WriteHeader(statusCode int) {
 	t.statusCode = statusCode
 }
 
-func folderReader(fn http.HandlerFunc) http.HandlerFunc {
+func fallback(fn http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasSuffix(r.URL.Path, "/") {
-			r.URL.Path = path.Join(r.URL.Path, "index.html")
-		}
-		t := &test{path: r.URL.Path, w: w, r: r, hdr: make(http.Header)}
+		// Write to temporary response writer. IF OK, forward
+		// the response. Otherwise, issue another request to
+		// "index.html" as fallback
+		t := &TempResponseWriter{path: r.URL.Path, w: w, r: r, hdr: make(http.Header)}
 		fn(t, r)
 		if t.statusCode == 404 {
 			// Default to index.html
@@ -105,6 +105,15 @@ func folderReader(fn http.HandlerFunc) http.HandlerFunc {
 			w.WriteHeader(t.statusCode)
 			w.Write(t.b.Bytes())
 		}
+	})
+}
+
+func folderReader(fn http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			r.URL.Path = path.Join(r.URL.Path, "index.html")
+		}
+		fn(w, r)
 	})
 }
 
