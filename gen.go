@@ -12,7 +12,7 @@ import (
 	"github.com/shurcooL/vfsgen"
 )
 
-//go:generate bash -c "cd client && npm i && npm run build -- --spa"
+//go:generate bash -c "cd client && npm i && npm run generate"
 //go:generate bash -c "go run gen.go"
 
 func main() {

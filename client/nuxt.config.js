@@ -3,7 +3,7 @@ import colors from 'vuetify/es5/util/colors'
 export default {
   router: {
     mode: 'history',
-    base: process.env.NODE_ENV === 'dev' ? '/' : './'
+//    base: process.env.NODE_ENV === 'dev' ? '/' : './'
   },
   mode: 'spa',
   /*
@@ -78,7 +78,7 @@ export default {
 extend (config, { isDev, isClient }) {
       if (!isDev) {
         // relative links, please.
-       config.output.publicPath = '_nuxt/'
+       //config.output.publicPath = '_nuxt/'
       }
       return config;
     }
