@@ -1,6 +1,6 @@
 # client
 
-> My terrific Nuxt.js project
+> kaf ui
 
 ## Build Setup
 

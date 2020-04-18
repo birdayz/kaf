@@ -1,9 +1,16 @@
+import colors from 'vuetify/es5/util/colors'
+
 export default {
+  router: {
+    mode: 'history',
+    base: process.env.NODE_ENV === 'dev' ? '/' : './'
+  },
   mode: 'spa',
   /*
    ** Headers of the page
    */
   head: {
+    titleTemplate: '%s - ' + process.env.npm_package_name,
     title: process.env.npm_package_name || '',
     meta: [
       { charset: 'utf-8' },
@@ -23,30 +30,57 @@ export default {
   /*
    ** Global CSS
    */
-  css: ['element-ui/lib/theme-chalk/index.css'],
+  css: [],
   /*
    ** Plugins to load before mounting the App
    */
-  plugins: ['@/plugins/element-ui'],
+  plugins: [],
   /*
    ** Nuxt.js dev-modules
    */
   buildModules: [
     // Doc: https://github.com/nuxt-community/eslint-module
-    '@nuxtjs/eslint-module'
+    '@nuxtjs/eslint-module',
+    '@nuxtjs/vuetify'
   ],
   /*
    ** Nuxt.js modules
    */
   modules: [],
   /*
+   ** vuetify module configuration
+   ** https://github.com/nuxt-community/vuetify-module
+   */
+  vuetify: {
+    customVariables: ['~/assets/variables.scss'],
+    theme: {
+      dark: true,
+      themes: {
+        dark: {
+          primary: colors.blue.darken2,
+          accent: colors.grey.darken3,
+          secondary: colors.amber.darken3,
+          info: colors.teal.lighten1,
+          warning: colors.amber.base,
+          error: colors.deepOrange.accent4,
+          success: colors.green.accent3
+        }
+      }
+    }
+  },
+  /*
    ** Build configuration
    */
   build: {
-    transpile: [/^element-ui/],
     /*
      ** You can extend webpack config here
      */
-    extend(config, ctx) {}
+extend (config, { isDev, isClient }) {
+      if (!isDev) {
+        // relative links, please.
+       config.output.publicPath = '_nuxt/'
+      }
+      return config;
+    }
   }
 }
