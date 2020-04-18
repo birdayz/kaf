@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"net"
 	"net/http"
 	"path"
@@ -58,13 +59,52 @@ var serveCmd = &cobra.Command{
 	},
 }
 
+type test struct {
+	path string
+	w    http.ResponseWriter
+	r    *http.Request
+
+	hdr http.Header
+
+	b bytes.Buffer
+
+	statusCode int
+}
+
+func (t *test) Header() http.Header {
+	return t.hdr
+}
+
+func (t *test) Write(b []byte) (int, error) {
+	return t.b.Write(b)
+}
+
+func (t *test) WriteHeader(statusCode int) {
+	t.statusCode = statusCode
+}
+
 func folderReader(fn http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
-			// Use contents of index.html for directory, if present.
 			r.URL.Path = path.Join(r.URL.Path, "index.html")
 		}
-		fn(w, r)
+		t := &test{path: r.URL.Path, w: w, r: r, hdr: make(http.Header)}
+		fn(t, r)
+		if t.statusCode == 404 {
+			// Default to index.html
+			r.URL.Path = "index.html"
+			fn(w, r)
+
+		} else {
+			for k, v := range t.hdr {
+				for _, val := range v {
+					w.Header().Set(k, val)
+				}
+			}
+
+			w.WriteHeader(t.statusCode)
+			w.Write(t.b.Bytes())
+		}
 	})
 }
 
