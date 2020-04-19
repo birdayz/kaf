@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/lpar/gzipped"
+	"github.com/rs/cors"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -46,12 +47,21 @@ var serveCmd = &cobra.Command{
 			ReadHeaderTimeout: 5 * time.Second,
 			IdleTimeout:       120 * time.Second,
 			Addr:              "localhost:8081",
-			Handler: grpcTrafficSplitter(
+			Handler: cors.New(cors.Options{
+				AllowedOrigins: []string{"http://localhost:3000", "http://localhost:8081"},
+				AllowedMethods: []string{
+					http.MethodGet,
+					http.MethodPost,
+				},
+				AllowedHeaders: []string{
+					"Content-Type", "X-Grpc-Web", "X-User-Agent",
+				},
+			}).Handler(grpcTrafficSplitter(
 				fallback(folderReader(
 					gzipped.FileServer(client.Assets).ServeHTTP,
 				)),
 				wrappedServer,
-			),
+			)),
 		}
 
 		httpSrv.ListenAndServe()

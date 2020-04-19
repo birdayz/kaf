@@ -2,8 +2,8 @@ import colors from 'vuetify/es5/util/colors'
 
 export default {
   router: {
-    mode: 'history',
-//    base: process.env.NODE_ENV === 'dev' ? '/' : './'
+    mode: 'history'
+    //    base: process.env.NODE_ENV === 'dev' ? '/' : './'
   },
   mode: 'spa',
   /*
@@ -75,12 +75,12 @@ export default {
     /*
      ** You can extend webpack config here
      */
-extend (config, { isDev, isClient }) {
+    extend(config, { isDev, isClient }) {
       if (!isDev) {
         // relative links, please.
-       //config.output.publicPath = '_nuxt/'
+        // config.output.publicPath = '_nuxt/'
       }
-      return config;
+      return config
     }
   }
 }

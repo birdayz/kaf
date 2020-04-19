@@ -12,7 +12,7 @@
         </v-list-item>
         <v-list-item link>
           <v-list-item-action>
-            <v-icon>mdi-settings</v-icon>
+            <v-icon>mdi-cog</v-icon>
           </v-list-item-action>
           <v-list-item-content>
             <v-list-item-title>Settings</v-list-item-title>
@@ -45,7 +45,7 @@ export default {
   },
 
   data: () => ({
-    drawer: null
+    drawer: true
   }),
 
   created() {

@@ -12,3 +12,10 @@ generate:
       type: go
       flags: plugins=grpc
       output: .
+    - name: grpc-web
+      flags: import_style=commonjs,mode=grpcwebtext
+      output: .
+    - name: js
+      flags: import_style=commonjs
+      output: .
+
