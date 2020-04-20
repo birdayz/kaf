@@ -29,7 +29,9 @@ var serveCmd = &cobra.Command{
 	Short: "Start server",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		var svc topic.Service
+		var svc = &topic.Service{
+			AdminClient: getClusterAdmin(),
+		}
 
 		srv := grpc.NewServer()
 
@@ -39,7 +41,7 @@ var serveCmd = &cobra.Command{
 		}
 
 		reflection.Register(srv)
-		api.RegisterTopicServiceServer(srv, &svc)
+		api.RegisterTopicServiceServer(srv, svc)
 
 		wrappedServer := grpcweb.WrapServer(srv, grpcweb.WithWebsockets(true))
 

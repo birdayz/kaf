@@ -10,9 +10,7 @@ message CreateTopicResponse {}
 
 message ListTopicsRequest {}
 
-message ListTopicsResponse {
-  repeated Topic topics = 1;
-}
+message ListTopicsResponse { repeated Topic topics = 1; }
 
 message GetTopicRequest {}
 
@@ -22,6 +20,26 @@ message UpdateTopicRequest {}
 
 message Topic {
   string name = 1;
+  int32 numReplicas = 2;
+  int32 numPartitions = 3;
+  repeated Partition partitions = 4;
+  repeated TopicConfig config = 5;
+}
+
+message TopicConfig {
+  string name = 1;
+  string value = 2;
+  bool read_only = 3;
+  bool sensitive = 4;
+}
+
+message Partition {
+  int64 number = 1;
+  int64 offset = 2;
+  int64 high_watermark = 3;
+  int32 leader = 4;
+  repeated int32 replicas = 5;
+  repeated int32 isr = 6;
 }
 
 service TopicService {

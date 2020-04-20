@@ -1,5 +1,6 @@
 excludes:
   - vendor/
+  - client/
 
 protoc:
   version: 3.9.1
