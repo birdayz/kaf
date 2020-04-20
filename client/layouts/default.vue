@@ -24,6 +24,15 @@
     <v-app-bar app clipped-left>
       <img src="kafka.png" width="40px" @click.stop="drawer = !drawer" />
       <v-toolbar-title>kaf</v-toolbar-title>
+      <v-select
+        v-model="model"
+        style="width: 100px; max-width: 200px; padding-left: 10px; padding-top: 20px;"
+        label="Cluster"
+        no-data-text="Loading.."
+        placeholder="Loading.."
+        autowidth
+        flat
+      ></v-select>
     </v-app-bar>
 
     <v-content>

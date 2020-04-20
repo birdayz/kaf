@@ -24,6 +24,7 @@ type Service struct {
 func NewService(brokers []string, config *sarama.Config) (*Service, error) {
 	config.Metadata.Full = true
 	config.Metadata.RefreshFrequency = time.Minute
+	config.Metadata.Retry.Max = 99
 	client, err := sarama.NewClient(brokers, config)
 	if err != nil {
 		return nil, err
@@ -57,7 +58,9 @@ func (s *Service) UpdateTopic(context.Context, *api.UpdateTopicRequest) (*api.To
 	return nil, nil
 }
 func (s *Service) ListTopics(context.Context, *api.ListTopicsRequest) (*api.ListTopicsResponse, error) {
+	s.client.RefreshController()
 	s.client.RefreshMetadata()
+
 	topics, err := s.adminClient.ListTopics()
 
 	fmt.Println(err)
