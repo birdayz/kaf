@@ -21,6 +21,18 @@ export default {
           align: 'start',
           sortable: true,
           value: 'name'
+        },
+        {
+          text: 'Partitions',
+          align: 'start',
+          sortable: true,
+          value: 'numpartitions'
+        },
+        {
+          text: 'Replicas',
+          align: 'start',
+          sortable: true,
+          value: 'numreplicas'
         }
       ],
       topics: []

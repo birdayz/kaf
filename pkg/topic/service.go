@@ -59,7 +59,9 @@ func (s *Service) ListTopics(context.Context, *api.ListTopicsRequest) (*api.List
 
 	for _, entry := range sortedTopics {
 		resp.Topics = append(resp.Topics, &api.Topic{
-			Name: entry.name,
+			Name:          entry.name,
+			NumPartitions: entry.NumPartitions,
+			NumReplicas:   int32(entry.ReplicationFactor),
 		})
 	}
 

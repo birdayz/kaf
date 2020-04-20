@@ -22,8 +22,8 @@
     </v-navigation-drawer>
 
     <v-app-bar app clipped-left>
-      <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
-      <v-toolbar-title>Application</v-toolbar-title>
+      <img src="kafka.png" width="40px" @click.stop="drawer = !drawer" />
+      <v-toolbar-title>kaf</v-toolbar-title>
     </v-app-bar>
 
     <v-content>
@@ -32,8 +32,12 @@
       </v-container>
     </v-content>
 
-    <v-footer app>
-      <span>&copy; 2019</span>
+    <v-footer app padless>
+      <v-row justify="center" no-gutters>
+        <v-btn color="white" text href="https://github.com/birdayz/kaf"
+          >GitHub</v-btn
+        >
+      </v-row>
     </v-footer>
   </v-app>
 </template>
