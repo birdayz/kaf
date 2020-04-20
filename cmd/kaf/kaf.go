@@ -184,7 +184,7 @@ func onInit() {
 }
 
 func getClusterAdmin() (admin sarama.ClusterAdmin) {
-	clusterAdmin, err := sarama.NewClusterAdmin(currentCluster.Brokers, getConfig())
+	clusterAdmin, err := sarama.NewClusterAdminFromClient(getClient())
 	if err != nil {
 		errorExit("Unable to get cluster admin: %v\n", err)
 	}

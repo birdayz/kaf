@@ -4,6 +4,7 @@ import (
 	context "context"
 	"fmt"
 	"sort"
+	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/api"
@@ -13,7 +14,32 @@ import (
 )
 
 type Service struct {
-	AdminClient sarama.ClusterAdmin
+	config  *sarama.Config
+	brokers []string
+
+	adminClient sarama.ClusterAdmin
+	client      sarama.Client
+}
+
+func NewService(brokers []string, config *sarama.Config) (*Service, error) {
+	config.Metadata.Full = true
+	config.Metadata.RefreshFrequency = time.Minute
+	client, err := sarama.NewClient(brokers, config)
+	if err != nil {
+		return nil, err
+	}
+
+	admin, err := sarama.NewClusterAdminFromClient(client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Service{
+		config:      config,
+		brokers:     brokers,
+		client:      client,
+		adminClient: admin,
+	}, nil
 }
 
 func (s *Service) CreateTopic(context.Context, *api.CreateTopicRequest) (*api.Topic, error) {
@@ -31,10 +57,12 @@ func (s *Service) UpdateTopic(context.Context, *api.UpdateTopicRequest) (*api.To
 	return nil, nil
 }
 func (s *Service) ListTopics(context.Context, *api.ListTopicsRequest) (*api.ListTopicsResponse, error) {
-	topics, err := s.AdminClient.ListTopics()
+	s.client.RefreshMetadata()
+	topics, err := s.adminClient.ListTopics()
 
 	fmt.Println(err)
 	if err != nil {
+		s.adminClient.Close()
 		return nil, status.Error(codes.Internal, "Failed to list topics")
 	}
 

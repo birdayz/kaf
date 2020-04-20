@@ -667,6 +667,7 @@ func (mr *MockDeleteTopicsResponse) For(reqBody versionedDecoder) encoder {
 	for _, topic := range req.Topics {
 		res.TopicErrorCodes[topic] = ErrNoError
 	}
+	res.Version = int16(req.Version)
 	return res
 }
 
@@ -730,29 +731,78 @@ func NewMockDescribeConfigsResponse(t TestReporter) *MockDescribeConfigsResponse
 
 func (mr *MockDescribeConfigsResponse) For(reqBody versionedDecoder) encoder {
 	req := reqBody.(*DescribeConfigsRequest)
-	res := &DescribeConfigsResponse{}
+	res := &DescribeConfigsResponse{
+		Version: req.Version,
+	}
+
+	includeSynonyms := (req.Version > 0)
 
 	for _, r := range req.Resources {
 		var configEntries []*ConfigEntry
 		switch r.Type {
-		case TopicResource:
+		case BrokerResource:
 			configEntries = append(configEntries,
-				&ConfigEntry{Name: "max.message.bytes",
-					Value:     "1000000",
-					ReadOnly:  false,
-					Default:   true,
-					Sensitive: false,
-				}, &ConfigEntry{Name: "retention.ms",
-					Value:     "5000",
-					ReadOnly:  false,
-					Default:   false,
-					Sensitive: false,
-				}, &ConfigEntry{Name: "password",
-					Value:     "12345",
-					ReadOnly:  false,
-					Default:   false,
-					Sensitive: true,
-				})
+				&ConfigEntry{
+					Name:     "min.insync.replicas",
+					Value:    "2",
+					ReadOnly: false,
+					Default:  false,
+				},
+			)
+			res.Resources = append(res.Resources, &ResourceResponse{
+				Name:    r.Name,
+				Configs: configEntries,
+			})
+		case BrokerLoggerResource:
+			configEntries = append(configEntries,
+				&ConfigEntry{
+					Name:     "kafka.controller.KafkaController",
+					Value:    "DEBUG",
+					ReadOnly: false,
+					Default:  false,
+				},
+			)
+			res.Resources = append(res.Resources, &ResourceResponse{
+				Name:    r.Name,
+				Configs: configEntries,
+			})
+		case TopicResource:
+			maxMessageBytes := &ConfigEntry{Name: "max.message.bytes",
+				Value:     "1000000",
+				ReadOnly:  false,
+				Default:   true,
+				Sensitive: false,
+			}
+			if includeSynonyms {
+				maxMessageBytes.Synonyms = []*ConfigSynonym{
+					{
+						ConfigName:  "max.message.bytes",
+						ConfigValue: "500000",
+					},
+				}
+			}
+			retentionMs := &ConfigEntry{Name: "retention.ms",
+				Value:     "5000",
+				ReadOnly:  false,
+				Default:   false,
+				Sensitive: false,
+			}
+			if includeSynonyms {
+				retentionMs.Synonyms = []*ConfigSynonym{
+					{
+						ConfigName:  "log.retention.ms",
+						ConfigValue: "2500",
+					},
+				}
+			}
+			password := &ConfigEntry{Name: "password",
+				Value:     "12345",
+				ReadOnly:  false,
+				Default:   false,
+				Sensitive: true,
+			}
+			configEntries = append(
+				configEntries, maxMessageBytes, retentionMs, password)
 			res.Resources = append(res.Resources, &ResourceResponse{
 				Name:    r.Name,
 				Configs: configEntries,
@@ -776,7 +826,7 @@ func (mr *MockAlterConfigsResponse) For(reqBody versionedDecoder) encoder {
 
 	for _, r := range req.Resources {
 		res.Resources = append(res.Resources, &AlterConfigsResourceResponse{Name: r.Name,
-			Type:     TopicResource,
+			Type:     r.Type,
 			ErrorMsg: "",
 		})
 	}
@@ -812,14 +862,32 @@ func NewMockListAclsResponse(t TestReporter) *MockListAclsResponse {
 func (mr *MockListAclsResponse) For(reqBody versionedDecoder) encoder {
 	req := reqBody.(*DescribeAclsRequest)
 	res := &DescribeAclsResponse{}
-
 	res.Err = ErrNoError
 	acl := &ResourceAcls{}
-	acl.Resource.ResourceName = *req.ResourceName
+	if req.ResourceName != nil {
+		acl.Resource.ResourceName = *req.ResourceName
+	}
+	acl.Resource.ResourcePatternType = req.ResourcePatternTypeFilter
 	acl.Resource.ResourceType = req.ResourceType
-	acl.Acls = append(acl.Acls, &Acl{})
-	res.ResourceAcls = append(res.ResourceAcls, acl)
 
+	host := "*"
+	if req.Host != nil {
+		host = *req.Host
+	}
+
+	principal := "User:test"
+	if req.Principal != nil {
+		principal = *req.Principal
+	}
+
+	permissionType := req.PermissionType
+	if permissionType == AclPermissionAny {
+		permissionType = AclPermissionAllow
+	}
+
+	acl.Acls = append(acl.Acls, &Acl{Operation: req.Operation, PermissionType: permissionType, Host: host, Principal: principal})
+	res.ResourceAcls = append(res.ResourceAcls, acl)
+	res.Version = int16(req.Version)
 	return res
 }
 
@@ -894,6 +962,7 @@ func (mr *MockDeleteAclsResponse) For(reqBody versionedDecoder) encoder {
 		response.MatchingAcls = append(response.MatchingAcls, &MatchingAcl{Err: ErrNoError})
 		res.FilterResponses = append(res.FilterResponses, response)
 	}
+	res.Version = int16(req.Version)
 	return res
 }
 

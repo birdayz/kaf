@@ -29,8 +29,10 @@ var serveCmd = &cobra.Command{
 	Short: "Start server",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		var svc = &topic.Service{
-			AdminClient: getClusterAdmin(),
+
+		svc, err := topic.NewService(currentCluster.Brokers, getConfig())
+		if err != nil {
+			errorExit("Failed to create topic service: %v", err)
 		}
 
 		srv := grpc.NewServer()
@@ -66,8 +68,8 @@ var serveCmd = &cobra.Command{
 			)),
 		}
 
-		httpSrv.ListenAndServe()
-		srv.Serve(lnr)
+		_ = httpSrv.ListenAndServe()
+		_ = srv.Serve(lnr)
 	},
 }
 

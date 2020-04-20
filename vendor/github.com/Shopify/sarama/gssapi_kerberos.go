@@ -1,18 +1,19 @@
 package sarama
 
 import (
+	"encoding/asn1"
 	"encoding/binary"
 	"fmt"
-	"github.com/jcmturner/gofork/encoding/asn1"
+	"io"
+	"strings"
+	"time"
+
 	"gopkg.in/jcmturner/gokrb5.v7/asn1tools"
 	"gopkg.in/jcmturner/gokrb5.v7/gssapi"
 	"gopkg.in/jcmturner/gokrb5.v7/iana/chksumtype"
 	"gopkg.in/jcmturner/gokrb5.v7/iana/keyusage"
 	"gopkg.in/jcmturner/gokrb5.v7/messages"
 	"gopkg.in/jcmturner/gokrb5.v7/types"
-	"io"
-	"strings"
-	"time"
 )
 
 const (
@@ -199,7 +200,6 @@ func (krbAuth *GSSAPIKerberosAuth) initSecContext(bytes []byte, kerberosClient K
 
 /* This does the handshake for authorization */
 func (krbAuth *GSSAPIKerberosAuth) Authorize(broker *Broker) error {
-
 	kerberosClient, err := krbAuth.NewKerberosClientFunc(krbAuth.Config)
 	if err != nil {
 		Logger.Printf("Kerberos client error: %s", err)
