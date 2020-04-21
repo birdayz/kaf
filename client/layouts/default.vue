@@ -25,8 +25,10 @@
       <img src="kafka.png" width="40px" @click.stop="drawer = !drawer" />
       <v-toolbar-title>kaf</v-toolbar-title>
       <v-select
-        v-model="model"
-        style="width: 100px; max-width: 200px; padding-left: 10px; padding-top: 20px;"
+        v-model="currentCluster"
+        :items="clusters"
+        item-text="name"
+        style="width: 100px; max-width: 200px; padding-left: 15px; padding-top: 25px;"
         label="Cluster"
         no-data-text="Loading.."
         placeholder="Loading.."
@@ -56,11 +58,25 @@ export default {
   props: {
     source: String
   },
-
   data: () => ({
     drawer: true
   }),
-
+  computed: {
+    clusters() {
+      return this.$store.state.clusters
+    },
+    currentCluster: {
+      get() {
+        return this.$store.state.currentCluster
+      },
+      set(value) {
+        this.$store.commit('setCurrentCluster', value)
+      }
+    }
+  },
+  mounted() {
+    this.$store.dispatch('fetchClusters')
+  },
   created() {
     this.$vuetify.theme.dark = true
   }
