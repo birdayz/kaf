@@ -4,47 +4,26 @@ import (
 	context "context"
 	"fmt"
 	"sort"
-	"time"
 
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/api"
+	"github.com/birdayz/kaf/pkg/connection"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 type Service struct {
-	config  *sarama.Config
-	brokers []string
-
-	adminClient sarama.ClusterAdmin
-	client      sarama.Client
+	connManager *connection.ConnManager
 }
 
-func NewService(brokers []string, config *sarama.Config) (*Service, error) {
-	config.Metadata.Full = true
-	config.Metadata.RefreshFrequency = time.Minute
-	config.Metadata.Retry.Max = 99
-	client, err := sarama.NewClient(brokers, config)
-	if err != nil {
-		return nil, err
-	}
-
-	admin, err := sarama.NewClusterAdminFromClient(client)
-	if err != nil {
-		return nil, err
-	}
-
+func NewService(connManager *connection.ConnManager) (*Service, error) {
 	return &Service{
-		config:      config,
-		brokers:     brokers,
-		client:      client,
-		adminClient: admin,
+		connManager: connManager,
 	}, nil
 }
 
 func (s *Service) CreateTopic(context.Context, *api.CreateTopicRequest) (*api.Topic, error) {
-	fmt.Println("test")
 	return &api.Topic{
 		Name: "abc",
 	}, nil
@@ -57,15 +36,14 @@ func (s *Service) UpdateTopic(context.Context, *api.UpdateTopicRequest) (*api.To
 
 	return nil, nil
 }
-func (s *Service) ListTopics(context.Context, *api.ListTopicsRequest) (*api.ListTopicsResponse, error) {
-	s.client.RefreshController()
-	s.client.RefreshMetadata()
-
-	topics, err := s.adminClient.ListTopics()
-
-	fmt.Println(err)
+func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*api.ListTopicsResponse, error) {
+	fmt.Println("abc", req.Cluster)
+	adminClient, err := s.connManager.GetAdminClient(req.Cluster)
 	if err != nil {
-		s.adminClient.Close()
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	topics, err := adminClient.ListTopics()
+	if err != nil {
 		return nil, status.Error(codes.Internal, "Failed to list topics")
 	}
 

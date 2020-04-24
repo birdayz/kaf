@@ -1,5 +1,7 @@
 package sarama
 
+import "fmt"
+
 type ListGroupsResponse struct {
 	Err    KError
 	Groups map[string]string
@@ -24,20 +26,30 @@ func (r *ListGroupsResponse) encode(pe packetEncoder) error {
 }
 
 func (r *ListGroupsResponse) decode(pd packetDecoder, version int16) error {
+	fmt.Println("DECODE")
+	pd.getInt32()
+
 	kerr, err := pd.getInt16()
+	fmt.Println("Kerr", kerr)
 	if err != nil {
 		return err
 	}
 
 	r.Err = KError(kerr)
+	fmt.Println("errrr", kerr)
 
 	n, err := pd.getArrayLength()
 	if err != nil {
 		return err
 	}
+	fmt.Println("ARLEN", n)
 	if n == 0 {
+
+		fmt.Println("REM", pd.remaining())
 		return nil
 	}
+
+	fmt.Println("REM", pd.remaining())
 
 	r.Groups = make(map[string]string)
 	for i := 0; i < n; i++ {
@@ -61,7 +73,7 @@ func (r *ListGroupsResponse) key() int16 {
 }
 
 func (r *ListGroupsResponse) version() int16 {
-	return 0
+	return 2
 }
 
 func (r *ListGroupsResponse) requiredVersion() KafkaVersion {

@@ -44,7 +44,7 @@ func (cl *Client) ChangePasswd(newPasswd string) (bool, error) {
 		return false, err
 	}
 	if r.ResultCode != KRB5_KPASSWD_SUCCESS {
-		return false, fmt.Errorf("error response from kadmin: code: %d; result: %s; krberror: %v", r.ResultCode, r.Result, r.KRBError)
+		return false, fmt.Errorf("error response from kdamin: %s", r.Result)
 	}
 	cl.Credentials.WithPassword(newPasswd)
 	return true, nil

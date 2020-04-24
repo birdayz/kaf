@@ -38,16 +38,32 @@ export default {
       topics: []
     }
   },
-  mounted() {
-    const topicClient = new TopicServiceClient('http://localhost:8081')
+  computed: {
+    currentCluster: {
+      get() {
+        return this.$store.state.currentCluster
+      }
+    }
+  },
+  watch: {
+    currentCluster: {
+      immediate: true,
+      handler(newVal, oldVal) {
+        console.log('watch', newVal, oldVal)
+        if (newVal && newVal !== oldVal) {
+          const topicClient = new TopicServiceClient('http://localhost:8081')
 
-    const request = new ListTopicsRequest()
+          const request = new ListTopicsRequest()
+          request.setCluster(this.currentCluster)
 
-    topicClient.listTopics(request, {}, (err, response) => {
-      console.log(err)
-      console.log(err, response.toObject().topicsList)
-      this.topics = response.toObject().topicsList
-    })
-  }
+          topicClient.listTopics(request, {}, (err, response) => {
+            console.log(err, response.toObject().topicsList)
+            this.topics = response.toObject().topicsList
+          })
+        }
+      }
+    }
+  },
+  mounted() {}
 }
 </script>

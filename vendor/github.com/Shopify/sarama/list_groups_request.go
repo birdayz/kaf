@@ -16,9 +16,9 @@ func (r *ListGroupsRequest) key() int16 {
 }
 
 func (r *ListGroupsRequest) version() int16 {
-	return 0
+	return 2
 }
 
 func (r *ListGroupsRequest) requiredVersion() KafkaVersion {
-	return V0_9_0_0
+	return V2_3_0_0
 }

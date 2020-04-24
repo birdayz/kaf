@@ -1,6 +1,6 @@
 # github.com/Landoop/schema-registry v0.0.0-20190327143759-50a5701c1891
 github.com/Landoop/schema-registry
-# github.com/Shopify/sarama v1.26.1
+# github.com/Shopify/sarama v1.26.1 => /home/j0e/projects/sarama
 github.com/Shopify/sarama
 # github.com/alecthomas/gometalinter v2.0.11+incompatible
 github.com/alecthomas/gometalinter
@@ -53,7 +53,7 @@ github.com/google/shlex
 github.com/gordonklaus/ineffassign
 # github.com/gorilla/websocket v1.4.0
 github.com/gorilla/websocket
-# github.com/hashicorp/go-uuid v1.0.2
+# github.com/hashicorp/go-uuid v1.0.1
 github.com/hashicorp/go-uuid
 # github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
 github.com/hokaccha/go-prettyjson
@@ -74,7 +74,7 @@ github.com/jhump/protoreflect/internal
 # github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
 github.com/juju/ansiterm
 github.com/juju/ansiterm/tabwriter
-# github.com/klauspost/compress v1.9.8
+# github.com/klauspost/compress v1.8.2
 github.com/klauspost/compress/fse
 github.com/klauspost/compress/huff0
 github.com/klauspost/compress/snappy
@@ -111,12 +111,12 @@ github.com/nicksnyder/go-i18n/i18n/language
 github.com/nicksnyder/go-i18n/i18n/translation
 # github.com/pelletier/go-toml v1.2.0
 github.com/pelletier/go-toml
-# github.com/pierrec/lz4 v2.4.1+incompatible
+# github.com/pierrec/lz4 v2.2.6+incompatible
 github.com/pierrec/lz4
 github.com/pierrec/lz4/internal/xxh32
 # github.com/pkg/errors v0.9.1
 github.com/pkg/errors
-# github.com/rcrowley/go-metrics v0.0.0-20190826022208-cac0b30c2563
+# github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a
 github.com/rcrowley/go-metrics
 # github.com/rs/cors v1.7.0
 github.com/rs/cors
@@ -151,12 +151,12 @@ github.com/wvanbergen/kazoo-go
 github.com/xdg/scram
 # github.com/xdg/stringprep v1.0.0
 github.com/xdg/stringprep
-# golang.org/x/crypto v0.0.0-20200204104054-c9f3fb736b72
+# golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
 golang.org/x/crypto/md4
 golang.org/x/crypto/pbkdf2
 # golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3
 golang.org/x/lint
-# golang.org/x/net v0.0.0-20200202094626-16171245cfb2
+# golang.org/x/net v0.0.0-20190620200207-3b0461eec859
 golang.org/x/net/context
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -226,7 +226,7 @@ gopkg.in/alecthomas/kingpin.v3-unstable
 gopkg.in/jcmturner/aescts.v1
 # gopkg.in/jcmturner/dnsutils.v1 v1.0.1
 gopkg.in/jcmturner/dnsutils.v1
-# gopkg.in/jcmturner/gokrb5.v7 v7.5.0
+# gopkg.in/jcmturner/gokrb5.v7 v7.2.3
 gopkg.in/jcmturner/gokrb5.v7/asn1tools
 gopkg.in/jcmturner/gokrb5.v7/client
 gopkg.in/jcmturner/gokrb5.v7/config

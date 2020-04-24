@@ -38,7 +38,7 @@ func (s *Settings) DisablePAFXFAST() bool {
 // s := NewSettings(AssumePreAuthentication(true))
 func AssumePreAuthentication(b bool) func(*Settings) {
 	return func(s *Settings) {
-		s.assumePreAuthentication = b
+		s.disablePAFXFast = b
 	}
 }
 

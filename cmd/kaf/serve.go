@@ -11,6 +11,7 @@ import (
 	"github.com/birdayz/kaf/api"
 	"github.com/birdayz/kaf/client"
 	"github.com/birdayz/kaf/pkg/cluster"
+	"github.com/birdayz/kaf/pkg/connection"
 	"github.com/birdayz/kaf/pkg/topic"
 	"github.com/gorilla/websocket"
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
@@ -30,7 +31,7 @@ var serveCmd = &cobra.Command{
 	Short: "Start server",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		svc, err := topic.NewService(currentCluster.Brokers, getConfig())
+		svc, err := topic.NewService(connection.NewConnManager())
 		if err != nil {
 			errorExit("Failed to create topic service: %v", err)
 		}
@@ -45,8 +46,8 @@ var serveCmd = &cobra.Command{
 		}
 
 		reflection.Register(srv)
-		api.RegisterTopicServiceServer(srv, svc)
 
+		api.RegisterTopicServiceServer(srv, svc)
 		api.RegisterClusterServiceServer(srv, clusterSvc)
 
 		wrappedServer := grpcweb.WrapServer(srv, grpcweb.WithWebsockets(true))

@@ -468,7 +468,7 @@ proto.kaf.api.ListTopicsRequest.prototype.toObject = function(opt_includeInstanc
  */
 proto.kaf.api.ListTopicsRequest.toObject = function(includeInstance, msg) {
   var f, obj = {
-
+    cluster: jspb.Message.getFieldWithDefault(msg, 1, "")
   };
 
   if (includeInstance) {
@@ -505,6 +505,10 @@ proto.kaf.api.ListTopicsRequest.deserializeBinaryFromReader = function(msg, read
     }
     var field = reader.getFieldNumber();
     switch (field) {
+    case 1:
+      var value = /** @type {string} */ (reader.readString());
+      msg.setCluster(value);
+      break;
     default:
       reader.skipField();
       break;
@@ -534,6 +538,28 @@ proto.kaf.api.ListTopicsRequest.prototype.serializeBinary = function() {
  */
 proto.kaf.api.ListTopicsRequest.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
+  f = message.getCluster();
+  if (f.length > 0) {
+    writer.writeString(
+      1,
+      f
+    );
+  }
+};
+
+
+/**
+ * optional string cluster = 1;
+ * @return {string}
+ */
+proto.kaf.api.ListTopicsRequest.prototype.getCluster = function() {
+  return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
+};
+
+
+/** @param {string} value */
+proto.kaf.api.ListTopicsRequest.prototype.setCluster = function(value) {
+  jspb.Message.setProto3StringField(this, 1, value);
 };
 
 

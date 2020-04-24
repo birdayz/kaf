@@ -8,7 +8,9 @@ message CreateTopicRequest {}
 
 message CreateTopicResponse {}
 
-message ListTopicsRequest {}
+message ListTopicsRequest {
+  string cluster = 1;
+}
 
 message ListTopicsResponse { repeated Topic topics = 1; }
 

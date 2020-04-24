@@ -69,47 +69,49 @@ func (cl *Client) sendToKDC(b []byte, realm string) ([]byte, error) {
 }
 
 // dialKDCTCP establishes a UDP connection to a KDC.
-func dialKDCUDP(count int, kdcs map[int]string) (*net.UDPConn, error) {
+func dialKDCUDP(count int, kdcs map[int]string) (conn *net.UDPConn, err error) {
 	i := 1
 	for i <= count {
-		udpAddr, err := net.ResolveUDPAddr("udp", kdcs[i])
-		if err != nil {
-			return nil, fmt.Errorf("error resolving KDC address: %v", err)
+		udpAddr, e := net.ResolveUDPAddr("udp", kdcs[i])
+		if e != nil {
+			err = fmt.Errorf("error resolving KDC address: %v", e)
+			return
 		}
-
-		conn, err := net.DialTimeout("udp", udpAddr.String(), 5*time.Second)
+		conn, err = net.DialUDP("udp", nil, udpAddr)
 		if err == nil {
-			if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
-				return nil, err
+			err = conn.SetDeadline(time.Now().Add(5 * time.Second))
+			if err != nil {
+				return
 			}
-			// conn is guaranteed to be a UDPConn
-			return conn.(*net.UDPConn), nil
+			return
 		}
 		i++
 	}
-	return nil, errors.New("error in getting a UDP connection to any of the KDCs")
+	err = errors.New("error in getting a UDP connection to any of the KDCs")
+	return
 }
 
 // dialKDCTCP establishes a TCP connection to a KDC.
-func dialKDCTCP(count int, kdcs map[int]string) (*net.TCPConn, error) {
+func dialKDCTCP(count int, kdcs map[int]string) (conn *net.TCPConn, err error) {
 	i := 1
 	for i <= count {
-		tcpAddr, err := net.ResolveTCPAddr("tcp", kdcs[i])
-		if err != nil {
-			return nil, fmt.Errorf("error resolving KDC address: %v", err)
+		tcpAddr, e := net.ResolveTCPAddr("tcp", kdcs[i])
+		if e != nil {
+			err = fmt.Errorf("error resolving KDC address: %v", e)
+			return
 		}
-
-		conn, err := net.DialTimeout("tcp", tcpAddr.String(), 5*time.Second)
+		conn, err = net.DialTCP("tcp", nil, tcpAddr)
 		if err == nil {
-			if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
-				return nil, err
+			err = conn.SetDeadline(time.Now().Add(5 * time.Second))
+			if err != nil {
+				return
 			}
-			// conn is guaranteed to be a TCPConn
-			return conn.(*net.TCPConn), nil
+			return
 		}
 		i++
 	}
-	return nil, errors.New("error in getting a TCP connection to any of the KDCs")
+	err = errors.New("error in getting a TCP connection to any of the KDCs")
+	return
 }
 
 // sendKDCUDP sends bytes to the KDC via UDP.

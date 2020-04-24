@@ -1,6 +1,7 @@
 module github.com/birdayz/kaf
 
 go 1.13
+replace github.com/Shopify/sarama => /home/j0e/projects/sarama
 
 require (
 	github.com/DataDog/zstd v1.4.0 // indirect
@@ -10,6 +11,7 @@ require (
 	github.com/avast/retry-go v2.4.1+incompatible // indirect
 	github.com/bsm/sarama-cluster v2.1.15+incompatible // indirect
 	github.com/burdiyan/kafkautil v0.0.0-20190131162249-eaf83ed22d5b
+	github.com/davecgh/go-spew v1.1.1
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/eapache/go-resiliency v1.2.0 // indirect
 	github.com/facebookgo/ensure v0.0.0-20200202191622-63f1cf65ac4c // indirect

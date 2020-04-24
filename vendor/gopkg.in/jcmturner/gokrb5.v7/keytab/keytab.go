@@ -141,10 +141,6 @@ func (kt *Keytab) Write(w io.Writer) (int, error) {
 
 // Unmarshal byte slice of Keytab data into Keytab type.
 func (kt *Keytab) Unmarshal(b []byte) error {
-	if len(b) < 2 {
-		return fmt.Errorf("byte array is less than 2 bytes: %d", len(b))
-	}
-
 	//The first byte of the file always has the value 5
 	if b[0] != keytabFirstByte {
 		return errors.New("invalid keytab data. First byte does not equal 5")
@@ -169,10 +165,7 @@ func (kt *Keytab) Unmarshal(b []byte) error {
 	*/
 	// n tracks position in the byte array
 	n := 2
-	l, err := readInt32(b, &n, &endian)
-	if err != nil {
-		return err
-	}
+	l := readInt32(b, &n, &endian)
 	for l != 0 {
 		if l < 0 {
 			//Zero padded so skip over
@@ -180,52 +173,23 @@ func (kt *Keytab) Unmarshal(b []byte) error {
 			n = n + int(l)
 		} else {
 			//fmt.Printf("Bytes for entry: %v\n", b[n:n+int(l)])
-			if n < 0 {
-				return fmt.Errorf("%d can't be less than zero", n)
-			}
-			if n+int(l) > len(b) {
-				return fmt.Errorf("%s's length is less than %d", b, n+int(l))
-			}
 			eb := b[n : n+int(l)]
 			n = n + int(l)
 			ke := newKeytabEntry()
 			// p keeps track as to where we are in the byte stream
 			var p int
-			var err error
 			parsePrincipal(eb, &p, kt, &ke, &endian)
-			ke.Timestamp, err = readTimestamp(eb, &p, &endian)
-			if err != nil {
-				return err
-			}
-			rei8, err := readInt8(eb, &p, &endian)
-			if err != nil {
-				return err
-			}
-			ke.KVNO8 = uint8(rei8)
-			rei16, err := readInt16(eb, &p, &endian)
-			if err != nil {
-				return err
-			}
-			ke.Key.KeyType = int32(rei16)
-			rei16, err = readInt16(eb, &p, &endian)
-			if err != nil {
-				return err
-			}
-			kl := int(rei16)
-			ke.Key.KeyValue, err = readBytes(eb, &p, kl, &endian)
-			if err != nil {
-				return err
-			}
+			ke.Timestamp = readTimestamp(eb, &p, &endian)
+			ke.KVNO8 = uint8(readInt8(eb, &p, &endian))
+			ke.Key.KeyType = int32(readInt16(eb, &p, &endian))
+			kl := int(readInt16(eb, &p, &endian))
+			ke.Key.KeyValue = readBytes(eb, &p, kl, &endian)
 			//The 32-bit key version overrides the 8-bit key version.
 			// To determine if it is present, the implementation must check that at least 4 bytes remain in the record after the other fields are read,
 			// and that the value of the 32-bit integer contained in those bytes is non-zero.
 			if len(eb)-p >= 4 {
 				// The 32-bit key may be present
-				ri32, err := readInt32(eb, &p, &endian)
-				if err != nil {
-					return err
-				}
-				ke.KVNO = uint32(ri32)
+				ke.KVNO = uint32(readInt32(eb, &p, &endian))
 			}
 			if ke.KVNO == 0 {
 				// Handles if the value from the last 4 bytes was zero and also if there are not the 4 bytes present. Makes sense to put the same value here as KVNO8
@@ -235,15 +199,11 @@ func (kt *Keytab) Unmarshal(b []byte) error {
 			kt.Entries = append(kt.Entries, ke)
 		}
 		// Check if there are still 4 bytes left to read
-		// Also check that n is greater than zero
-		if n < 0 || n > len(b) || len(b[n:]) < 4 {
+		if n > len(b) || len(b[n:]) < 4 {
 			break
 		}
 		// Read the size of the next entry
-		l, err = readInt32(b, &n, &endian)
-		if err != nil {
-			return err
-		}
+		l = readInt32(b, &n, &endian)
 	}
 	return nil
 }
@@ -289,41 +249,20 @@ func (e entry) marshal(v int) ([]byte, error) {
 
 // Parse the Keytab bytes of a principal into a Keytab entry's principal.
 func parsePrincipal(b []byte, p *int, kt *Keytab, ke *entry, e *binary.ByteOrder) error {
-	var err error
-	ke.Principal.NumComponents, err = readInt16(b, p, e)
-	if err != nil {
-		return err
-	}
+	ke.Principal.NumComponents = readInt16(b, p, e)
 	if kt.version == 1 {
 		//In version 1 the number of components includes the realm. Minus 1 to make consistent with version 2
 		ke.Principal.NumComponents--
 	}
-	lenRealm, err := readInt16(b, p, e)
-	if err != nil {
-		return err
-	}
-	realmB, err := readBytes(b, p, int(lenRealm), e)
-	if err != nil {
-		return err
-	}
-	ke.Principal.Realm = string(realmB)
+	lenRealm := readInt16(b, p, e)
+	ke.Principal.Realm = string(readBytes(b, p, int(lenRealm), e))
 	for i := 0; i < int(ke.Principal.NumComponents); i++ {
-		l, err := readInt16(b, p, e)
-		if err != nil {
-			return err
-		}
-		compB, err := readBytes(b, p, int(l), e)
-		if err != nil {
-			return err
-		}
-		ke.Principal.Components = append(ke.Principal.Components, string(compB))
+		l := readInt16(b, p, e)
+		ke.Principal.Components = append(ke.Principal.Components, string(readBytes(b, p, int(l), e)))
 	}
 	if kt.version != 1 {
 		//Name Type is omitted in version 1
-		ke.Principal.NameType, err = readInt32(b, p, e)
-		if err != nil {
-			return err
-		}
+		ke.Principal.NameType = readInt32(b, p, e)
 	}
 	return nil
 }
@@ -376,23 +315,12 @@ func marshalString(s string, v int) ([]byte, error) {
 }
 
 // Read bytes representing a timestamp.
-func readTimestamp(b []byte, p *int, e *binary.ByteOrder) (time.Time, error) {
-	i32, err := readInt32(b, p, e)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(int64(i32), 0), nil
+func readTimestamp(b []byte, p *int, e *binary.ByteOrder) time.Time {
+	return time.Unix(int64(readInt32(b, p, e)), 0)
 }
 
 // Read bytes representing an eight bit integer.
-func readInt8(b []byte, p *int, e *binary.ByteOrder) (i int8, err error) {
-	if *p < 0 {
-		return 0, fmt.Errorf("%d cannot be less than zero", *p)
-	}
-
-	if (*p + 1) > len(b) {
-		return 0, fmt.Errorf("%s's length is less than %d", b, *p+1)
-	}
+func readInt8(b []byte, p *int, e *binary.ByteOrder) (i int8) {
 	buf := bytes.NewBuffer(b[*p : *p+1])
 	binary.Read(buf, *e, &i)
 	*p++
@@ -400,15 +328,7 @@ func readInt8(b []byte, p *int, e *binary.ByteOrder) (i int8, err error) {
 }
 
 // Read bytes representing a sixteen bit integer.
-func readInt16(b []byte, p *int, e *binary.ByteOrder) (i int16, err error) {
-	if *p < 0 {
-		return 0, fmt.Errorf("%d cannot be less than zero", *p)
-	}
-
-	if (*p + 2) > len(b) {
-		return 0, fmt.Errorf("%s's length is less than %d", b, *p+2)
-	}
-
+func readInt16(b []byte, p *int, e *binary.ByteOrder) (i int16) {
 	buf := bytes.NewBuffer(b[*p : *p+2])
 	binary.Read(buf, *e, &i)
 	*p += 2
@@ -416,36 +336,19 @@ func readInt16(b []byte, p *int, e *binary.ByteOrder) (i int16, err error) {
 }
 
 // Read bytes representing a thirty two bit integer.
-func readInt32(b []byte, p *int, e *binary.ByteOrder) (i int32, err error) {
-	if *p < 0 {
-		return 0, fmt.Errorf("%d cannot be less than zero", *p)
-	}
-
-	if (*p + 4) > len(b) {
-		return 0, fmt.Errorf("%s's length is less than %d", b, *p+4)
-	}
-
+func readInt32(b []byte, p *int, e *binary.ByteOrder) (i int32) {
 	buf := bytes.NewBuffer(b[*p : *p+4])
 	binary.Read(buf, *e, &i)
 	*p += 4
 	return
 }
 
-func readBytes(b []byte, p *int, s int, e *binary.ByteOrder) ([]byte, error) {
-	if s < 0 {
-		return nil, fmt.Errorf("%d cannot be less than zero", s)
-	}
-	i := *p + s
-	if i > len(b) {
-		return nil, fmt.Errorf("%s's length is greater than %d", b, i)
-	}
-	buf := bytes.NewBuffer(b[*p:i])
+func readBytes(b []byte, p *int, s int, e *binary.ByteOrder) []byte {
+	buf := bytes.NewBuffer(b[*p : *p+s])
 	r := make([]byte, s)
-	if err := binary.Read(buf, *e, &r); err != nil {
-		return nil, err
-	}
+	binary.Read(buf, *e, &r)
 	*p += s
-	return r, nil
+	return r
 }
 
 func isNativeEndianLittle() bool {
