@@ -69,6 +69,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 
+			// nolint
 			tlsConfig.BuildNameToCertificate()
 		}
 		saramaConfig.Net.TLS.Config = tlsConfig
