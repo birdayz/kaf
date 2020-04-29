@@ -2,12 +2,14 @@
   <v-app id="inspire">
     <v-navigation-drawer v-model="drawer" app clipped>
       <v-list dense>
-        <v-list-item link>
+        <v-list-item link to="/topics">
           <v-list-item-action>
             <v-icon>mdi-message-text</v-icon>
           </v-list-item-action>
           <v-list-item-content>
-            <v-list-item-title>Topics</v-list-item-title>
+            <v-list-item-title>
+              Topics
+            </v-list-item-title>
           </v-list-item-content>
         </v-list-item>
         <v-list-item link>
@@ -38,7 +40,13 @@
     </v-app-bar>
 
     <v-content>
+      <Snackbar></Snackbar>
       <v-container fluid>
+        <v-breadcrumbs :items="crumbs">
+          <template v-slot:divider>
+            <v-icon>mdi-chevron-right</v-icon>
+          </template>
+        </v-breadcrumbs>
         <nuxt />
       </v-container>
     </v-content>
@@ -54,7 +62,9 @@
 </template>
 
 <script>
+import Snackbar from '~/components/snackbar.vue'
 export default {
+  components: { Snackbar },
   props: {
     source: String
   },
@@ -62,7 +72,21 @@ export default {
     drawer: true
   }),
   computed: {
+    crumbs() {
+      const crumbs = []
+      this.$route.matched.map((item, i, { length }) => {
+        const crumb = {}
+        crumb.to = item.path
+        crumb.text = item.name.toUpperCase()
+
+        crumbs.push(crumb)
+      })
+
+      console.log('crumbs' + JSON.stringify(crumbs))
+      return crumbs
+    },
     clusters() {
+      console.log('yyyyyyy')
       return this.$store.state.clusters
     },
     currentCluster: {

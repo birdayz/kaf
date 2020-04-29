@@ -2,15 +2,21 @@ import colors from 'vuetify/es5/util/colors'
 
 export default {
   router: {
+    extendRoutes(routes, resolve) {
+      routes.push({
+        name: 'topics',
+        path: '/',
+        component: resolve(__dirname, 'pages/topics.vue')
+      })
+    },
     mode: 'history'
-    //    base: process.env.NODE_ENV === 'dev' ? '/' : './'
   },
   mode: 'spa',
   /*
    ** Headers of the page
    */
   head: {
-    titleTemplate: '%s - ' + process.env.npm_package_name,
+    titleTemplate: 'kaf',
     title: process.env.npm_package_name || '',
     meta: [
       { charset: 'utf-8' },
@@ -34,7 +40,7 @@ export default {
   /*
    ** Plugins to load before mounting the App
    */
-  plugins: [],
+  plugins: ['~/plugins/notifier.js', '~/plugins/vuetify.js'],
   /*
    ** Nuxt.js dev-modules
    */
@@ -53,6 +59,7 @@ export default {
    */
   vuetify: {
     customVariables: ['~/assets/variables.scss'],
+    defaultAssets: false,
     theme: {
       dark: true,
       themes: {

@@ -56,16 +56,7 @@ var serveCmd = &cobra.Command{
 			ReadHeaderTimeout: 5 * time.Second,
 			IdleTimeout:       120 * time.Second,
 			Addr:              "localhost:8081",
-			Handler: cors.New(cors.Options{
-				AllowedOrigins: []string{"http://localhost:3000", "http://localhost:8081"},
-				AllowedMethods: []string{
-					http.MethodGet,
-					http.MethodPost,
-				},
-				AllowedHeaders: []string{
-					"Content-Type", "X-Grpc-Web", "X-User-Agent",
-				},
-			}).Handler(grpcTrafficSplitter(
+			Handler: cors.AllowAll().Handler(grpcTrafficSplitter(
 				fallback(folderReader(
 					gzipped.FileServer(client.Assets).ServeHTTP,
 				)),

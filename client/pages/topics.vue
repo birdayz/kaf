@@ -6,6 +6,10 @@
       :items-per-page="15"
       class="elevation-1"
     ></v-data-table>
+    <v-snackbar v-model="snackbar">
+      {{ text }}
+      <v-btn color="pink" text @click="snackbar = false">Close</v-btn>
+    </v-snackbar>
   </div>
 </template>
 <script>
@@ -15,6 +19,8 @@ import { ListTopicsRequest } from '../../api/topic_pb.js'
 export default {
   data() {
     return {
+      snackbar: false,
+      text: "Hello, I'm a snackbar",
       headers: [
         {
           text: 'Name',
@@ -57,8 +63,16 @@ export default {
           request.setCluster(this.currentCluster)
 
           topicClient.listTopics(request, {}, (err, response) => {
-            console.log(err, response.toObject().topicsList)
-            this.topics = response.toObject().topicsList
+            console.log('test')
+            if (err) {
+              console.log(err)
+              this.$notifier.showMessage({
+                content: 'Failed to connect',
+                color: 'error'
+              })
+            } else {
+              this.topics = response.toObject().topicsList
+            }
           })
         }
       }

@@ -56,7 +56,6 @@ func toSaramaConfig(cluster *config.Cluster) (saramaConfig *sarama.Config, err e
 	saramaConfig.Producer.Return.Successes = true
 	saramaConfig.Metadata.Full = true
 	saramaConfig.Metadata.RefreshFrequency = time.Minute
-	saramaConfig.Metadata.Retry.Max = 99
 
 	if cluster.Version != "" {
 		parsedVersion, err := sarama.ParseKafkaVersion(cluster.Version)
