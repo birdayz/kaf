@@ -38,7 +38,6 @@
     </v-app-bar>
 
     <v-content>
-      <Snackbar></Snackbar>
       <v-container fluid>
         <v-breadcrumbs :items="crumbs">
           <template v-slot:divider>
@@ -51,9 +50,6 @@
 
     <v-footer app padless>
       <v-row no-gutters>
-        <!-- <v-btn color="white" text href="https://github.com/birdayz/kaf"
-          >GitHub</v-btn
-        >-->
         <div class="body-2" style="padding: 5px;">{{ message }}</div>
       </v-row>
     </v-footer>
@@ -61,15 +57,13 @@
 </template>
 
 <script>
-import Snackbar from '~/components/snackbar.vue'
 export default {
-  components: { Snackbar },
   props: {
     source: String
   },
   data: () => ({
     drawer: true,
-    message: 'Loaded'
+    message: 'Ready'
   }),
   computed: {
     crumbs() {

@@ -11,8 +11,6 @@
 const grpc = {};
 grpc.web = require('grpc-web');
 
-
-var google_protobuf_empty_pb = require('google-protobuf/google/protobuf/empty_pb.js')
 const proto = {};
 proto.kaf = {};
 proto.kaf.api = require('./cluster_pb.js');
@@ -66,246 +64,6 @@ proto.kaf.api.ClusterServicePromiseClient =
    */
   this.hostname_ = hostname;
 
-};
-
-
-/**
- * @const
- * @type {!grpc.web.MethodDescriptor<
- *   !proto.kaf.api.CreateClusterRequest,
- *   !proto.kaf.api.Cluster>}
- */
-const methodDescriptor_ClusterService_CreateCluster = new grpc.web.MethodDescriptor(
-  '/kaf.api.ClusterService/CreateCluster',
-  grpc.web.MethodType.UNARY,
-  proto.kaf.api.CreateClusterRequest,
-  proto.kaf.api.Cluster,
-  /**
-   * @param {!proto.kaf.api.CreateClusterRequest} request
-   * @return {!Uint8Array}
-   */
-  function(request) {
-    return request.serializeBinary();
-  },
-  proto.kaf.api.Cluster.deserializeBinary
-);
-
-
-/**
- * @const
- * @type {!grpc.web.AbstractClientBase.MethodInfo<
- *   !proto.kaf.api.CreateClusterRequest,
- *   !proto.kaf.api.Cluster>}
- */
-const methodInfo_ClusterService_CreateCluster = new grpc.web.AbstractClientBase.MethodInfo(
-  proto.kaf.api.Cluster,
-  /**
-   * @param {!proto.kaf.api.CreateClusterRequest} request
-   * @return {!Uint8Array}
-   */
-  function(request) {
-    return request.serializeBinary();
-  },
-  proto.kaf.api.Cluster.deserializeBinary
-);
-
-
-/**
- * @param {!proto.kaf.api.CreateClusterRequest} request The
- *     request proto
- * @param {?Object<string, string>} metadata User defined
- *     call metadata
- * @param {function(?grpc.web.Error, ?proto.kaf.api.Cluster)}
- *     callback The callback function(error, response)
- * @return {!grpc.web.ClientReadableStream<!proto.kaf.api.Cluster>|undefined}
- *     The XHR Node Readable Stream
- */
-proto.kaf.api.ClusterServiceClient.prototype.createCluster =
-    function(request, metadata, callback) {
-  return this.client_.rpcCall(this.hostname_ +
-      '/kaf.api.ClusterService/CreateCluster',
-      request,
-      metadata || {},
-      methodDescriptor_ClusterService_CreateCluster,
-      callback);
-};
-
-
-/**
- * @param {!proto.kaf.api.CreateClusterRequest} request The
- *     request proto
- * @param {?Object<string, string>} metadata User defined
- *     call metadata
- * @return {!Promise<!proto.kaf.api.Cluster>}
- *     A native promise that resolves to the response
- */
-proto.kaf.api.ClusterServicePromiseClient.prototype.createCluster =
-    function(request, metadata) {
-  return this.client_.unaryCall(this.hostname_ +
-      '/kaf.api.ClusterService/CreateCluster',
-      request,
-      metadata || {},
-      methodDescriptor_ClusterService_CreateCluster);
-};
-
-
-/**
- * @const
- * @type {!grpc.web.MethodDescriptor<
- *   !proto.kaf.api.GetClusterRequest,
- *   !proto.kaf.api.Cluster>}
- */
-const methodDescriptor_ClusterService_GetCluster = new grpc.web.MethodDescriptor(
-  '/kaf.api.ClusterService/GetCluster',
-  grpc.web.MethodType.UNARY,
-  proto.kaf.api.GetClusterRequest,
-  proto.kaf.api.Cluster,
-  /**
-   * @param {!proto.kaf.api.GetClusterRequest} request
-   * @return {!Uint8Array}
-   */
-  function(request) {
-    return request.serializeBinary();
-  },
-  proto.kaf.api.Cluster.deserializeBinary
-);
-
-
-/**
- * @const
- * @type {!grpc.web.AbstractClientBase.MethodInfo<
- *   !proto.kaf.api.GetClusterRequest,
- *   !proto.kaf.api.Cluster>}
- */
-const methodInfo_ClusterService_GetCluster = new grpc.web.AbstractClientBase.MethodInfo(
-  proto.kaf.api.Cluster,
-  /**
-   * @param {!proto.kaf.api.GetClusterRequest} request
-   * @return {!Uint8Array}
-   */
-  function(request) {
-    return request.serializeBinary();
-  },
-  proto.kaf.api.Cluster.deserializeBinary
-);
-
-
-/**
- * @param {!proto.kaf.api.GetClusterRequest} request The
- *     request proto
- * @param {?Object<string, string>} metadata User defined
- *     call metadata
- * @param {function(?grpc.web.Error, ?proto.kaf.api.Cluster)}
- *     callback The callback function(error, response)
- * @return {!grpc.web.ClientReadableStream<!proto.kaf.api.Cluster>|undefined}
- *     The XHR Node Readable Stream
- */
-proto.kaf.api.ClusterServiceClient.prototype.getCluster =
-    function(request, metadata, callback) {
-  return this.client_.rpcCall(this.hostname_ +
-      '/kaf.api.ClusterService/GetCluster',
-      request,
-      metadata || {},
-      methodDescriptor_ClusterService_GetCluster,
-      callback);
-};
-
-
-/**
- * @param {!proto.kaf.api.GetClusterRequest} request The
- *     request proto
- * @param {?Object<string, string>} metadata User defined
- *     call metadata
- * @return {!Promise<!proto.kaf.api.Cluster>}
- *     A native promise that resolves to the response
- */
-proto.kaf.api.ClusterServicePromiseClient.prototype.getCluster =
-    function(request, metadata) {
-  return this.client_.unaryCall(this.hostname_ +
-      '/kaf.api.ClusterService/GetCluster',
-      request,
-      metadata || {},
-      methodDescriptor_ClusterService_GetCluster);
-};
-
-
-/**
- * @const
- * @type {!grpc.web.MethodDescriptor<
- *   !proto.kaf.api.UpdateClusterRequest,
- *   !proto.kaf.api.Cluster>}
- */
-const methodDescriptor_ClusterService_UpdateCluster = new grpc.web.MethodDescriptor(
-  '/kaf.api.ClusterService/UpdateCluster',
-  grpc.web.MethodType.UNARY,
-  proto.kaf.api.UpdateClusterRequest,
-  proto.kaf.api.Cluster,
-  /**
-   * @param {!proto.kaf.api.UpdateClusterRequest} request
-   * @return {!Uint8Array}
-   */
-  function(request) {
-    return request.serializeBinary();
-  },
-  proto.kaf.api.Cluster.deserializeBinary
-);
-
-
-/**
- * @const
- * @type {!grpc.web.AbstractClientBase.MethodInfo<
- *   !proto.kaf.api.UpdateClusterRequest,
- *   !proto.kaf.api.Cluster>}
- */
-const methodInfo_ClusterService_UpdateCluster = new grpc.web.AbstractClientBase.MethodInfo(
-  proto.kaf.api.Cluster,
-  /**
-   * @param {!proto.kaf.api.UpdateClusterRequest} request
-   * @return {!Uint8Array}
-   */
-  function(request) {
-    return request.serializeBinary();
-  },
-  proto.kaf.api.Cluster.deserializeBinary
-);
-
-
-/**
- * @param {!proto.kaf.api.UpdateClusterRequest} request The
- *     request proto
- * @param {?Object<string, string>} metadata User defined
- *     call metadata
- * @param {function(?grpc.web.Error, ?proto.kaf.api.Cluster)}
- *     callback The callback function(error, response)
- * @return {!grpc.web.ClientReadableStream<!proto.kaf.api.Cluster>|undefined}
- *     The XHR Node Readable Stream
- */
-proto.kaf.api.ClusterServiceClient.prototype.updateCluster =
-    function(request, metadata, callback) {
-  return this.client_.rpcCall(this.hostname_ +
-      '/kaf.api.ClusterService/UpdateCluster',
-      request,
-      metadata || {},
-      methodDescriptor_ClusterService_UpdateCluster,
-      callback);
-};
-
-
-/**
- * @param {!proto.kaf.api.UpdateClusterRequest} request The
- *     request proto
- * @param {?Object<string, string>} metadata User defined
- *     call metadata
- * @return {!Promise<!proto.kaf.api.Cluster>}
- *     A native promise that resolves to the response
- */
-proto.kaf.api.ClusterServicePromiseClient.prototype.updateCluster =
-    function(request, metadata) {
-  return this.client_.unaryCall(this.hostname_ +
-      '/kaf.api.ClusterService/UpdateCluster',
-      request,
-      metadata || {},
-      methodDescriptor_ClusterService_UpdateCluster);
 };
 
 
@@ -392,80 +150,80 @@ proto.kaf.api.ClusterServicePromiseClient.prototype.listClusters =
 /**
  * @const
  * @type {!grpc.web.MethodDescriptor<
- *   !proto.kaf.api.DeleteClusterRequest,
- *   !proto.google.protobuf.Empty>}
+ *   !proto.kaf.api.ConnectClusterRequest,
+ *   !proto.kaf.api.ConnectClusterResponse>}
  */
-const methodDescriptor_ClusterService_DeleteCluster = new grpc.web.MethodDescriptor(
-  '/kaf.api.ClusterService/DeleteCluster',
+const methodDescriptor_ClusterService_ConnectCluster = new grpc.web.MethodDescriptor(
+  '/kaf.api.ClusterService/ConnectCluster',
   grpc.web.MethodType.UNARY,
-  proto.kaf.api.DeleteClusterRequest,
-  google_protobuf_empty_pb.Empty,
+  proto.kaf.api.ConnectClusterRequest,
+  proto.kaf.api.ConnectClusterResponse,
   /**
-   * @param {!proto.kaf.api.DeleteClusterRequest} request
+   * @param {!proto.kaf.api.ConnectClusterRequest} request
    * @return {!Uint8Array}
    */
   function(request) {
     return request.serializeBinary();
   },
-  google_protobuf_empty_pb.Empty.deserializeBinary
+  proto.kaf.api.ConnectClusterResponse.deserializeBinary
 );
 
 
 /**
  * @const
  * @type {!grpc.web.AbstractClientBase.MethodInfo<
- *   !proto.kaf.api.DeleteClusterRequest,
- *   !proto.google.protobuf.Empty>}
+ *   !proto.kaf.api.ConnectClusterRequest,
+ *   !proto.kaf.api.ConnectClusterResponse>}
  */
-const methodInfo_ClusterService_DeleteCluster = new grpc.web.AbstractClientBase.MethodInfo(
-  google_protobuf_empty_pb.Empty,
+const methodInfo_ClusterService_ConnectCluster = new grpc.web.AbstractClientBase.MethodInfo(
+  proto.kaf.api.ConnectClusterResponse,
   /**
-   * @param {!proto.kaf.api.DeleteClusterRequest} request
+   * @param {!proto.kaf.api.ConnectClusterRequest} request
    * @return {!Uint8Array}
    */
   function(request) {
     return request.serializeBinary();
   },
-  google_protobuf_empty_pb.Empty.deserializeBinary
+  proto.kaf.api.ConnectClusterResponse.deserializeBinary
 );
 
 
 /**
- * @param {!proto.kaf.api.DeleteClusterRequest} request The
+ * @param {!proto.kaf.api.ConnectClusterRequest} request The
  *     request proto
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
- * @param {function(?grpc.web.Error, ?proto.google.protobuf.Empty)}
+ * @param {function(?grpc.web.Error, ?proto.kaf.api.ConnectClusterResponse)}
  *     callback The callback function(error, response)
- * @return {!grpc.web.ClientReadableStream<!proto.google.protobuf.Empty>|undefined}
+ * @return {!grpc.web.ClientReadableStream<!proto.kaf.api.ConnectClusterResponse>|undefined}
  *     The XHR Node Readable Stream
  */
-proto.kaf.api.ClusterServiceClient.prototype.deleteCluster =
+proto.kaf.api.ClusterServiceClient.prototype.connectCluster =
     function(request, metadata, callback) {
   return this.client_.rpcCall(this.hostname_ +
-      '/kaf.api.ClusterService/DeleteCluster',
+      '/kaf.api.ClusterService/ConnectCluster',
       request,
       metadata || {},
-      methodDescriptor_ClusterService_DeleteCluster,
+      methodDescriptor_ClusterService_ConnectCluster,
       callback);
 };
 
 
 /**
- * @param {!proto.kaf.api.DeleteClusterRequest} request The
+ * @param {!proto.kaf.api.ConnectClusterRequest} request The
  *     request proto
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
- * @return {!Promise<!proto.google.protobuf.Empty>}
+ * @return {!Promise<!proto.kaf.api.ConnectClusterResponse>}
  *     A native promise that resolves to the response
  */
-proto.kaf.api.ClusterServicePromiseClient.prototype.deleteCluster =
+proto.kaf.api.ClusterServicePromiseClient.prototype.connectCluster =
     function(request, metadata) {
   return this.client_.unaryCall(this.hostname_ +
-      '/kaf.api.ClusterService/DeleteCluster',
+      '/kaf.api.ClusterService/ConnectCluster',
       request,
       metadata || {},
-      methodDescriptor_ClusterService_DeleteCluster);
+      methodDescriptor_ClusterService_ConnectCluster);
 };
 
 

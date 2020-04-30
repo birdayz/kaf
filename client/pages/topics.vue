@@ -55,23 +55,25 @@ export default {
     currentCluster: {
       immediate: true,
       handler(newVal, oldVal) {
-        console.log('watch', newVal, oldVal)
         if (newVal && newVal !== oldVal) {
+          this.topics = []
           const topicClient = new TopicServiceClient('http://localhost:8081')
 
           const request = new ListTopicsRequest()
           request.setCluster(this.currentCluster)
 
           topicClient.listTopics(request, {}, (err, response) => {
-            console.log('test')
             if (err) {
-              console.log(err)
               this.$notifier.showMessage({
-                content: 'Failed to connect',
+                content: 'Failed to connect to cluster ' + newVal,
                 color: 'error'
               })
             } else {
               this.topics = response.toObject().topicsList
+              this.$notifier.showMessage({
+                content: 'Connected to cluster ' + newVal,
+                color: 'info'
+              })
             }
           })
         }

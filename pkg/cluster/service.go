@@ -5,22 +5,19 @@ import (
 
 	"github.com/birdayz/kaf/api"
 	"github.com/birdayz/kaf/pkg/config"
-	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/birdayz/kaf/pkg/connection"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-type Service struct{}
+type Service struct {
+	c *connection.ConnManager
+}
 
-func (s *Service) CreateCluster(ctx context.Context, in *api.CreateClusterRequest) (*api.Cluster, error) {
-	return nil, nil
+func NewService(c *connection.ConnManager) *Service {
+	return &Service{c: c}
 }
-func (s *Service) GetCluster(ctx context.Context, in *api.GetClusterRequest) (*api.Cluster, error) {
-	return nil, nil
-}
-func (s *Service) UpdateCluster(ctx context.Context, in *api.UpdateClusterRequest) (*api.Cluster, error) {
-	return nil, nil
-}
+
 func (s *Service) ListClusters(ctx context.Context, in *api.ListClustersRequest) (*api.ListClustersResponse, error) {
 	cfg, err := config.ReadConfig("")
 	if err != nil {
@@ -35,6 +32,11 @@ func (s *Service) ListClusters(ctx context.Context, in *api.ListClustersRequest)
 
 	return &resp, nil
 }
-func (s *Service) DeleteCluster(ctx context.Context, in *api.DeleteClusterRequest) (*empty.Empty, error) {
-	return nil, nil
+
+func (s *Service) ConnectCluster(ctx context.Context, in *api.ConnectClusterRequest) (*api.ConnectClusterResponse, error) {
+	err := s.c.Connect(in.Name)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	return &api.ConnectClusterResponse{}, nil
 }

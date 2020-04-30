@@ -2,7 +2,6 @@ package topic
 
 import (
 	context "context"
-	"fmt"
 	"sort"
 
 	"github.com/Shopify/sarama"
@@ -37,9 +36,7 @@ func (s *Service) UpdateTopic(context.Context, *api.UpdateTopicRequest) (*api.To
 	return nil, nil
 }
 func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*api.ListTopicsResponse, error) {
-	fmt.Println("abc", req.Cluster)
 	adminClient, err := s.connManager.GetAdminClient(req.Cluster)
-	fmt.Println("Nach get topic")
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}

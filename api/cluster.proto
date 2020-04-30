@@ -2,30 +2,21 @@ syntax = "proto3";
 package kaf.api;
 option go_package = "api";
 
-import "google/protobuf/empty.proto";
-
-message CreateClusterRequest {}
-
-message CreateClusterResponse {}
-
 message ListClustersRequest {}
 
 message ListClustersResponse { repeated Cluster clusters = 1; }
-
-message GetClusterRequest {}
-
-message DeleteClusterRequest {}
-
-message UpdateClusterRequest {}
 
 message Cluster {
   string name = 1;
 }
 
+message ConnectClusterRequest {
+  string name = 1;
+}
+
+message ConnectClusterResponse { }
+
 service ClusterService {
-  rpc CreateCluster(CreateClusterRequest) returns (Cluster);
-  rpc GetCluster(GetClusterRequest) returns (Cluster);
-  rpc UpdateCluster(UpdateClusterRequest) returns (Cluster);
   rpc ListClusters(ListClustersRequest) returns (ListClustersResponse);
-  rpc DeleteCluster(DeleteClusterRequest) returns (google.protobuf.Empty);
+  rpc ConnectCluster(ConnectClusterRequest) returns (ConnectClusterResponse);
 }

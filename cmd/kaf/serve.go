@@ -31,12 +31,13 @@ var serveCmd = &cobra.Command{
 	Short: "Start server",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		svc, err := topic.NewService(connection.NewConnManager())
+		c := connection.NewConnManager()
+		svc, err := topic.NewService(c)
 		if err != nil {
 			errorExit("Failed to create topic service: %v", err)
 		}
 
-		clusterSvc := &cluster.Service{}
+		clusterSvc := cluster.NewService(c)
 
 		srv := grpc.NewServer()
 

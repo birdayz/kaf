@@ -11,13 +11,29 @@ import (
 	"github.com/birdayz/kaf/pkg/config"
 )
 
-type ConnManager struct{}
+type ConnManager struct {
+	conns map[string]sarama.Client
+}
 
 func NewConnManager() *ConnManager {
-	return &ConnManager{}
+	return &ConnManager{
+		conns: make(map[string]sarama.Client),
+	}
+}
+
+func (c *ConnManager) Connect(cluster string) error {
+	_, err := c.GetAdminClient(cluster)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *ConnManager) GetAdminClient(cluster string) (sarama.ClusterAdmin, error) {
+	if cl, ok := c.conns[cluster]; ok {
+		fmt.Println("Using cached client")
+		return sarama.NewClusterAdminFromClient(cl)
+	}
 	configTotal, err := config.ReadConfig("")
 	if err != nil {
 		return nil, err
@@ -46,6 +62,8 @@ func (c *ConnManager) GetAdminClient(cluster string) (sarama.ClusterAdmin, error
 	if err != nil {
 		return nil, err
 	}
+
+	c.conns[cluster] = client
 
 	return sarama.NewClusterAdminFromClient(client)
 }
