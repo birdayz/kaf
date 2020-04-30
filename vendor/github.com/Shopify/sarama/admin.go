@@ -2,11 +2,8 @@ package sarama
 
 import (
 	"errors"
-	"fmt"
 	"math/rand"
 	"sync"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 // ClusterAdmin is the administrative client for Kafka, which supports managing and inspecting topics,
@@ -215,6 +212,10 @@ func (ca *clusterAdmin) DescribeCluster() (brokers []*Broker, controllerID int32
 
 	request := &MetadataRequest{
 		Topics: []string{},
+	}
+
+	if ca.conf.Version.IsAtLeast(V0_11_0_0) {
+		request.Version = 1
 	}
 
 	response, err := controller.GetMetadata(request)
@@ -571,7 +572,6 @@ func (ca *clusterAdmin) DeleteACL(filter AclFilter, validateOnly bool) ([]Matchi
 }
 
 func (ca *clusterAdmin) DescribeConsumerGroups(groups []string) (result []*GroupDescription, err error) {
-	fmt.Println("ZZ--Desc")
 	groupsPerBroker := make(map[*Broker][]string)
 
 	for _, group := range groups {
@@ -587,9 +587,6 @@ func (ca *clusterAdmin) DescribeConsumerGroups(groups []string) (result []*Group
 		response, err := broker.DescribeGroups(&DescribeGroupsRequest{
 			Groups: brokerGroups,
 		})
-		fmt.Println("R-desc")
-		spew.Dump(response)
-		fmt.Println("--")
 		if err != nil {
 			return nil, err
 		}
@@ -604,7 +601,6 @@ func (ca *clusterAdmin) ListConsumerGroups() (allGroups map[string]string, err e
 
 	// Query brokers in parallel, since we have to query *all* brokers
 	brokers := ca.client.Brokers()
-	//spew.Dump(brokers)
 	groupMaps := make(chan map[string]string, len(brokers))
 	errors := make(chan error, len(brokers))
 	wg := sync.WaitGroup{}
@@ -613,11 +609,9 @@ func (ca *clusterAdmin) ListConsumerGroups() (allGroups map[string]string, err e
 		wg.Add(1)
 		go func(b *Broker, conf *Config) {
 			defer wg.Done()
-			errx := b.Open(conf) // Ensure that broker is opened
-			fmt.Println("open", errx, b)
+			_ = b.Open(conf) // Ensure that broker is opened
 
 			response, err := b.ListGroups(&ListGroupsRequest{})
-			spew.Dump(response)
 			if err != nil {
 				errors <- err
 				return

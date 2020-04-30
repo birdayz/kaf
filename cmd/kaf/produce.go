@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/burdiyan/kafkautil"
+	"github.com/birdayz/kaf/pkg/partitioner"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
@@ -42,7 +42,7 @@ var produceCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := getConfig()
 		if partitionerFlag != "" {
-			cfg.Producer.Partitioner = kafkautil.NewJVMCompatiblePartitioner
+			cfg.Producer.Partitioner = partitioner.NewJVMCompatiblePartitioner
 		}
 		producer, err := sarama.NewSyncProducer(currentCluster.Brokers, cfg)
 		if err != nil {

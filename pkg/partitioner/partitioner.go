@@ -1,4 +1,4 @@
-package kafkautil
+package partitioner
 
 import (
 	"hash"
