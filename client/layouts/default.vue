@@ -7,9 +7,7 @@
             <v-icon>mdi-message-text</v-icon>
           </v-list-item-action>
           <v-list-item-content>
-            <v-list-item-title>
-              Topics
-            </v-list-item-title>
+            <v-list-item-title>Topics</v-list-item-title>
           </v-list-item-content>
         </v-list-item>
         <v-list-item link>
@@ -52,10 +50,11 @@
     </v-content>
 
     <v-footer app padless>
-      <v-row justify="center" no-gutters>
-        <v-btn color="white" text href="https://github.com/birdayz/kaf"
+      <v-row no-gutters>
+        <!-- <v-btn color="white" text href="https://github.com/birdayz/kaf"
           >GitHub</v-btn
-        >
+        >-->
+        <div class="body-2" style="padding: 5px;">{{ message }}</div>
       </v-row>
     </v-footer>
   </v-app>
@@ -69,7 +68,8 @@ export default {
     source: String
   },
   data: () => ({
-    drawer: true
+    drawer: true,
+    message: 'Loaded'
   }),
   computed: {
     crumbs() {
@@ -82,11 +82,9 @@ export default {
         crumbs.push(crumb)
       })
 
-      console.log('crumbs' + JSON.stringify(crumbs))
       return crumbs
     },
     clusters() {
-      console.log('yyyyyyy')
       return this.$store.state.clusters
     },
     currentCluster: {
@@ -103,6 +101,13 @@ export default {
   },
   created() {
     this.$vuetify.theme.dark = true
+    this.$store.subscribe((mutation, state) => {
+      if (mutation.type === 'snackbar/showMessage') {
+        this.message = state.snackbar.content
+        // this.color = state.snackbar.color
+        // this.show = true
+      }
+    })
   }
 }
 </script>
