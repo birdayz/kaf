@@ -72,6 +72,8 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		})
 	}
 
+	// Todo get num messages
+
 	return &resp, nil
 }
 func (s *Service) DeleteTopic(context.Context, *api.DeleteTopicRequest) (*empty.Empty, error) {
