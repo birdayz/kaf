@@ -187,7 +187,7 @@ var configRemoveClusterCmd = &cobra.Command{
         if err != nil {
             errorExit("Unable to write config: %v\n", err)
         }
-        fmt.Println("Remove cluster.")
+        fmt.Println("Removed cluster.")
     },
 }
 
