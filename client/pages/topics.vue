@@ -5,7 +5,11 @@
       :items="topics"
       :items-per-page="15"
       class="elevation-1"
-    ></v-data-table>
+    >
+      <template v-slot:item.messages="{ item }">
+        <span>{{ numer(item.messages).format('0,0') }}</span>
+      </template>
+    </v-data-table>
     <v-snackbar v-model="snackbar">
       {{ text }}
       <v-btn color="pink" text @click="snackbar = false">Close</v-btn>
@@ -13,10 +17,14 @@
   </div>
 </template>
 <script>
+import numeral from 'numeral'
 import { TopicServiceClient } from '../../api/topic_grpc_web_pb.js'
 import { ListTopicsRequest } from '../../api/topic_pb.js'
 
 export default {
+  methods: {
+    numer: numeral
+  },
   data() {
     return {
       snackbar: false,
@@ -35,13 +43,14 @@ export default {
           value: 'numpartitions'
         },
         {
-          text: 'Replicas',
+          text: 'Messages',
           align: 'start',
           sortable: true,
-          value: 'numreplicas'
+          value: 'messages'
         }
       ],
-      topics: []
+      topics: [],
+      messages: 0
     }
   },
   computed: {

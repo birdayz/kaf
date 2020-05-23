@@ -26,6 +26,7 @@ message Topic {
   int32 numPartitions = 3;
   repeated Partition partitions = 4;
   repeated TopicConfig config = 5;
+  int64 messages = 6;
 }
 
 message TopicConfig {

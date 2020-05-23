@@ -1067,7 +1067,8 @@ proto.kaf.api.Topic.toObject = function(includeInstance, msg) {
     partitionsList: jspb.Message.toObjectList(msg.getPartitionsList(),
     proto.kaf.api.Partition.toObject, includeInstance),
     configList: jspb.Message.toObjectList(msg.getConfigList(),
-    proto.kaf.api.TopicConfig.toObject, includeInstance)
+    proto.kaf.api.TopicConfig.toObject, includeInstance),
+    messages: jspb.Message.getFieldWithDefault(msg, 6, 0)
   };
 
   if (includeInstance) {
@@ -1125,6 +1126,10 @@ proto.kaf.api.Topic.deserializeBinaryFromReader = function(msg, reader) {
       var value = new proto.kaf.api.TopicConfig;
       reader.readMessage(value,proto.kaf.api.TopicConfig.deserializeBinaryFromReader);
       msg.addConfig(value);
+      break;
+    case 6:
+      var value = /** @type {number} */ (reader.readInt64());
+      msg.setMessages(value);
       break;
     default:
       reader.skipField();
@@ -1190,6 +1195,13 @@ proto.kaf.api.Topic.serializeBinaryToWriter = function(message, writer) {
       5,
       f,
       proto.kaf.api.TopicConfig.serializeBinaryToWriter
+    );
+  }
+  f = message.getMessages();
+  if (f !== 0) {
+    writer.writeInt64(
+      6,
+      f
     );
   }
 };
@@ -1305,6 +1317,21 @@ proto.kaf.api.Topic.prototype.addConfig = function(opt_value, opt_index) {
  */
 proto.kaf.api.Topic.prototype.clearConfigList = function() {
   this.setConfigList([]);
+};
+
+
+/**
+ * optional int64 messages = 6;
+ * @return {number}
+ */
+proto.kaf.api.Topic.prototype.getMessages = function() {
+  return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 6, 0));
+};
+
+
+/** @param {number} value */
+proto.kaf.api.Topic.prototype.setMessages = function(value) {
+  jspb.Message.setProto3IntField(this, 6, value);
 };
 
 

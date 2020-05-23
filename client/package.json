@@ -13,10 +13,11 @@
     "lintfix": "eslint --fix --ext .js,.vue --ignore-path .gitignore ."
   },
   "dependencies": {
-    "nuxt": "^2.12.2",
     "google-protobuf": "^3.11.4",
     "grpc": "^1.24.2",
-    "grpc-web": "^1.0.7"
+    "grpc-web": "^1.0.7",
+    "numeral": "^2.0.6",
+    "nuxt": "^2.12.2"
   },
   "devDependencies": {
     "@grpc/proto-loader": "^0.5.3",
