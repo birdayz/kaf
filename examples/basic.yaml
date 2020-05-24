@@ -5,3 +5,4 @@ clusters:
   SASL: null
   TLS: null 
   security-protocol: ""
+  version: "1.0.0"

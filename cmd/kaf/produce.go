@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"time"
 
@@ -14,6 +15,7 @@ import (
 )
 
 var keyFlag string
+var headerFlag []string
 var numFlag int
 var partitionerFlag string
 var timestampFlag string
@@ -22,6 +24,7 @@ func init() {
 	rootCmd.AddCommand(produceCmd)
 
 	produceCmd.Flags().StringVarP(&keyFlag, "key", "k", "", "Key for the record. Currently only strings are supported.")
+	produceCmd.Flags().StringArrayVarP(&headerFlag, "header", "H", []string{}, "Header in format <key>:<value>. May be used multiple times to add more headers.")
 	produceCmd.Flags().IntVarP(&numFlag, "num", "n", 1, "Number of records to send.")
 
 	produceCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
@@ -102,10 +105,22 @@ var produceCmd = &cobra.Command{
 			ts = t
 		}
 
+		var headers []sarama.RecordHeader
+		for _, h := range headerFlag {
+			v := strings.SplitN(h, ":", 2)
+			if len(v) == 2 {
+				headers = append(headers, sarama.RecordHeader{
+					Key:   []byte(v[0]),
+					Value: []byte(v[1]),
+				})
+			}
+		}
+
 		for i := 0; i < numFlag; i++ {
 			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
 				Topic:     args[0],
 				Key:       key,
+				Headers:   headers,
 				Timestamp: ts,
 				Value:     sarama.ByteEncoder(data),
 			})
