@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	flagEhConnString string
-	flagBrokerVersion      string
+	flagEhConnString  string
+	flagBrokerVersion string
 )
 
 func init() {
@@ -158,7 +158,7 @@ var configAddClusterCmd = &cobra.Command{
 			Name:              name,
 			Brokers:           brokersFlag,
 			SchemaRegistryURL: schemaRegistryURL,
-			Version:           flagVersion,
+			Version:           flagBrokerVersion,
 		})
 		err := cfg.Write()
 		if err != nil {
@@ -169,32 +169,32 @@ var configAddClusterCmd = &cobra.Command{
 }
 
 var configRemoveClusterCmd = &cobra.Command{
-   	Use:   "remove-cluster [NAME]",
-    Short: "remove cluster",
-    Args:  cobra.ExactArgs(1),
-    Run: func(cmd *cobra.Command, args []string) {
-        name := args[0]
+	Use:   "remove-cluster [NAME]",
+	Short: "remove cluster",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
 
-        var pos = -1
-        for i, cluster := range cfg.Clusters {
-            if cluster.Name == name {
-                pos = i
-                break
-            }
-        }
+		var pos = -1
+		for i, cluster := range cfg.Clusters {
+			if cluster.Name == name {
+				pos = i
+				break
+			}
+		}
 
-        if pos == -1 {
-            errorExit("Could not delete cluster: cluster with name '%v' not exists.", name)
-        }
+		if pos == -1 {
+			errorExit("Could not delete cluster: cluster with name '%v' not exists.", name)
+		}
 
-        cfg.Clusters = append(cfg.Clusters[:pos],cfg.Clusters[pos+1:]...)
+		cfg.Clusters = append(cfg.Clusters[:pos], cfg.Clusters[pos+1:]...)
 
-        err := cfg.Write()
-        if err != nil {
-            errorExit("Unable to write config: %v\n", err)
-        }
-        fmt.Println("Removed cluster.")
-    },
+		err := cfg.Write()
+		if err != nil {
+			errorExit("Unable to write config: %v\n", err)
+		}
+		fmt.Println("Removed cluster.")
+	},
 }
 
 var configImportCmd = &cobra.Command{
