@@ -153,7 +153,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 			g, err := sarama.NewConsumerGroupFromClient(group, client)
 			if err != nil {
-				errorExit("Failed to create consumer group: %v", err)
+				errorExit("Failed to create consumer group: %v.", err)
 			}
 
 			err = g.Consume(context.Background(), []string{topic}, &resetHandler{
@@ -164,10 +164,10 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 				group:     group,
 			})
 			if err != nil {
-				errorExit("Failed to commit offset: %v", err)
+				errorExit("Failed to commit offset: %v.", err)
 			}
 
-			fmt.Printf("Set offset to %v.", off)
+			fmt.Printf("Set offset to %v.\n", off)
 		},
 	}
 	res.Flags().StringVarP(&topic, "topic", "t", "", "topic")

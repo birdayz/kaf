@@ -90,7 +90,7 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		for _, t := range resp.Topics {
 			if t.Name == m.Name {
 				for _, p := range m.Partitions {
-					t.Partitions = append(t.Partitions, &api.Partition{Number: int64(p.ID)})
+					t.Partitions = append(t.Partitions, &api.Partition{Number: p.ID})
 				}
 			}
 		}
@@ -119,6 +119,52 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 	// Todo get num messages
 
 	return &resp, nil
+}
+
+func (s *Service) GetHighWatermarks(ctx context.Context, req *api.GetHighWatermarksRequest) (res *api.GetHighWatermarksResponse, err error) {
+	fmt.Println("VOR")
+	spew.Dump(req)
+	fmt.Println("Nach")
+	client, err := s.connManager.GetClient(req.Cluster)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	adminClient, err := s.connManager.GetAdminClient(req.Cluster)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	meta, err := adminClient.DescribeTopics(req.Topics)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	res = &api.GetHighWatermarksResponse{
+		HighWatermarks: make(map[string]*api.TopicHighWatermarks),
+	}
+	for _, topic := range req.Topics {
+		var partitions []int32
+		for _, topicMeta := range meta {
+			if topicMeta.Name == topic {
+				for _, partitionMeta := range topicMeta.Partitions {
+					partitions = append(partitions, partitionMeta.ID)
+				}
+			}
+		}
+		wms, err := getHighWatermarks(client, topic, partitions)
+		if err != nil {
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+
+		t := &api.TopicHighWatermarks{
+			HighWatermarks: wms,
+		}
+		res.HighWatermarks[topic] = t
+
+	}
+
+	return res, nil
 }
 
 func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (watermarks map[int32]int64, err error) {

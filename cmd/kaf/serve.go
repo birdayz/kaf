@@ -65,8 +65,10 @@ var serveCmd = &cobra.Command{
 			)),
 		}
 
+		go func() {
+			srv.Serve(lnr)
+		}()
 		_ = httpSrv.ListenAndServe()
-		_ = srv.Serve(lnr)
 	},
 }
 

@@ -19,12 +19,12 @@
 <script>
 import numeral from 'numeral'
 import { TopicServiceClient } from '../../api/topic_grpc_web_pb.js'
-import { ListTopicsRequest } from '../../api/topic_pb.js'
+import {
+  ListTopicsRequest,
+  GetHighWatermarksRequest
+} from '../../api/topic_pb.js'
 
 export default {
-  methods: {
-    numer: numeral
-  },
   data() {
     return {
       snackbar: false,
@@ -79,6 +79,37 @@ export default {
               })
             } else {
               this.topics = response.toObject().topicsList
+
+              // Get High Watermarks
+              const reqWm = new GetHighWatermarksRequest()
+              reqWm.setCluster(this.currentCluster)
+              // reqWm.setTopicsList(['abc'])
+              reqWm.addTopics('abc')
+              reqWm.addTopics('def')
+
+              console.log('req', reqWm, reqWm.toObject())
+
+              topicClient.getHighWatermarks(reqWm, {}, (err, response) => {
+                console.log(err)
+                console.log(response)
+                console.log(
+                  'ggg',
+                  response,
+                  '--+',
+                  response.getHighWatermarksMap(),
+                  // .get('abc')
+                  // .toObject()
+                  '---'
+                )
+                response.getHighWatermarksMap().forEach((value, key) => {
+                  console.log(
+                    key,
+                    value.getHighWatermarksMap().toObject(),
+                    'dddddddddddd'
+                  )
+                })
+              })
+
               this.$notifier.showMessage({
                 content: 'Connected to cluster ' + newVal,
                 color: 'info'
@@ -89,6 +120,9 @@ export default {
       }
     }
   },
-  mounted() {}
+  mounted() {},
+  methods: {
+    numer: numeral
+  }
 }
 </script>

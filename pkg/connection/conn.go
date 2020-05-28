@@ -40,17 +40,13 @@ func (c *ConnManager) GetClient(cluster string) (sarama.Client, error) {
 	}
 
 	var cl *config.Cluster
-	if cluster == "" {
-		cl = configTotal.ActiveCluster()
-	} else {
-		for _, cx := range configTotal.Clusters {
-			if cx.Name == cluster {
-				cl = cx
-			}
+	for _, cx := range configTotal.Clusters {
+		if cx.Name == cluster {
+			cl = cx
 		}
 	}
 	if cl == nil {
-		cl = configTotal.ActiveCluster()
+		return nil, fmt.Errorf("Cluster \"%v\" not found.", cluster)
 	}
 
 	cfg, err := toSaramaConfig(cl)

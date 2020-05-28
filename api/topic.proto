@@ -8,9 +8,7 @@ message CreateTopicRequest {}
 
 message CreateTopicResponse {}
 
-message ListTopicsRequest {
-  string cluster = 1;
-}
+message ListTopicsRequest { string cluster = 1; }
 
 message ListTopicsResponse { repeated Topic topics = 1; }
 
@@ -37,12 +35,23 @@ message TopicConfig {
 }
 
 message Partition {
-  int64 number = 1;
+  int32 number = 1;
   int64 offset = 2;
   int64 high_watermark = 3;
   int32 leader = 4;
   repeated int32 replicas = 5;
   repeated int32 isr = 6;
+}
+
+message GetHighWatermarksRequest {
+  string cluster = 1;
+  repeated string topics = 2;
+}
+
+message TopicHighWatermarks { map<int32, int64> high_watermarks = 1; }
+
+message GetHighWatermarksResponse {
+  map<string, TopicHighWatermarks> high_watermarks = 1;
 }
 
 service TopicService {
@@ -51,4 +60,7 @@ service TopicService {
   rpc UpdateTopic(UpdateTopicRequest) returns (Topic);
   rpc ListTopics(ListTopicsRequest) returns (ListTopicsResponse);
   rpc DeleteTopic(DeleteTopicRequest) returns (google.protobuf.Empty);
+
+  rpc GetHighWatermarks(GetHighWatermarksRequest)
+      returns (GetHighWatermarksResponse);
 }
