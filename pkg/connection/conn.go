@@ -65,6 +65,49 @@ func (c *ConnManager) GetClient(cluster string) (sarama.Client, error) {
 
 }
 
+func (c *ConnManager) GetAvailableOffsets(broker *sarama.Broker, cluster string, req *sarama.OffsetRequest) (*sarama.OffsetResponse, error) {
+	resp, err := broker.GetAvailableOffsets(req)
+	if err != nil {
+		broker.Close()
+		cfg, err := c.GetConfig(cluster)
+		if err != nil {
+			return nil, err
+		}
+		broker.Open(cfg)
+		return broker.GetAvailableOffsets(req)
+
+	}
+	return resp, nil
+}
+
+func (c *ConnManager) GetConfig(cluster string) (*sarama.Config, error) {
+	configTotal, err := config.ReadConfig("")
+	if err != nil {
+		return nil, err
+	}
+
+	var cl *config.Cluster
+	if cluster == "" {
+		cl = configTotal.ActiveCluster()
+	} else {
+		for _, cx := range configTotal.Clusters {
+			if cx.Name == cluster {
+				cl = cx
+			}
+		}
+	}
+	if cl == nil {
+		cl = configTotal.ActiveCluster()
+	}
+
+	cfg, err := toSaramaConfig(cl)
+	if err != nil {
+		return nil, err
+	}
+	return cfg, nil
+
+}
+
 func (c *ConnManager) GetAdminClient(cluster string) (sarama.ClusterAdmin, error) {
 	if cl, ok := c.conns[cluster]; ok {
 		fmt.Println("Using cached client")

@@ -17,7 +17,7 @@ require (
 	github.com/fatih/color v1.7.0 // indirect
 	github.com/go-chi/chi v4.1.0+incompatible // indirect
 	github.com/golang/gddo v0.0.0-20200324184333-3c2cc9a6329d // indirect
-	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b // indirect
+	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.3.1
 	github.com/gorilla/websocket v1.4.0
 	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
@@ -43,8 +43,8 @@ require (
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/wvanbergen/kazoo-go v0.0.0-20180202103751-f72d8611297a // indirect
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
+	go.uber.org/zap v1.15.0 // indirect
 	golang.org/x/sys v0.0.0-20190712062909-fae7ac547cb7 // indirect
-	golang.org/x/tools v0.0.0-20190712213246-8b927904ee0d // indirect
 	google.golang.org/grpc v1.21.0
 	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20180810215634-df19058c872c // indirect
 	gopkg.in/jcmturner/goidentity.v3 v3.0.0 // indirect

@@ -6,8 +6,8 @@
       :items-per-page="15"
       class="elevation-1"
     >
-      <template v-slot:item.messages="{ item }">
-        <span>{{ numer(item.messages).format('0,0') }}</span>
+      <template v-slot:item.totalHighWatermarks="{ item }">
+        <span>{{ numer(item.totalHighWatermarks).format('0.0a') }}</span>
       </template>
     </v-data-table>
     <v-snackbar v-model="snackbar">
@@ -20,8 +20,8 @@
 import numeral from 'numeral'
 import { TopicServiceClient } from '../../api/topic_grpc_web_pb.js'
 import {
-  ListTopicsRequest,
-  GetHighWatermarksRequest
+  ListTopicsRequest
+  // GetHighWatermarksRequest
 } from '../../api/topic_pb.js'
 
 export default {
@@ -40,13 +40,25 @@ export default {
           text: 'Partitions',
           align: 'start',
           sortable: true,
-          value: 'numpartitions'
+          value: 'numPartitions'
+        },
+        {
+          text: 'Replicas',
+          align: 'start',
+          sortable: true,
+          value: 'numReplicas'
         },
         {
           text: 'Messages',
           align: 'start',
           sortable: true,
-          value: 'messages'
+          value: 'totalHighWatermarks'
+        },
+        {
+          text: 'Size',
+          align: 'start',
+          sortable: true,
+          value: 'logDirBytes'
         }
       ],
       topics: [],
@@ -73,42 +85,14 @@ export default {
 
           topicClient.listTopics(request, {}, (err, response) => {
             if (err) {
+              console.log('err', err)
               this.$notifier.showMessage({
-                content: 'Failed to connect to cluster ' + newVal,
+                content: 'Failed to connect to cluster ' + newVal + ' :' + err,
                 color: 'error'
               })
             } else {
+              console.log('xx', response.toObject())
               this.topics = response.toObject().topicsList
-
-              // Get High Watermarks
-              const reqWm = new GetHighWatermarksRequest()
-              reqWm.setCluster(this.currentCluster)
-              // reqWm.setTopicsList(['abc'])
-              reqWm.addTopics('abc')
-              reqWm.addTopics('def')
-
-              console.log('req', reqWm, reqWm.toObject())
-
-              topicClient.getHighWatermarks(reqWm, {}, (err, response) => {
-                console.log(err)
-                console.log(response)
-                console.log(
-                  'ggg',
-                  response,
-                  '--+',
-                  response.getHighWatermarksMap(),
-                  // .get('abc')
-                  // .toObject()
-                  '---'
-                )
-                response.getHighWatermarksMap().forEach((value, key) => {
-                  console.log(
-                    key,
-                    value.getHighWatermarksMap().toObject(),
-                    'dddddddddddd'
-                  )
-                })
-              })
 
               this.$notifier.showMessage({
                 content: 'Connected to cluster ' + newVal,

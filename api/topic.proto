@@ -18,13 +18,18 @@ message DeleteTopicRequest {}
 
 message UpdateTopicRequest {}
 
-message Topic {
-  string name = 1;
-  int32 numReplicas = 2;
-  int32 numPartitions = 3;
+message TopicDetail {
   repeated Partition partitions = 4;
   repeated TopicConfig config = 5;
-  int64 messages = 6;
+}
+
+message Topic {
+  string name = 1;
+  int32 num_replicas = 2;
+  int32 num_partitions = 3;
+  int64 total_high_watermarks = 6;
+  TopicDetail topic_detail = 7;
+  int64 log_dir_bytes = 8;
 }
 
 message TopicConfig {

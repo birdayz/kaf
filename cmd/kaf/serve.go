@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"net"
 	"net/http"
 	"path"
@@ -24,6 +25,7 @@ import (
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
+	flag.Parse()
 }
 
 var serveCmd = &cobra.Command{

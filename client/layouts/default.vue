@@ -28,7 +28,7 @@
         v-model="currentCluster"
         :items="clusters"
         item-text="name"
-        style="width: 100px; max-width: 200px; padding-left: 15px; padding-top: 25px;"
+        style="width: 100px; max-width: 200px; padding-left: 15px; padding-top: 30px;"
         label="Cluster"
         no-data-text="Loading.."
         placeholder="Loading.."

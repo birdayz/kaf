@@ -9,7 +9,7 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/api"
 	"github.com/birdayz/kaf/pkg/connection"
-	"github.com/davecgh/go-spew/spew"
+	"github.com/golang/glog"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,13 +38,40 @@ func (s *Service) UpdateTopic(context.Context, *api.UpdateTopicRequest) (*api.To
 
 	return nil, nil
 }
+
+func logDirBytes(client sarama.Client) (map[string]int64, error) {
+	res := make(map[string]int64)
+	for _, broker := range client.Brokers() {
+		req := &sarama.DescribeLogDirsRequest{}
+		resp, err := broker.DescribeLogDirs(req)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, logDir := range resp.LogDirs {
+			for _, topic := range logDir.Topics {
+				if _, ok := res[topic.Topic]; !ok {
+					res[topic.Topic] = int64(0)
+				}
+				for _, partition := range topic.Partitions {
+					res[topic.Topic] += partition.Size
+				}
+			}
+		}
+	}
+
+	return res, nil
+}
+
 func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*api.ListTopicsResponse, error) {
 	adminClient, err := s.connManager.GetAdminClient(req.Cluster)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		glog.Errorf("ListTopics failed: %v", err)
+		return nil, status.Error(codes.Internal, "Failed to list topics")
 	}
 	topics, err := adminClient.ListTopics()
 	if err != nil {
+		glog.Errorf("ListTopics failed: %v", err)
 		return nil, status.Error(codes.Internal, "Failed to list topics")
 	}
 
@@ -72,7 +99,7 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 			Name:          entry.name,
 			NumPartitions: entry.NumPartitions,
 			NumReplicas:   int32(entry.ReplicationFactor),
-			Partitions:    nil,
+			TopicDetail:   &api.TopicDetail{},
 		})
 	}
 
@@ -90,7 +117,7 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		for _, t := range resp.Topics {
 			if t.Name == m.Name {
 				for _, p := range m.Partitions {
-					t.Partitions = append(t.Partitions, &api.Partition{Number: p.ID})
+					t.TopicDetail.Partitions = append(t.TopicDetail.Partitions, &api.Partition{Number: p.ID})
 				}
 			}
 		}
@@ -101,30 +128,42 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
+	logDirInfo, err := logDirBytes(client)
+	if err != nil {
+		glog.Error("Failed to fetch LogDir info: %v", err)
+		// Ignore this, Log Dir is best-effort
+	}
+
+	fmt.Println("ZZ", len(resp.Topics))
+
 	for _, topic := range resp.Topics {
-		spew.Dump(topic)
+		fmt.Println(topic.Name)
+		if l, ok := logDirInfo[topic.Name]; ok {
+			topic.LogDirBytes = l
+		}
 		var ps []int32
-		for _, p := range topic.Partitions {
+		for _, p := range topic.TopicDetail.Partitions {
 			ps = append(ps, int32(p.Number))
 		}
-		wms, _ := getHighWatermarks(client, topic.Name, ps)
+		fmt.Println("WM")
+		wms, _ := s.getHighWatermarks(client, req.Cluster, topic.Name, ps)
+		fmt.Println("END WM")
 		var msgs int64
 		for _, v := range wms {
 			msgs += v
 		}
-		fmt.Println("WMS!!", wms)
-		topic.Messages = msgs
+		topic.TotalHighWatermarks = msgs
+		fmt.Println("TOPICS")
 	}
 
 	// Todo get num messages
+
+	fmt.Println("RET")
 
 	return &resp, nil
 }
 
 func (s *Service) GetHighWatermarks(ctx context.Context, req *api.GetHighWatermarksRequest) (res *api.GetHighWatermarksResponse, err error) {
-	fmt.Println("VOR")
-	spew.Dump(req)
-	fmt.Println("Nach")
 	client, err := s.connManager.GetClient(req.Cluster)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -152,7 +191,7 @@ func (s *Service) GetHighWatermarks(ctx context.Context, req *api.GetHighWaterma
 				}
 			}
 		}
-		wms, err := getHighWatermarks(client, topic, partitions)
+		wms, err := s.getHighWatermarks(client, req.Cluster, topic, partitions)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
@@ -167,8 +206,8 @@ func (s *Service) GetHighWatermarks(ctx context.Context, req *api.GetHighWaterma
 	return res, nil
 }
 
-func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (watermarks map[int32]int64, err error) {
-	fmt.Println("ZZ")
+func (s *Service) getHighWatermarks(client sarama.Client, cluster string, topic string, partitions []int32) (watermarks map[int32]int64, err error) {
+	fmt.Println("CALL")
 	leaders := make(map[*sarama.Broker][]int32)
 
 	for _, partition := range partitions {
@@ -180,10 +219,7 @@ func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (
 
 	results := make(chan map[int32]int64, len(leaders))
 
-	fmt.Println(leaders, partitions)
-
 	for leader, partitions := range leaders {
-		fmt.Println("DD")
 		req := &sarama.OffsetRequest{
 			Version: int16(1),
 		}
@@ -194,13 +230,12 @@ func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (
 
 		// Query distinct brokers in parallel
 		go func(leader *sarama.Broker, req *sarama.OffsetRequest) {
-			resp, err := leader.GetAvailableOffsets(req)
+			defer wg.Done()
+			resp, err := s.connManager.GetAvailableOffsets(leader, cluster, req)
 			if err != nil {
-				fmt.Println(err)
+				glog.Errorf("Failed to fetch available offset: %v", err)
 				return
 			}
-
-			spew.Dump(resp)
 
 			watermarksFromLeader := make(map[int32]int64)
 			for partition, block := range resp.Blocks[topic] {
@@ -208,13 +243,14 @@ func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (
 			}
 
 			results <- watermarksFromLeader
-			wg.Done()
 
 		}(leader, req)
 
 	}
 
+	fmt.Println("vor wait")
 	wg.Wait()
+	fmt.Println("nach wait")
 	close(results)
 
 	watermarks = make(map[int32]int64)
