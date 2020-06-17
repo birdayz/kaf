@@ -17,7 +17,8 @@
     "grpc": "^1.24.2",
     "grpc-web": "^1.0.7",
     "numeral": "^2.0.6",
-    "nuxt": "^2.12.2"
+    "nuxt": "^2.12.2",
+    "pretty-bytes": "^5.3.0"
   },
   "devDependencies": {
     "@grpc/proto-loader": "^0.5.3",

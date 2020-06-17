@@ -50,7 +50,11 @@
 
     <v-footer app padless>
       <v-row no-gutters>
-        <div class="body-2" style="padding: 5px;">{{ message }}</div>
+        <div class="body-2" style="padding: 5px;">
+          <v-icon v-if="showOn">mdi-earth</v-icon>
+          <v-icon v-if="showOff">mdi-earth-off</v-icon>
+          {{ message }}
+        </div>
       </v-row>
     </v-footer>
   </v-app>
@@ -63,7 +67,9 @@ export default {
   },
   data: () => ({
     drawer: true,
-    message: 'Ready'
+    message: 'Ready',
+    showOn: false,
+    showOff: false
   }),
   computed: {
     crumbs() {
@@ -97,7 +103,20 @@ export default {
     this.$vuetify.theme.dark = true
     this.$store.subscribe((mutation, state) => {
       if (mutation.type === 'snackbar/showMessage') {
+        console.log('got msg', state.snackbar)
         this.message = state.snackbar.content
+        if (state.snackbar.connected != null) {
+          if (state.snackbar.connected === true) {
+            this.showOn = true
+            this.showOff = false
+          } else {
+            this.showOn = false
+            this.showOff = true
+          }
+        } else {
+          this.showOn = false
+          this.showOff = false
+        }
         // this.color = state.snackbar.color
         // this.show = true
       }

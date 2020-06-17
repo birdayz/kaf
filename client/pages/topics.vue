@@ -7,7 +7,10 @@
       class="elevation-1"
     >
       <template v-slot:item.totalHighWatermarks="{ item }">
-        <span>{{ numer(item.totalHighWatermarks).format('0.0a') }}</span>
+        <span>{{ numer(item.totalHighWatermarks).format('0 a') }}</span>
+      </template>
+      <template v-slot:item.logDirBytes="{ item }">
+        <span>{{ pb(item.logDirBytes) }}</span>
       </template>
     </v-data-table>
     <v-snackbar v-model="snackbar">
@@ -18,6 +21,7 @@
 </template>
 <script>
 import numeral from 'numeral'
+import prettyBytes from 'pretty-bytes'
 import { TopicServiceClient } from '../../api/topic_grpc_web_pb.js'
 import {
   ListTopicsRequest
@@ -87,8 +91,13 @@ export default {
             if (err) {
               console.log('err', err)
               this.$notifier.showMessage({
-                content: 'Failed to connect to cluster ' + newVal + ' :' + err,
-                color: 'error'
+                content:
+                  'Failed to connect to cluster ' +
+                  newVal +
+                  ' :' +
+                  JSON.stringify(err),
+                color: 'error',
+                connected: false
               })
             } else {
               console.log('xx', response.toObject())
@@ -96,6 +105,7 @@ export default {
 
               this.$notifier.showMessage({
                 content: 'Connected to cluster ' + newVal,
+                connected: true,
                 color: 'info'
               })
             }
@@ -106,7 +116,8 @@ export default {
   },
   mounted() {},
   methods: {
-    numer: numeral
+    numer: numeral,
+    pb: prettyBytes
   }
 }
 </script>
