@@ -339,7 +339,10 @@ func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]i
 	leaders := make(map[*sarama.Broker][]int32)
 
 	for _, partition := range partitions {
-		leader, _ := client.Leader(topic, partition)
+		leader, err := client.Leader(topic, partition)
+		if err != nil {
+			errorExit("Unable to get available offsets for partition without leader. Topic %s Partition %d, Error: %s ", topic, partition, err)
+		}
 		leaders[leader] = append(leaders[leader], partition)
 	}
 	wg := sync.WaitGroup{}
