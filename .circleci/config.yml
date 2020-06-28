@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  golangci-lint: timakin/golangci-lint@volatile
+  golangci-lint: ory/golangci@0.0.4
   go: circleci/go@1.1.1
 jobs:
   build:
