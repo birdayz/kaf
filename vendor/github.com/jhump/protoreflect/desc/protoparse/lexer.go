@@ -39,7 +39,7 @@ func (rr *runeReader) unreadRune(r rune) {
 
 func lexError(l protoLexer, pos *SourcePos, err string) {
 	pl := l.(*protoLex)
-	_ = pl.errs.handleError(ErrorWithSourcePos{Underlying: errors.New(err), Pos: pos})
+	_ = pl.errs.handleErrorWithPos(pos, err)
 }
 
 type protoLex struct {
@@ -199,7 +199,7 @@ func (l *protoLex) Lex(lval *protoSymType) int {
 			// decimal literals could start with a dot
 			cn, _, err := l.input.readRune()
 			if err != nil {
-				l.setRune(lval)
+				l.setDot(lval)
 				return int(c)
 			}
 			if cn >= '0' && cn <= '9' {
@@ -215,7 +215,7 @@ func (l *protoLex) Lex(lval *protoSymType) int {
 				return _FLOAT_LIT
 			}
 			l.input.unreadRune(cn)
-			l.setRune(lval)
+			l.setDot(lval)
 			return int(c)
 		}
 
@@ -284,6 +284,15 @@ func (l *protoLex) Lex(lval *protoSymType) int {
 			// integer! (decimal or octal)
 			ui, err := strconv.ParseUint(numstr, 0, 64)
 			if err != nil {
+				if numErr, ok := err.(*strconv.NumError); ok && numErr.Err == strconv.ErrRange {
+					// if it's too big to be an int, parse it as a float
+					var f float64
+					f, err = strconv.ParseFloat(numstr, 64)
+					if err == nil {
+						l.setFloat(lval, f)
+						return _FLOAT_LIT
+					}
+				}
 				l.setError(lval, err)
 				return _ERROR
 			}
@@ -360,14 +369,22 @@ func (l *protoLex) newBasicNode() basicNode {
 	}
 }
 
-func (l *protoLex) setPrev(n terminalNode) {
+func (l *protoLex) setPrev(n terminalNode, isDot bool) {
 	nStart := n.start().Line
 	if _, ok := n.(*basicNode); ok {
-		// if the node is a simple rune, don't attribute comments to it
-		// HACK: adjusting the start line makes leading comments appear
-		// detached so logic below will naturally associated trailing
-		// comment to previous symbol
-		nStart += 2
+		// This is really gross, but there are many cases where we don't want
+		// to attribute comments to punctuation (like commas, equals, semicolons)
+		// and would instead prefer to attribute comments to a more meaningful
+		// element in the AST.
+		//
+		// So if it's a simple node OTHER THAN PERIOD (since that is not just
+		// punctuation but typically part of a qualified identifier), don't
+		// attribute comments to it. We do that with this TOTAL HACK: adjusting
+		// the start line makes leading comments appear detached so logic below
+		// will naturally associated trailing comment to previous symbol
+		if !isDot {
+			nStart += 2
+		}
 	}
 	if l.prevSym != nil && len(n.leadingComments()) > 0 && l.prevSym.end().Line < nStart {
 		// we may need to re-attribute the first comment to
@@ -431,28 +448,34 @@ func (l *protoLex) setPrev(n terminalNode) {
 
 func (l *protoLex) setString(lval *protoSymType, val string) {
 	lval.s = &stringLiteralNode{basicNode: l.newBasicNode(), val: val}
-	l.setPrev(lval.s)
+	l.setPrev(lval.s, false)
 }
 
 func (l *protoLex) setIdent(lval *protoSymType, val string) {
 	lval.id = &identNode{basicNode: l.newBasicNode(), val: val}
-	l.setPrev(lval.id)
+	l.setPrev(lval.id, false)
 }
 
 func (l *protoLex) setInt(lval *protoSymType, val uint64) {
 	lval.i = &intLiteralNode{basicNode: l.newBasicNode(), val: val}
-	l.setPrev(lval.i)
+	l.setPrev(lval.i, false)
 }
 
 func (l *protoLex) setFloat(lval *protoSymType, val float64) {
 	lval.f = &floatLiteralNode{basicNode: l.newBasicNode(), val: val}
-	l.setPrev(lval.f)
+	l.setPrev(lval.f, false)
 }
 
 func (l *protoLex) setRune(lval *protoSymType) {
 	b := l.newBasicNode()
 	lval.b = &b
-	l.setPrev(lval.b)
+	l.setPrev(lval.b, false)
+}
+
+func (l *protoLex) setDot(lval *protoSymType) {
+	b := l.newBasicNode()
+	lval.b = &b
+	l.setPrev(lval.b, true)
 }
 
 func (l *protoLex) setError(lval *protoSymType, err error) {

@@ -159,6 +159,18 @@ func (r *KnownTypeRegistry) CreateIfKnown(messageName string) proto.Message {
 	}
 }
 
+func isWellKnownType(t reflect.Type) bool {
+	if t.Implements(typeOfWkt) {
+		return true
+	}
+	if msg, ok := reflect.Zero(t).Interface().(proto.Message); ok {
+		name := proto.MessageName(msg)
+		_, ok := wellKnownTypeNames[name]
+		return ok
+	}
+	return false
+}
+
 // GetKnownType will return the reflect.Type for the given message name if it is
 // known. If it is not known, nil is returned.
 func (r *KnownTypeRegistry) GetKnownType(messageName string) reflect.Type {
@@ -166,7 +178,7 @@ func (r *KnownTypeRegistry) GetKnownType(messageName string) reflect.Type {
 	if r == nil {
 		// a nil registry behaves the same as zero value instance: only know of well-known types
 		t := proto.MessageType(messageName)
-		if t != nil && t.Implements(typeOfWkt) {
+		if t != nil && isWellKnownType(t) {
 			msgType = t
 		}
 	} else {
@@ -174,7 +186,7 @@ func (r *KnownTypeRegistry) GetKnownType(messageName string) reflect.Type {
 			msgType = proto.MessageType(messageName)
 		} else if !r.excludeWkt {
 			t := proto.MessageType(messageName)
-			if t != nil && t.Implements(typeOfWkt) {
+			if t != nil && isWellKnownType(t) {
 				msgType = t
 			}
 		}

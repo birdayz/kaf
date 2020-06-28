@@ -44,7 +44,7 @@ func validFieldValueForMapField(fd *desc.FieldDescriptor, val reflect.Value) (in
 			// unwrap it
 			k = reflect.ValueOf(k.Interface())
 		}
-		kk, err := validFieldValueForRv(keyField, k)
+		kk, err := validElementFieldValueForRv(keyField, k, false)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +53,7 @@ func validFieldValueForMapField(fd *desc.FieldDescriptor, val reflect.Value) (in
 			// unwrap it
 			v = reflect.ValueOf(v.Interface())
 		}
-		vv, err := validFieldValueForRv(valField, v)
+		vv, err := validElementFieldValueForRv(valField, v, true)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +76,7 @@ func canConvertMap(src reflect.Value, target reflect.Type) bool {
 	return true
 }
 
-func mergeMapVal(src, target reflect.Value, targetType reflect.Type) error {
+func mergeMapVal(src, target reflect.Value, targetType reflect.Type, deterministic bool) error {
 	tkt := targetType.Key()
 	tvt := targetType.Elem()
 	for _, k := range src.MapKeys() {
@@ -90,7 +90,7 @@ func mergeMapVal(src, target reflect.Value, targetType reflect.Type) error {
 			nk = k.Addr()
 		} else {
 			nk = reflect.New(tkt).Elem()
-			if err := mergeVal(k, nk); err != nil {
+			if err := mergeVal(k, nk, deterministic); err != nil {
 				return err
 			}
 		}
@@ -100,7 +100,7 @@ func mergeMapVal(src, target reflect.Value, targetType reflect.Type) error {
 			nv = v.Addr()
 		} else {
 			nv = reflect.New(tvt).Elem()
-			if err := mergeVal(v, nv); err != nil {
+			if err := mergeVal(v, nv, deterministic); err != nil {
 				return err
 			}
 		}

@@ -114,6 +114,10 @@ func (m *Message) MarshalJSONPB(opts *jsonpb.Marshaler) ([]byte, error) {
 }
 
 func (m *Message) marshalJSON(b *indentBuffer, opts *jsonpb.Marshaler) error {
+	if m == nil {
+		_, err := b.WriteString("null")
+		return err
+	}
 	if r, changed := wrapResolver(opts.AnyResolver, m.mf, m.md.GetFile()); changed {
 		newOpts := *opts
 		newOpts.AnyResolver = r
@@ -430,44 +434,49 @@ func marshalKnownFieldValueJSON(b *indentBuffer, fd *desc.FieldDescriptor, v int
 		return writeJsonString(b, rv.String())
 	default:
 		// must be a message
+		if isNil(v) {
+			_, err := b.WriteString("null")
+			return err
+		}
+
 		if dm, ok := v.(*Message); ok {
 			return dm.marshalJSON(b, opts)
+		}
+
+		var err error
+		if b.indentCount <= 0 || len(b.indent) == 0 {
+			err = opts.Marshal(b, v.(proto.Message))
 		} else {
-			var err error
-			if b.indentCount <= 0 || len(b.indent) == 0 {
-				err = opts.Marshal(b, v.(proto.Message))
-			} else {
-				str, err := opts.MarshalToString(v.(proto.Message))
-				if err != nil {
-					return err
+			str, err := opts.MarshalToString(v.(proto.Message))
+			if err != nil {
+				return err
+			}
+			indent := strings.Repeat(b.indent, b.indentCount)
+			pos := 0
+			// add indention prefix to each line
+			for pos < len(str) {
+				start := pos
+				nextPos := strings.Index(str[pos:], "\n")
+				if nextPos == -1 {
+					nextPos = len(str)
+				} else {
+					nextPos = pos + nextPos + 1 // include newline
 				}
-				indent := strings.Repeat(b.indent, b.indentCount)
-				pos := 0
-				// add indention prefix to each line
-				for pos < len(str) {
-					start := pos
-					nextPos := strings.Index(str[pos:], "\n")
-					if nextPos == -1 {
-						nextPos = len(str)
-					} else {
-						nextPos = pos + nextPos + 1 // include newline
-					}
-					line := str[start:nextPos]
-					if pos > 0 {
-						_, err = b.WriteString(indent)
-						if err != nil {
-							return err
-						}
-					}
-					_, err = b.WriteString(line)
+				line := str[start:nextPos]
+				if pos > 0 {
+					_, err = b.WriteString(indent)
 					if err != nil {
 						return err
 					}
-					pos = nextPos
 				}
+				_, err = b.WriteString(line)
+				if err != nil {
+					return err
+				}
+				pos = nextPos
 			}
-			return err
 		}
+		return err
 	}
 }
 
@@ -698,11 +707,11 @@ func unmarshalJsField(fd *desc.FieldDescriptor, r *jsReader, mf *MessageFactory,
 			return nil, err
 		}
 		for r.hasNext() {
-			kk, err := unmarshalJsFieldElement(keyType, r, mf, opts)
+			kk, err := unmarshalJsFieldElement(keyType, r, mf, opts, false)
 			if err != nil {
 				return nil, err
 			}
-			vv, err := unmarshalJsFieldElement(valueType, r, mf, opts)
+			vv, err := unmarshalJsFieldElement(valueType, r, mf, opts, true)
 			if err != nil {
 				return nil, err
 			}
@@ -725,7 +734,7 @@ func unmarshalJsField(fd *desc.FieldDescriptor, r *jsReader, mf *MessageFactory,
 		var v interface{}
 		for r.hasNext() {
 			var err error
-			v, err = unmarshalJsFieldElement(fd, r, mf, opts)
+			v, err = unmarshalJsFieldElement(fd, r, mf, opts, false)
 			if err != nil {
 				return nil, err
 			}
@@ -761,7 +770,7 @@ func unmarshalJsField(fd *desc.FieldDescriptor, r *jsReader, mf *MessageFactory,
 		// binary wire format that supports changing an optional field to repeated and vice versa.
 		// If the field is repeated, we store value as singleton slice of that one value.
 
-		v, err := unmarshalJsFieldElement(fd, r, mf, opts)
+		v, err := unmarshalJsFieldElement(fd, r, mf, opts, false)
 		if err != nil {
 			return nil, err
 		}
@@ -776,7 +785,7 @@ func unmarshalJsField(fd *desc.FieldDescriptor, r *jsReader, mf *MessageFactory,
 	}
 }
 
-func unmarshalJsFieldElement(fd *desc.FieldDescriptor, r *jsReader, mf *MessageFactory, opts *jsonpb.Unmarshaler) (interface{}, error) {
+func unmarshalJsFieldElement(fd *desc.FieldDescriptor, r *jsReader, mf *MessageFactory, opts *jsonpb.Unmarshaler, allowNilMessage bool) (interface{}, error) {
 	t, err := r.peek()
 	if err != nil {
 		return nil, err
@@ -785,6 +794,13 @@ func unmarshalJsFieldElement(fd *desc.FieldDescriptor, r *jsReader, mf *MessageF
 	switch fd.GetType() {
 	case descriptor.FieldDescriptorProto_TYPE_MESSAGE,
 		descriptor.FieldDescriptorProto_TYPE_GROUP:
+
+		if t == nil && allowNilMessage {
+			// if json is simply "null" return a nil pointer
+			r.poll()
+			return nilMessage(fd.GetMessageType()), nil
+		}
+
 		m := mf.NewMessage(fd.GetMessageType())
 		if dm, ok := m.(*Message); ok {
 			if err := dm.unmarshalJson(r, opts); err != nil {

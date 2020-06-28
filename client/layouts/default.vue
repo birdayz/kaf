@@ -53,7 +53,7 @@
         <div class="body-2" style="padding: 5px;">
           <v-icon v-if="showOn">mdi-earth</v-icon>
           <v-icon v-if="showOff">mdi-earth-off</v-icon>
-          {{ message }}
+          | {{ message }}
         </div>
       </v-row>
     </v-footer>

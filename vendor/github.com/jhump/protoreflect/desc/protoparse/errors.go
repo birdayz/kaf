@@ -24,7 +24,7 @@ func defaultErrorReporter(err ErrorWithPos) error {
 
 type errorHandler struct {
 	reporter     ErrorReporter
-	errsReported bool
+	errsReported int
 	err          error
 }
 
@@ -37,12 +37,22 @@ func newErrorHandler(reporter ErrorReporter) *errorHandler {
 	}
 }
 
+func (h *errorHandler) handleErrorWithPos(pos *SourcePos, format string, args ...interface{}) error {
+	if h.err != nil {
+		return h.err
+	}
+	h.errsReported++
+	err := h.reporter(errorWithPos(pos, format, args...))
+	h.err = err
+	return err
+}
+
 func (h *errorHandler) handleError(err error) error {
 	if h.err != nil {
 		return h.err
 	}
 	if ewp, ok := err.(ErrorWithPos); ok {
-		h.errsReported = true
+		h.errsReported++
 		err = h.reporter(ewp)
 	}
 	h.err = err
@@ -50,7 +60,7 @@ func (h *errorHandler) handleError(err error) error {
 }
 
 func (h *errorHandler) getError() error {
-	if h.errsReported && h.err == nil {
+	if h.errsReported > 0 && h.err == nil {
 		return ErrInvalidSource
 	}
 	return h.err
@@ -101,3 +111,7 @@ func (e ErrorWithSourcePos) Unwrap() error {
 }
 
 var _ ErrorWithPos = ErrorWithSourcePos{}
+
+func errorWithPos(pos *SourcePos, format string, args ...interface{}) ErrorWithPos {
+	return ErrorWithSourcePos{Pos: pos, Underlying: fmt.Errorf(format, args...)}
+}

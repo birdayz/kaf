@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/golang/protobuf/proto"
@@ -191,7 +192,19 @@ func (fd *FileDescriptor) FindSymbol(symbol string) Descriptor {
 	if symbol[0] == '.' {
 		symbol = symbol[1:]
 	}
-	return fd.symbols[symbol]
+	if ret := fd.symbols[symbol]; ret != nil {
+		return ret
+	}
+
+	// allow accessing symbols through public imports, too
+	for _, dep := range fd.GetPublicDependencies() {
+		if ret := dep.FindSymbol(symbol); ret != nil {
+			return ret
+		}
+	}
+
+	// not found
+	return nil
 }
 
 // FindMessage finds the message with the given fully-qualified name. If no
@@ -891,10 +904,32 @@ func (fd *FieldDescriptor) String() string {
 // GetJSONName returns the name of the field as referenced in the message's JSON
 // format.
 func (fd *FieldDescriptor) GetJSONName() string {
-	if jsonName := fd.proto.GetJsonName(); jsonName != "" {
-		return jsonName
+	if jsonName := fd.proto.JsonName; jsonName != nil {
+		// if json name is present, use its value
+		return *jsonName
 	}
-	return fd.proto.GetName()
+	// otherwise, compute the proper JSON name from the field name
+	return jsonCamelCase(fd.proto.GetName())
+}
+
+func jsonCamelCase(s string) string {
+	// This mirrors the implementation in protoc/C++ runtime and in the Java runtime:
+	//   https://github.com/protocolbuffers/protobuf/blob/a104dffcb6b1958a424f5fa6f9e6bdc0ab9b6f9e/src/google/protobuf/descriptor.cc#L276
+	//   https://github.com/protocolbuffers/protobuf/blob/a1c886834425abb64a966231dd2c9dd84fb289b3/java/core/src/main/java/com/google/protobuf/Descriptors.java#L1286
+	var buf bytes.Buffer
+	prevWasUnderscore := false
+	for _, r := range s {
+		if r == '_' {
+			prevWasUnderscore = true
+			continue
+		}
+		if prevWasUnderscore {
+			r = unicode.ToUpper(r)
+			prevWasUnderscore = false
+		}
+		buf.WriteRune(r)
+	}
+	return buf.String()
 }
 
 // GetFullyQualifiedJSONName returns the JSON format name (same as GetJSONName),

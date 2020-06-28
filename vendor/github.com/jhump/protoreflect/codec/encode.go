@@ -1,6 +1,8 @@
 package codec
 
-import "github.com/golang/protobuf/proto"
+import (
+	"github.com/golang/protobuf/proto"
+)
 
 // EncodeVarint writes a varint-encoded integer to the Buffer.
 // This is the format for the
@@ -101,22 +103,7 @@ func (cb *Buffer) EncodeDelimitedMessage(pm proto.Message) error {
 }
 
 func marshalMessage(b []byte, pm proto.Message, deterministic bool) ([]byte, error) {
-	// we try to use the most efficient way to marshal to existing slice
-	nm, ok := pm.(interface {
-		// this interface is implemented by generated messages
-		XXX_Size() int
-		XXX_Marshal(b []byte, deterministic bool) ([]byte, error)
-	})
-	if ok {
-		sz := nm.XXX_Size()
-		if cap(b) < len(b)+sz {
-			// re-allocate to fit
-			bytes := make([]byte, len(b), len(b)+sz)
-			copy(bytes, b)
-			b = bytes
-		}
-		return nm.XXX_Marshal(b, deterministic)
-	}
+	// We try to use the most efficient way to marshal to existing slice.
 
 	if deterministic {
 		// see if the message has custom deterministic methods, preferring an
@@ -141,6 +128,17 @@ func marshalMessage(b []byte, pm proto.Message, deterministic bool) ([]byte, err
 			}
 			return append(b, bytes...), nil
 		}
+
+		var buf proto.Buffer
+		buf.SetDeterministic(true)
+		if err := buf.Marshal(pm); err != nil {
+			return nil, err
+		}
+		bytes := buf.Bytes()
+		if len(b) == 0 {
+			return bytes, nil
+		}
+		return append(b, bytes...), nil
 	}
 
 	mam, ok := pm.(interface {

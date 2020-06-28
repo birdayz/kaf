@@ -193,9 +193,11 @@ func marshalKnownFieldMapEntryText(b *indentBuffer, fd *desc.FieldDescriptor, kf
 	if err != nil {
 		return err
 	}
-	err = marshalKnownFieldText(b, vfd, mv)
-	if err != nil {
-		return err
+	if !isNil(mv) {
+		err = marshalKnownFieldText(b, vfd, mv)
+		if err != nil {
+			return err
+		}
 	}
 
 	err = b.end()
@@ -344,7 +346,7 @@ func writeString(b *indentBuffer, s string) error {
 		case '\t':
 			_, err = b.WriteString("\\t")
 		case '"':
-			_, err = b.WriteString("\\")
+			_, err = b.WriteString("\\\"")
 		case '\\':
 			_, err = b.WriteString("\\\\")
 		default:
