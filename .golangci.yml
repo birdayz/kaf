@@ -1,0 +1,15 @@
+run:
+  concurrency: 4
+  deadline: 10m
+  tests: false
+  skip-dirs:
+    - client
+    - vendor
+  modules-download-mode: vendor
+  linters-settings:
+    govet:
+      check-shadowing: true
+    unused:
+      check-exported: false
+    nakedret:
+      max-func-lines: 100
