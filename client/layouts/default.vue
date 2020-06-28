@@ -51,8 +51,8 @@
     <v-footer app padless>
       <v-row no-gutters>
         <div class="body-2" style="padding: 5px;">
-          <v-icon v-if="showOn">mdi-earth</v-icon>
-          <v-icon v-if="showOff">mdi-earth-off</v-icon>
+          <v-icon v-if="connected" color="green">mdi-earth</v-icon>
+          <v-icon v-if="!connected" color="red">mdi-earth-off</v-icon>
           | {{ message }}
         </div>
       </v-row>
@@ -61,15 +61,15 @@
 </template>
 
 <script>
+const truncate = require('truncate')
 export default {
   props: {
     source: String
   },
   data: () => ({
     drawer: true,
-    message: 'Ready',
-    showOn: false,
-    showOff: false
+    message: 'Disconnected.',
+    connected: false
   }),
   computed: {
     crumbs() {
@@ -104,20 +104,14 @@ export default {
     this.$store.subscribe((mutation, state) => {
       if (mutation.type === 'snackbar/showMessage') {
         console.log('got msg', state.snackbar)
-        this.message = state.snackbar.content
+        this.message = truncate(state.snackbar.content, 30)
         if (state.snackbar.connected != null) {
           if (state.snackbar.connected === true) {
-            this.showOn = true
-            this.showOff = false
+            this.connected = true
           } else {
-            this.showOn = false
-            this.showOff = true
+            this.connected = false
           }
-        } else {
-          this.showOn = false
-          this.showOff = false
-        }
-        // this.color = state.snackbar.color
+        } // this.color = state.snackbar.color
         // this.show = true
       }
     })
