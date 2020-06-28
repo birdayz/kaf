@@ -14,11 +14,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var keyFlag string
-var headerFlag []string
-var numFlag int
-var partitionerFlag string
-var timestampFlag string
+var (
+	keyFlag         string
+	headerFlag      []string
+	numFlag         int
+	partitionerFlag string
+	timestampFlag   string
+	partitionFlag   int32
+)
 
 func init() {
 	rootCmd.AddCommand(produceCmd)
@@ -34,6 +37,7 @@ func init() {
 	produceCmd.Flags().StringVar(&keyProtoType, "key-proto-type", "", "Fully qualified name of the proto key type. Example: com.test.SampleMessage")
 	produceCmd.Flags().StringVar(&partitionerFlag, "partitioner", "", "Select partitioner: Default or jvm")
 	produceCmd.Flags().StringVar(&timestampFlag, "timestamp", "", "Select timestamp for record")
+	produceCmd.Flags().Int32VarP(&partitionFlag, "partition", "p", -1, "Partition to produce to")
 
 }
 
@@ -47,6 +51,11 @@ var produceCmd = &cobra.Command{
 		if partitionerFlag != "" {
 			cfg.Producer.Partitioner = kafkautil.NewJVMCompatiblePartitioner
 		}
+
+		if partitionFlag != int32(-1) {
+			cfg.Producer.Partitioner = sarama.NewManualPartitioner
+		}
+
 		producer, err := sarama.NewSyncProducer(currentCluster.Brokers, cfg)
 		if err != nil {
 			errorExit("Unable to create new sync producer: %v\n", err)
@@ -117,13 +126,17 @@ var produceCmd = &cobra.Command{
 		}
 
 		for i := 0; i < numFlag; i++ {
-			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
+			msg := &sarama.ProducerMessage{
 				Topic:     args[0],
 				Key:       key,
 				Headers:   headers,
 				Timestamp: ts,
 				Value:     sarama.ByteEncoder(data),
-			})
+			}
+			if partitionFlag != -1 {
+				msg.Partition = partitionFlag
+			}
+			partition, offset, err := producer.SendMessage(msg)
 			if err != nil {
 				fmt.Printf("Failed to send record: %v.", err)
 				os.Exit(1)
