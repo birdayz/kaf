@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"sort"
 	"unicode"
 
@@ -197,7 +196,7 @@ var groupLsCmd = &cobra.Command{
 			return groupList[i] < groupList[j]
 		})
 
-		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 
 		if !noHeaderFlag {
 			fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
@@ -242,7 +241,7 @@ var groupDescribeCmd = &cobra.Command{
 			return
 		}
 
-		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Group ID:\t%v\n", group.GroupId)
 		fmt.Fprintf(w, "State:\t%v\n", group.State)
 		fmt.Fprintf(w, "Protocol:\t%v\n", group.Protocol)
@@ -251,7 +250,7 @@ var groupDescribeCmd = &cobra.Command{
 		fmt.Fprintf(w, "Offsets:\t\n")
 
 		w.Flush()
-		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
+		w.Init(outWriter, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
 		offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], nil)
 		if err != nil {
@@ -284,7 +283,7 @@ var groupDescribeCmd = &cobra.Command{
 		fmt.Fprintf(w, "Members:\t")
 
 		w.Flush()
-		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
+		w.Init(outWriter, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
 		fmt.Fprintln(w)
 		for _, member := range group.Members {

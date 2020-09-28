@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 
 	"crypto/tls"
 	"crypto/x509"
@@ -10,6 +11,7 @@ import (
 	"os"
 
 	"github.com/Shopify/sarama"
+	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf/pkg/avro"
@@ -65,7 +67,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 
 			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
 			if err != nil {
-				errorExit("Unable to creatre KeyPair: %v\n", err)
+				errorExit("Unable to create KeyPair: %v\n", err)
 			}
 			tlsConfig.Certificates = []tls.Certificate{cert}
 
@@ -106,10 +108,27 @@ func getConfig() (saramaConfig *sarama.Config) {
 	return saramaConfig
 }
 
+var (
+	outWriter io.Writer = os.Stdout
+	errWriter io.Writer = os.Stderr
+	inReader  io.Reader = os.Stdin
+
+	colorableOut io.Writer = colorable.NewColorableStdout()
+)
+
 var rootCmd = &cobra.Command{
 	Use:                    "kaf",
 	Short:                  "Kafka Command Line utility for cluster management",
 	BashCompletionFunction: bashCompletion,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		outWriter = cmd.OutOrStdout()
+		errWriter = cmd.ErrOrStderr()
+		inReader = cmd.InOrStdin()
+
+		if outWriter != os.Stdout {
+			colorableOut = outWriter
+		}
+	},
 }
 
 func main() {
@@ -180,7 +199,7 @@ func onInit() {
 	}
 
 	if verbose {
-		sarama.Logger = log.New(os.Stderr, "[sarama] ", log.Lshortfile|log.LstdFlags)
+		sarama.Logger = log.New(errWriter, "[sarama] ", log.Lshortfile|log.LstdFlags)
 	}
 }
 
@@ -213,6 +232,6 @@ func getSchemaCache() (cache *avro.SchemaCache) {
 }
 
 func errorExit(format string, a ...interface{}) {
-	fmt.Fprintf(os.Stderr, format+"\n", a...)
+	fmt.Fprintf(errWriter, format+"\n", a...)
 	os.Exit(1)
 }

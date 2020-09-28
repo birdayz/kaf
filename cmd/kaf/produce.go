@@ -61,7 +61,7 @@ var produceCmd = &cobra.Command{
 			errorExit("Unable to create new sync producer: %v\n", err)
 		}
 
-		data, err := ioutil.ReadAll(os.Stdin)
+		data, err := ioutil.ReadAll(inReader)
 		if err != nil {
 			errorExit("Unable to read data\n")
 		}
@@ -138,11 +138,11 @@ var produceCmd = &cobra.Command{
 			}
 			partition, offset, err := producer.SendMessage(msg)
 			if err != nil {
-				fmt.Printf("Failed to send record: %v.", err)
+				fmt.Fprintf(outWriter, "Failed to send record: %v.", err)
 				os.Exit(1)
 			}
 
-			fmt.Printf("Sent record to partition %v at offset %v.\n", partition, offset)
+			fmt.Fprintf(outWriter, "Sent record to partition %v at offset %v.\n", partition, offset)
 		}
 
 	},

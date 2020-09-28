@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"text/tabwriter"
 
@@ -149,7 +148,7 @@ var lsTopicsCmd = &cobra.Command{
 			return sortedTopics[i].name < sortedTopics[j].name
 		})
 
-		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 
 		if !noHeaderFlag {
 			fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\t\n")
@@ -198,14 +197,14 @@ var describeTopicCmd = &cobra.Command{
 		detail := topicDetails[0]
 		sort.Slice(detail.Partitions, func(i, j int) bool { return detail.Partitions[i].ID < detail.Partitions[j].ID })
 
-		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		fmt.Fprintf(w, "Name:\t%v\t\n", detail.Name)
 		fmt.Fprintf(w, "Internal:\t%v\t\n", detail.IsInternal)
 		fmt.Fprintf(w, "Compacted:\t%v\t\n", compacted)
 		fmt.Fprintf(w, "Partitions:\n")
 
 		w.Flush()
-		w.Init(os.Stdout, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
+		w.Init(outWriter, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
 		fmt.Fprintf(w, "\tPartition\tHigh Watermark\tLeader\tReplicas\tISR\t\n")
 		fmt.Fprintf(w, "\t---------\t--------------\t------\t--------\t---\t\n")
@@ -262,7 +261,7 @@ var createTopicCmd = &cobra.Command{
 		if err != nil {
 			fmt.Printf("Could not create topic %v: %v\n", topicName, err.Error())
 		} else {
-			w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+			w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 			fmt.Fprintf(w, "\xE2\x9C\x85 Created topic!\n")
 			fmt.Fprintln(w, "\tTopic Name:\t", topicName)
 			fmt.Fprintln(w, "\tPartitions:\t", partitionsFlag)
@@ -305,9 +304,9 @@ var deleteTopicCmd = &cobra.Command{
 		topicName := args[0]
 		err := admin.DeleteTopic(topicName)
 		if err != nil {
-			fmt.Printf("Could not delete topic %v: %v\n", topicName, err.Error())
+			fmt.Fprintf(outWriter, "Could not delete topic %v: %v\n", topicName, err.Error())
 		} else {
-			fmt.Printf("\xE2\x9C\x85 Deleted topic %v!\n", topicName)
+			fmt.Fprintf(outWriter, "\xE2\x9C\x85 Deleted topic %v!\n", topicName)
 		}
 	},
 }
