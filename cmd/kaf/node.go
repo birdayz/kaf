@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"text/tabwriter"
 
 	"sort"
@@ -43,7 +42,7 @@ var nodeLsCommand = &cobra.Command{
 			return brokers[i].ID() < brokers[j].ID()
 		})
 
-		w := tabwriter.NewWriter(os.Stdout, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		if !noHeaderFlag {
 			fmt.Fprintf(w, "ID\tADDRESS\t\n")
 		}

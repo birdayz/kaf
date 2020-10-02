@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"sync"
 	"text/tabwriter"
@@ -17,7 +16,6 @@ import (
 	"github.com/birdayz/kaf/pkg/proto"
 	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
-	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 )
 
@@ -104,9 +102,9 @@ var consumeCmd = &cobra.Command{
 		client := getClient()
 
 		if groupFlag != "" {
-			withConsumerGroup(client, topic, groupFlag)
+			withConsumerGroup(cmd.Context(), client, topic, groupFlag)
 		} else {
-			withoutConsumerGroup(client, topic, offset)
+			withoutConsumerGroup(cmd.Context(), client, topic, offset)
 		}
 
 	},
@@ -134,19 +132,19 @@ func (g *g) ConsumeClaim(s sarama.ConsumerGroupSession, claim sarama.ConsumerGro
 	return nil
 }
 
-func withConsumerGroup(client sarama.Client, topic, group string) {
+func withConsumerGroup(ctx context.Context, client sarama.Client, topic, group string) {
 	cg, err := sarama.NewConsumerGroupFromClient(group, client)
 	if err != nil {
 		errorExit("Failed to create consumer group: %v", err)
 	}
 
-	err = cg.Consume(context.Background(), []string{topic}, &g{})
+	err = cg.Consume(ctx, []string{topic}, &g{})
 	if err != nil {
 		errorExit("Error on consume: %v", err)
 	}
 }
 
-func withoutConsumerGroup(client sarama.Client, topic string, offset int64) {
+func withoutConsumerGroup(ctx context.Context, client sarama.Client, topic string, offset int64) {
 	consumer, err := sarama.NewConsumerFromClient(client)
 	if err != nil {
 		errorExit("Unable to create consumer from client: %v\n", err)
@@ -188,7 +186,7 @@ func withoutConsumerGroup(client sarama.Client, topic string, offset int64) {
 
 			if follow && followOffset > 0 {
 				offset = followOffset
-				fmt.Fprintf(os.Stderr, "Starting on partition %v with offset %v\n", partition, offset)
+				fmt.Fprintf(errWriter, "Starting on partition %v with offset %v\n", partition, offset)
 			}
 
 			pc, err := consumer.ConsumePartition(topic, partition, offset)
@@ -196,10 +194,16 @@ func withoutConsumerGroup(client sarama.Client, topic string, offset int64) {
 				errorExit("Unable to consume partition: %v %v %v %v\n", topic, partition, offset, err)
 			}
 
-			for msg := range pc.Messages() {
-				handleMessage(msg, &mu)
+			defer wg.Done()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case msg := <-pc.Messages():
+					handleMessage(msg, &mu)
+				}
 			}
-			wg.Done()
 		}(partition, offset)
 	}
 	wg.Wait()
@@ -277,9 +281,9 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 	}
 
 	mu.Lock()
-	stderr.WriteTo(os.Stderr)
-	_, _ = colorable.NewColorableStdout().Write(dataToDisplay)
-	fmt.Print("\n")
+	stderr.WriteTo(errWriter)
+	_, _ = colorableOut.Write(dataToDisplay)
+	fmt.Fprintln(outWriter)
 	mu.Unlock()
 
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"os"
 	"text/template"
 
 	"github.com/spf13/cobra"
@@ -20,12 +19,12 @@ var completionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		switch args[0] {
 		case "bash":
-			err := rootCmd.GenBashCompletion(os.Stdout)
+			err := rootCmd.GenBashCompletion(outWriter)
 			if err != nil {
 				errorExit("Failed to generate bash completion: %w", err)
 			}
 		case "zsh":
-			if err := genZshCompletion(os.Stdout); err != nil {
+			if err := genZshCompletion(outWriter); err != nil {
 				errorExit("Failed to generate zsh completion: %w", err)
 			}
 		}
