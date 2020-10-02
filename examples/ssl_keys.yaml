@@ -1,0 +1,9 @@
+clusters:
+- name: test
+  brokers:
+  - localhost:9092
+  TLS:
+    cafile: ca.pem
+    clientfile: public.pem
+    clientkeyfile: private.pem
+    insecure: false
