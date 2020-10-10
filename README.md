@@ -2,6 +2,7 @@
 Kafka CLI inspired by kubectl & docker
 
 [![CircleCI](https://circleci.com/gh/birdayz/kaf.svg?style=svg)](https://app.circleci.com/pipelines/github/birdayz/kaf)
+[![Actions Status](https://github.com/birdayz/kaf/workflows/Go/badge.svg)](https://github.com/birdayz/kaf/actions)
 [![GoReportCard](https://goreportcard.com/badge/github.com/birdayz/kaf)](https://goreportcard.com/report/github.com/birdayz/kaf)
 [![GoDoc](https://godoc.org/github.com/birdayz/kaf?status.svg)](https://godoc.org/github.com/birdayz/kaf)
 
