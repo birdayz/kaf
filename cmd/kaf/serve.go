@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"net/http"
 	"path"
@@ -64,6 +65,8 @@ var serveCmd = &cobra.Command{
 				wrappedServer,
 			)),
 		}
+
+		fmt.Printf("Listening on http://localhost:%s\n", "8081")
 
 		_ = httpSrv.ListenAndServe()
 		_ = srv.Serve(lnr)
