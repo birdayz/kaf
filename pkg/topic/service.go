@@ -2,7 +2,6 @@ package topic
 
 import (
 	context "context"
-	"fmt"
 	"sort"
 	"sync"
 
@@ -134,8 +133,6 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		// Ignore this, Log Dir is best-effort
 	}
 
-	fmt.Println("ZZ", len(resp.Topics))
-
 	for _, topic := range resp.Topics {
 		if l, ok := logDirInfo[topic.Name]; ok {
 			topic.LogDirBytes = l
@@ -144,9 +141,7 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		for _, p := range topic.TopicDetail.Partitions {
 			ps = append(ps, int32(p.Number))
 		}
-		fmt.Println("WM")
 		wms, _ := s.getHighWatermarks(client, req.Cluster, topic.Name, ps)
-		fmt.Println("END WM")
 		var msgs int64
 		for _, v := range wms {
 			msgs += v
@@ -154,10 +149,6 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		topic.Messages = msgs
 		topic.TotalHighWatermarks = msgs
 	}
-
-	// Todo get num messages
-
-	fmt.Println("RET")
 
 	return &resp, nil
 }
@@ -206,7 +197,6 @@ func (s *Service) GetHighWatermarks(ctx context.Context, req *api.GetHighWaterma
 }
 
 func (s *Service) getHighWatermarks(client sarama.Client, cluster string, topic string, partitions []int32) (watermarks map[int32]int64, err error) {
-	fmt.Println("CALL")
 	leaders := make(map[*sarama.Broker][]int32)
 
 	for _, partition := range partitions {
@@ -247,9 +237,7 @@ func (s *Service) getHighWatermarks(client sarama.Client, cluster string, topic 
 
 	}
 
-	fmt.Println("vor wait")
 	wg.Wait()
-	fmt.Println("nach wait")
 	close(results)
 
 	watermarks = make(map[int32]int64)
