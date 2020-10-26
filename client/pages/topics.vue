@@ -6,8 +6,11 @@
       :items-per-page="15"
       class="elevation-1"
     >
-      <template v-slot:item.messages="{ item }">
-        <span>{{ numer(item.messages).format('0,0') }}</span>
+      <template v-slot:item.totalHighWatermarks="{ item }">
+        <span>{{ numer(item.totalHighWatermarks).format('0 a') }}</span>
+      </template>
+      <template v-slot:item.logDirBytes="{ item }">
+        <span>{{ pb(item.logDirBytes) }}</span>
       </template>
     </v-data-table>
     <v-snackbar v-model="snackbar">
@@ -18,13 +21,14 @@
 </template>
 <script>
 import numeral from 'numeral'
+import prettyBytes from 'pretty-bytes'
 import { TopicServiceClient } from '../../api/topic_grpc_web_pb.js'
-import { ListTopicsRequest } from '../../api/topic_pb.js'
+import {
+  ListTopicsRequest
+  // GetHighWatermarksRequest
+} from '../../api/topic_pb.js'
 
 export default {
-  methods: {
-    numer: numeral
-  },
   data() {
     return {
       snackbar: false,
@@ -40,13 +44,25 @@ export default {
           text: 'Partitions',
           align: 'start',
           sortable: true,
-          value: 'numpartitions'
+          value: 'numPartitions'
+        },
+        {
+          text: 'Replicas',
+          align: 'start',
+          sortable: true,
+          value: 'numReplicas'
         },
         {
           text: 'Messages',
           align: 'start',
           sortable: true,
-          value: 'messages'
+          value: 'totalHighWatermarks'
+        },
+        {
+          text: 'Size',
+          align: 'start',
+          sortable: true,
+          value: 'logDirBytes'
         }
       ],
       topics: [],
@@ -73,14 +89,23 @@ export default {
 
           topicClient.listTopics(request, {}, (err, response) => {
             if (err) {
+              console.log('err', err)
               this.$notifier.showMessage({
-                content: 'Failed to connect to cluster ' + newVal,
-                color: 'error'
+                content:
+                  'Failed to connect to cluster ' +
+                  newVal +
+                  ' :' +
+                  JSON.stringify(err),
+                color: 'error',
+                connected: false
               })
             } else {
+              console.log('xx', response.toObject())
               this.topics = response.toObject().topicsList
+
               this.$notifier.showMessage({
                 content: 'Connected to cluster ' + newVal,
+                connected: true,
                 color: 'info'
               })
             }
@@ -89,6 +114,10 @@ export default {
       }
     }
   },
-  mounted() {}
+  mounted() {},
+  methods: {
+    numer: numeral,
+    pb: prettyBytes
+  }
 }
 </script>

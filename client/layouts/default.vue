@@ -28,7 +28,7 @@
         v-model="currentCluster"
         :items="clusters"
         item-text="name"
-        style="width: 100px; max-width: 200px; padding-left: 15px; padding-top: 25px;"
+        style="width: 100px; max-width: 200px; padding-left: 15px; padding-top: 30px;"
         label="Cluster"
         no-data-text="Loading.."
         placeholder="Loading.."
@@ -50,20 +50,26 @@
 
     <v-footer app padless>
       <v-row no-gutters>
-        <div class="body-2" style="padding: 5px;">{{ message }}</div>
+        <div class="body-2" style="padding: 5px;">
+          <v-icon v-if="connected" color="green">mdi-earth</v-icon>
+          <v-icon v-if="!connected" color="red">mdi-earth-off</v-icon>
+          | {{ message }}
+        </div>
       </v-row>
     </v-footer>
   </v-app>
 </template>
 
 <script>
+const truncate = require('truncate')
 export default {
   props: {
     source: String
   },
   data: () => ({
     drawer: true,
-    message: 'Ready'
+    message: 'Disconnected.',
+    connected: false
   }),
   computed: {
     crumbs() {
@@ -97,8 +103,15 @@ export default {
     this.$vuetify.theme.dark = true
     this.$store.subscribe((mutation, state) => {
       if (mutation.type === 'snackbar/showMessage') {
-        this.message = state.snackbar.content
-        // this.color = state.snackbar.color
+        console.log('got msg', state.snackbar)
+        this.message = truncate(state.snackbar.content, 30)
+        if (state.snackbar.connected != null) {
+          if (state.snackbar.connected === true) {
+            this.connected = true
+          } else {
+            this.connected = false
+          }
+        } // this.color = state.snackbar.color
         // this.show = true
       }
     })

@@ -7,6 +7,10 @@
 // GENERATED CODE -- DO NOT EDIT!
 
 
+/* eslint-disable */
+// @ts-nocheck
+
+
 
 const grpc = {};
 grpc.web = require('grpc-web');
@@ -135,7 +139,7 @@ proto.kaf.api.ClusterServiceClient.prototype.listClusters =
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
  * @return {!Promise<!proto.kaf.api.ListClustersResponse>}
- *     A native promise that resolves to the response
+ *     Promise that resolves to the response
  */
 proto.kaf.api.ClusterServicePromiseClient.prototype.listClusters =
     function(request, metadata) {
@@ -215,7 +219,7 @@ proto.kaf.api.ClusterServiceClient.prototype.connectCluster =
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
  * @return {!Promise<!proto.kaf.api.ConnectClusterResponse>}
- *     A native promise that resolves to the response
+ *     Promise that resolves to the response
  */
 proto.kaf.api.ClusterServicePromiseClient.prototype.connectCluster =
     function(request, metadata) {

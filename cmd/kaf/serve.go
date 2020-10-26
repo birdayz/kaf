@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"flag"
 	"net"
 	"net/http"
 	"path"
@@ -25,6 +26,7 @@ import (
 
 func init() {
 	rootCmd.AddCommand(serveCmd)
+	flag.Parse()
 }
 
 var serveCmd = &cobra.Command{
@@ -67,9 +69,10 @@ var serveCmd = &cobra.Command{
 		}
 
 		fmt.Printf("Listening on http://localhost:%s\n", "8081")
-
+		go func() {
+			srv.Serve(lnr)
+		}()
 		_ = httpSrv.ListenAndServe()
-		_ = srv.Serve(lnr)
 	},
 }
 

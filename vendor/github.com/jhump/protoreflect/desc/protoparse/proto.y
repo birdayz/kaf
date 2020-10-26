@@ -6,9 +6,6 @@ package protoparse
 import (
 	"fmt"
 	"math"
-	"unicode"
-
-	"github.com/jhump/protoreflect/desc/internal"
 )
 
 %}
@@ -68,10 +65,10 @@ import (
 %type <imprt>     import
 %type <pkg>       package
 %type <opts>      option compactOption compactOptionDecls rpcOption rpcOptions
-%type <optNm>     optionName optionNameRest optionNameComponent
+%type <optNm>     optionName optionNameComponent
 %type <cmpctOpts> compactOptions
-%type <v>         constant scalarConstant aggregate uintLit floatLit
-%type <il>        intLit negIntLit
+%type <v>         constant scalarConstant aggregate numLit
+%type <il>        intLit
 %type <id>        name keyType
 %type <cid>       ident typeIdent
 %type <aggName>   aggName
@@ -177,9 +174,6 @@ fileDecl : import {
 	}
 
 syntax : _SYNTAX '=' stringLit ';' {
-		if $3.val != "proto2" && $3.val != "proto3" {
-			lexError(protolex, $3.start(), "syntax value must be 'proto2' or 'proto3'")
-		}
 		$$ = &syntaxNode{syntax: $3}
 		$$.setRange($1, $4)
 	}
@@ -219,33 +213,21 @@ option : _OPTION optionName '=' constant ';' {
 		$$ = []*optionNode{o}
 	}
 
-optionName : ident {
-		$$ = toNameParts($1, 0)
+optionName : optionNameComponent
+    |
+    optionName '.' optionNameComponent {
+		$$ = append($1, $3...)
+	}
+
+
+optionNameComponent : name {
+        nm := &compoundIdentNode{val: $1.val}
+        nm.setRange($1, $1)
+		$$ = toNameParts(nm)
 	}
 	| '(' typeIdent ')' {
 		p := &optionNamePartNode{text: $2, isExtension: true}
 		p.setRange($1, $3)
-		$$ = []*optionNamePartNode{p}
-	}
-	| '(' typeIdent ')' optionNameRest {
-		p := &optionNamePartNode{text: $2, isExtension: true}
-		p.setRange($1, $3)
-		ps := make([]*optionNamePartNode, 1, len($4)+1)
-		ps[0] = p
-		$$ = append(ps, $4...)
-	}
-
-optionNameRest : optionNameComponent
-	| optionNameComponent optionNameRest {
-		$$ = append($1, $2...)
-	}
-
-optionNameComponent : typeIdent {
-		$$ = toNameParts($1, 1 /* exclude leading dot */)
-	}
-	| '.' '(' typeIdent ')' {
-		p := &optionNamePartNode{text: $3, isExtension: true}
-		p.setRange($2, $4)
 		$$ = []*optionNamePartNode{p}
 	}
 
@@ -255,11 +237,7 @@ constant : scalarConstant
 scalarConstant : stringLit {
 		$$ = $1
 	}
-	| uintLit
-	| negIntLit {
-	    $$ = $1
-	}
-	| floatLit
+	| numLit
 	| name {
 		if $1.val == "true" {
 			$$ = &boolLiteralNode{identNode: $1, val: true}
@@ -278,36 +256,7 @@ scalarConstant : stringLit {
 		}
 	}
 
-uintLit : _INT_LIT {
-        i := &compoundUintNode{val: $1.val}
-        i.setRange($1, $1)
-        $$ = i
-    }
-	| '+' _INT_LIT {
-        i := &compoundUintNode{val: $2.val}
-        i.setRange($1, $2)
-        $$ = i
-	}
-
-negIntLit : '-' _INT_LIT {
-		if $2.val > math.MaxInt64 + 1 {
-			lexError(protolex, $2.start(), fmt.Sprintf("numeric constant %d would underflow (allowed range is %d to %d)", $2.val, int64(math.MinInt64), int64(math.MaxInt64)))
-		}
-		i := &compoundIntNode{val: -int64($2.val)}
-		i.setRange($1, $2)
-		$$ = i
-	}
-
-intLit : negIntLit
-    | _INT_LIT {
-        // we don't allow uintLit because this is for enum numeric vals, which don't allow '+'
-        checkUint64InInt32Range(protolex, $1.start(), $1.val)
-		i := &compoundIntNode{val: int64($1.val)}
-		i.setRange($1, $1)
-		$$ = i
-    }
-
-floatLit : _FLOAT_LIT {
+numLit : _FLOAT_LIT {
         $$ = $1
     }
 	| '-' _FLOAT_LIT {
@@ -330,6 +279,26 @@ floatLit : _FLOAT_LIT {
 		f.setRange($1, $2)
 		$$ = f
 	}
+	| _INT_LIT {
+        $$ = $1
+    }
+    | '+' _INT_LIT {
+          i := &compoundUintNode{val: $2.val}
+          i.setRange($1, $2)
+          $$ = i
+    }
+    | '-' _INT_LIT {
+        if $2.val > math.MaxInt64 + 1 {
+            // can't represent as int so treat as float literal
+            f := &compoundFloatNode{val: -float64($2.val)}
+            f.setRange($1, $2)
+            $$ = f
+        } else {
+            i := &compoundIntNode{val: -int64($2.val)}
+            i.setRange($1, $2)
+            $$ = i
+        }
+    }
 
 stringLit : _STRING_LIT {
         $$ = &compoundStringNode{val: $1.val}
@@ -469,48 +438,40 @@ typeIdent : ident
     }
 
 field : _REQUIRED typeIdent name '=' _INT_LIT ';' {
-		checkTag(protolex, $5.start(), $5.val)
 		lbl := fieldLabel{identNode: $1, required: true}
 		$$ = &fieldNode{label: lbl, fldType: $2, name: $3, tag: $5}
 		$$.setRange($1, $6)
 	}
 	| _OPTIONAL typeIdent name '=' _INT_LIT ';' {
-		checkTag(protolex, $5.start(), $5.val)
 		lbl := fieldLabel{identNode: $1}
 		$$ = &fieldNode{label: lbl, fldType: $2, name: $3, tag: $5}
 		$$.setRange($1, $6)
 	}
 	| _REPEATED typeIdent name '=' _INT_LIT ';' {
-		checkTag(protolex, $5.start(), $5.val)
 		lbl := fieldLabel{identNode: $1, repeated: true}
 		$$ = &fieldNode{label: lbl, fldType: $2, name: $3, tag: $5}
 		$$.setRange($1, $6)
 	}
 	| typeIdent name '=' _INT_LIT ';' {
-		checkTag(protolex, $4.start(), $4.val)
 		$$ = &fieldNode{fldType: $1, name: $2, tag: $4}
 		$$.setRange($1, $5)
 	}
 	| _REQUIRED typeIdent name '=' _INT_LIT compactOptions ';' {
-		checkTag(protolex, $5.start(), $5.val)
 		lbl := fieldLabel{identNode: $1, required: true}
 		$$ = &fieldNode{label: lbl, fldType: $2, name: $3, tag: $5, options: $6}
 		$$.setRange($1, $7)
 	}
 	| _OPTIONAL typeIdent name '=' _INT_LIT compactOptions ';' {
-		checkTag(protolex, $5.start(), $5.val)
 		lbl := fieldLabel{identNode: $1}
 		$$ = &fieldNode{label: lbl, fldType: $2, name: $3, tag: $5, options: $6}
 		$$.setRange($1, $7)
 	}
 	| _REPEATED typeIdent name '=' _INT_LIT compactOptions ';' {
-		checkTag(protolex, $5.start(), $5.val)
 		lbl := fieldLabel{identNode: $1, repeated: true}
 		$$ = &fieldNode{label: lbl, fldType: $2, name: $3, tag: $5, options: $6}
 		$$.setRange($1, $7)
 	}
 	| typeIdent name '=' _INT_LIT compactOptions ';' {
-		checkTag(protolex, $4.start(), $4.val)
 		$$ = &fieldNode{fldType: $1, name: $2, tag: $4, options: $5}
 		$$.setRange($1, $6)
 	}
@@ -534,43 +495,37 @@ compactOption: optionName '=' constant {
 	}
 
 group : _REQUIRED _GROUP name '=' _INT_LIT '{' messageBody '}' {
-		checkTag(protolex, $5.start(), $5.val)
-		if !unicode.IsUpper(rune($3.val[0])) {
-			lexError(protolex, $3.start(), fmt.Sprintf("group %s should have a name that starts with a capital letter", $3.val))
-		}
 		lbl := fieldLabel{identNode: $1, required: true}
 		$$ = &groupNode{groupKeyword: $2, label: lbl, name: $3, tag: $5, decls: $7}
 		$$.setRange($1, $8)
 	}
 	| _OPTIONAL _GROUP name '=' _INT_LIT '{' messageBody '}' {
-		checkTag(protolex, $5.start(), $5.val)
-		if !unicode.IsUpper(rune($3.val[0])) {
-			lexError(protolex, $3.start(), fmt.Sprintf("group %s should have a name that starts with a capital letter", $3.val))
-		}
 		lbl := fieldLabel{identNode: $1}
 		$$ = &groupNode{groupKeyword: $2, label: lbl, name: $3, tag: $5, decls: $7}
 		$$.setRange($1, $8)
 	}
 	| _REPEATED _GROUP name '=' _INT_LIT '{' messageBody '}' {
-		checkTag(protolex, $5.start(), $5.val)
-		if !unicode.IsUpper(rune($3.val[0])) {
-			lexError(protolex, $3.start(), fmt.Sprintf("group %s should have a name that starts with a capital letter", $3.val))
-		}
 		lbl := fieldLabel{identNode: $1, repeated: true}
 		$$ = &groupNode{groupKeyword: $2, label: lbl, name: $3, tag: $5, decls: $7}
 		$$.setRange($1, $8)
 	}
+	| _REQUIRED _GROUP name '=' _INT_LIT compactOptions '{' messageBody '}' {
+		lbl := fieldLabel{identNode: $1, required: true}
+		$$ = &groupNode{groupKeyword: $2, label: lbl, name: $3, tag: $5, options: $6, decls: $8}
+		$$.setRange($1, $9)
+	}
+	| _OPTIONAL _GROUP name '=' _INT_LIT compactOptions '{' messageBody '}' {
+		lbl := fieldLabel{identNode: $1}
+		$$ = &groupNode{groupKeyword: $2, label: lbl, name: $3, tag: $5, options: $6, decls: $8}
+		$$.setRange($1, $9)
+	}
+	| _REPEATED _GROUP name '=' _INT_LIT compactOptions '{' messageBody '}' {
+		lbl := fieldLabel{identNode: $1, repeated: true}
+		$$ = &groupNode{groupKeyword: $2, label: lbl, name: $3, tag: $5, options: $6, decls: $8}
+		$$.setRange($1, $9)
+	}
 
 oneof : _ONEOF name '{' oneofBody '}' {
-		c := 0
-		for _, el := range $4 {
-			if el.field != nil {
-				c++
-			}
-		}
-		if c == 0 {
-			lexError(protolex, $1.start(), "oneof must contain at least one field")
-		}
 		$$ = &oneOfNode{name: $2, decls: $4}
 		$$.setRange($1, $5)
 	}
@@ -601,32 +556,28 @@ oneofItem : option {
 	}
 
 oneofField : typeIdent name '=' _INT_LIT ';' {
-		checkTag(protolex, $4.start(), $4.val)
 		$$ = &fieldNode{fldType: $1, name: $2, tag: $4}
 		$$.setRange($1, $5)
 	}
 	| typeIdent name '=' _INT_LIT compactOptions ';' {
-		checkTag(protolex, $4.start(), $4.val)
 		$$ = &fieldNode{fldType: $1, name: $2, tag: $4, options: $5}
 		$$.setRange($1, $6)
 	}
 
 oneofGroup : _GROUP name '=' _INT_LIT '{' messageBody '}' {
-		checkTag(protolex, $4.start(), $4.val)
-		if !unicode.IsUpper(rune($2.val[0])) {
-			lexError(protolex, $2.start(), fmt.Sprintf("group %s should have a name that starts with a capital letter", $2.val))
-		}
 		$$ = &groupNode{groupKeyword: $1, name: $2, tag: $4, decls: $6}
 		$$.setRange($1, $7)
 	}
+	| _GROUP name '=' _INT_LIT compactOptions '{' messageBody '}' {
+		$$ = &groupNode{groupKeyword: $1, name: $2, tag: $4, options: $5, decls: $7}
+		$$.setRange($1, $8)
+	}
 
 mapField : mapType name '=' _INT_LIT ';' {
-		checkTag(protolex, $4.start(), $4.val)
 		$$ = &mapFieldNode{mapType: $1, name: $2, tag: $4}
 		$$.setRange($1, $5)
 	}
 	| mapType name '=' _INT_LIT compactOptions ';' {
-		checkTag(protolex, $4.start(), $4.val)
 		$$ = &mapFieldNode{mapType: $1, name: $2, tag: $4, options: $5}
 		$$.setRange($1, $6)
 	}
@@ -664,32 +615,17 @@ tagRanges : tagRanges ',' tagRange {
 	| tagRange
 
 tagRange : _INT_LIT {
-		if $1.val > internal.MaxTag {
-			lexError(protolex, $1.start(), fmt.Sprintf("range includes out-of-range tag: %d (should be between 0 and %d)", $1.val, internal.MaxTag))
-		}
-		r := &rangeNode{stNode: $1, enNode: $1, st: int32($1.val), en: int32($1.val)}
+		r := &rangeNode{startNode: $1}
 		r.setRange($1, $1)
 		$$ = []*rangeNode{r}
 	}
 	| _INT_LIT _TO _INT_LIT {
-		if $1.val > internal.MaxTag {
-			lexError(protolex, $1.start(), fmt.Sprintf("range start is out-of-range tag: %d (should be between 0 and %d)", $1.val, internal.MaxTag))
-		}
-		if $3.val > internal.MaxTag {
-			lexError(protolex, $3.start(), fmt.Sprintf("range end is out-of-range tag: %d (should be between 0 and %d)", $3.val, internal.MaxTag))
-		}
-		if $1.val > $3.val {
-			lexError(protolex, $1.start(), fmt.Sprintf("range, %d to %d, is invalid: start must be <= end", $1.val, $3.val))
-		}
-		r := &rangeNode{stNode: $1, enNode: $3, st: int32($1.val), en: int32($3.val)}
+		r := &rangeNode{startNode: $1, endNode: $3}
 		r.setRange($1, $3)
 		$$ = []*rangeNode{r}
 	}
 	| _INT_LIT _TO _MAX {
-		if $1.val > internal.MaxTag {
-			lexError(protolex, $1.start(), fmt.Sprintf("range start is out-of-range tag: %d (should be between 0 and %d)", $1.val, internal.MaxTag))
-		}
-		r := &rangeNode{stNode: $1, enNode: $3, st: int32($1.val), en: internal.MaxTag}
+		r := &rangeNode{startNode: $1, endNode: $3, endMax: true}
 		r.setRange($1, $3)
 		$$ = []*rangeNode{r}
 	}
@@ -700,26 +636,33 @@ enumRanges : enumRanges ',' enumRange {
 	| enumRange
 
 enumRange : intLit {
-		checkInt64InInt32Range(protolex, $1.start(), $1.val)
-		r := &rangeNode{stNode: $1, enNode: $1, st: int32($1.val), en: int32($1.val)}
+		r := &rangeNode{startNode: $1}
 		r.setRange($1, $1)
 		$$ = []*rangeNode{r}
 	}
 	| intLit _TO intLit {
-		checkInt64InInt32Range(protolex, $1.start(), $1.val)
-		checkInt64InInt32Range(protolex, $3.start(), $3.val)
-		if $1.val > $3.val {
-			lexError(protolex, $1.start(), fmt.Sprintf("range, %d to %d, is invalid: start must be <= end", $1.val, $3.val))
-		}
-		r := &rangeNode{stNode: $1, enNode: $3, st: int32($1.val), en: int32($3.val)}
+		r := &rangeNode{startNode: $1, endNode: $3}
 		r.setRange($1, $3)
 		$$ = []*rangeNode{r}
 	}
 	| intLit _TO _MAX {
-		checkInt64InInt32Range(protolex, $1.start(), $1.val)
-		r := &rangeNode{stNode: $1, enNode: $3, st: int32($1.val), en: math.MaxInt32}
+		r := &rangeNode{startNode: $1, endNode: $3, endMax: true}
 		r.setRange($1, $3)
 		$$ = []*rangeNode{r}
+	}
+
+intLit : _INT_LIT {
+		i := &compoundIntNode{val: int64($1.val)}
+		i.setRange($1, $1)
+		$$ = i
+	}
+	| '-' _INT_LIT {
+		if $2.val > math.MaxInt64 + 1 {
+			lexError(protolex, $2.start(), fmt.Sprintf("numeric constant %d would underflow 64-bit signed int (allowed range is %d to %d)", $2.val, int64(math.MinInt64), int64(math.MaxInt64)))
+		}
+		i := &compoundIntNode{val: -int64($2.val)}
+		i.setRange($1, $2)
+		$$ = i
 	}
 
 msgReserved : _RESERVED tagRanges ';' {
@@ -735,14 +678,6 @@ enumReserved : _RESERVED enumRanges ';' {
 	| reservedNames
 
 reservedNames : _RESERVED fieldNames ';' {
-		rsvd := map[string]struct{}{}
-		for _, n := range $2 {
-			if _, ok := rsvd[n.val]; ok {
-				lexError(protolex, n.start(), fmt.Sprintf("name %q is reserved multiple times", n.val))
-				break
-			}
-			rsvd[n.val] = struct{}{}
-		}
 		$$ = &reservedNode{names: $2}
 		$$.setRange($1, $3)
 	}
@@ -755,15 +690,6 @@ fieldNames : fieldNames ',' stringLit {
 	}
 
 enum : _ENUM name '{' enumBody '}' {
-		c := 0
-		for _, el := range $4 {
-			if el.value != nil {
-				c++
-			}
-		}
-		if c == 0 {
-			lexError(protolex, $1.start(), "enums must define at least one value")
-		}
 		$$ = &enumNode{name: $2, decls: $4}
 		$$.setRange($1, $5)
 	}
@@ -794,12 +720,10 @@ enumItem : option {
 	}
 
 enumField : name '=' intLit ';' {
-		checkInt64InInt32Range(protolex, $3.start(), $3.val)
 		$$ = &enumValueNode{name: $1, number: $3}
 		$$.setRange($1, $4)
 	}
 	|  name '=' intLit compactOptions ';' {
-		checkInt64InInt32Range(protolex, $3.start(), $3.val)
 		$$ = &enumValueNode{name: $1, number: $3, options: $4}
 		$$.setRange($1, $5)
 	}
@@ -856,15 +780,6 @@ messageItem : field {
 	}
 
 extend : _EXTEND typeIdent '{' extendBody '}' {
-		c := 0
-		for _, el := range $4 {
-			if el.field != nil || el.group != nil {
-				c++
-			}
-		}
-		if c == 0 {
-			lexError(protolex, $1.start(), "extend sections must define at least one extension")
-		}
 		$$ = &extendNode{extendee: $2, decls: $4}
 		$$.setRange($1, $5)
 	}

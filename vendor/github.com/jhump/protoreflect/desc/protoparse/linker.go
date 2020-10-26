@@ -66,6 +66,11 @@ func (l *linker) linkFiles() (map[string]*desc.FileDescriptor, error) {
 		if err := interpretFileOptions(r, richFileDescriptorish{FileDescriptor: fd}); err != nil {
 			return nil, err
 		}
+		// we should now have any message_set_wire_format options parsed
+		// and can do further validation on tag ranges
+		if err := checkExtensionTagsInFile(fd, r); err != nil {
+			return nil, err
+		}
 	}
 
 	return linked, nil
@@ -130,7 +135,7 @@ func (l *linker) createDescriptorPool() error {
 					desc1, desc2 = desc2, desc1
 				}
 				node := l.files[file2].nodes[desc2]
-				if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("duplicate symbol %s: already defined as %s in %q", k, descriptorType(desc1), file1)}); err != nil {
+				if err := l.errs.handleErrorWithPos(node.start(), "duplicate symbol %s: already defined as %s in %q", k, descriptorType(desc1), file1); err != nil {
 					return err
 				}
 			}
@@ -206,7 +211,7 @@ func addServiceToPool(r *parseResult, pool map[string]proto.Message, errs *error
 func addToPool(r *parseResult, pool map[string]proto.Message, errs *errorHandler, fqn string, dsc proto.Message) error {
 	if d, ok := pool[fqn]; ok {
 		node := r.nodes[dsc]
-		if err := errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("duplicate symbol %s: already defined as %s", fqn, descriptorType(d))}); err != nil {
+		if err := errs.handleErrorWithPos(node.start(), "duplicate symbol %s: already defined as %s", fqn, descriptorType(d)); err != nil {
 			return err
 		}
 	}
@@ -351,12 +356,12 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 		elemType = "extension"
 		fqn, dsc, _ := l.resolve(fd, fld.GetExtendee(), isMessage, scopes)
 		if dsc == nil {
-			return l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldExtendee().start(), Underlying: fmt.Errorf("unknown extendee type %s", fld.GetExtendee())})
+			return l.errs.handleErrorWithPos(node.fieldExtendee().start(), "unknown extendee type %s", fld.GetExtendee())
 		}
 		extd, ok := dsc.(*dpb.DescriptorProto)
 		if !ok {
 			otherType := descriptorType(dsc)
-			return l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldExtendee().start(), Underlying: fmt.Errorf("extendee is invalid: %s is a %s, not a message", fqn, otherType)})
+			return l.errs.handleErrorWithPos(node.fieldExtendee().start(), "extendee is invalid: %s is a %s, not a message", fqn, otherType)
 		}
 		fld.Extendee = proto.String("." + fqn)
 		// make sure the tag number is in range
@@ -369,7 +374,7 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 			}
 		}
 		if !found {
-			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldTag().start(), Underlying: fmt.Errorf("%s: tag %d is not in valid range for extended type %s", scope, tag, fqn)}); err != nil {
+			if err := l.errs.handleErrorWithPos(node.fieldTag().start(), "%s: tag %d is not in valid range for extended type %s", scope, tag, fqn); err != nil {
 				return err
 			}
 		} else {
@@ -380,7 +385,7 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 				l.extensions[fqn] = usedExtTags
 			}
 			if other := usedExtTags[fld.GetNumber()]; other != "" {
-				if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldTag().start(), Underlying: fmt.Errorf("%s: duplicate extension: %s and %s are both using tag %d", scope, other, thisName, fld.GetNumber())}); err != nil {
+				if err := l.errs.handleErrorWithPos(node.fieldTag().start(), "%s: duplicate extension: %s and %s are both using tag %d", scope, other, thisName, fld.GetNumber()); err != nil {
 					return err
 				}
 			} else {
@@ -402,7 +407,7 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 
 	fqn, dsc, proto3 := l.resolve(fd, fld.GetTypeName(), isType, scopes)
 	if dsc == nil {
-		return l.errs.handleError(ErrorWithSourcePos{Pos: node.fieldType().start(), Underlying: fmt.Errorf("%s: unknown type %s", scope, fld.GetTypeName())})
+		return l.errs.handleErrorWithPos(node.fieldType().start(), "%s: unknown type %s", scope, fld.GetTypeName())
 	}
 	switch dsc := dsc.(type) {
 	case *dpb.DescriptorProto:
@@ -414,14 +419,14 @@ func (l *linker) resolveFieldTypes(r *parseResult, fd *dpb.FileDescriptorProto, 
 	case *dpb.EnumDescriptorProto:
 		if fld.GetExtendee() == "" && isProto3(fd) && !proto3 {
 			// fields in a proto3 message cannot refer to proto2 enums
-			return ErrorWithSourcePos{Pos: node.fieldType().start(), Underlying: fmt.Errorf("%s: cannot use proto2 enum %s in a proto3 message", scope, fld.GetTypeName())}
+			return l.errs.handleErrorWithPos(node.fieldType().start(), "%s: cannot use proto2 enum %s in a proto3 message", scope, fld.GetTypeName())
 		}
 		fld.TypeName = proto.String("." + fqn)
 		// the type was tentatively unset, but now we know it's actually an enum
 		fld.Type = dpb.FieldDescriptorProto_TYPE_ENUM.Enum()
 	default:
 		otherType := descriptorType(dsc)
-		return ErrorWithSourcePos{Pos: node.fieldType().start(), Underlying: fmt.Errorf("%s: invalid type: %s is a %s, not a message or enum", scope, fqn, otherType)}
+		return l.errs.handleErrorWithPos(node.fieldType().start(), "%s: invalid type: %s is a %s, not a message or enum", scope, fqn, otherType)
 	}
 	return nil
 }
@@ -444,12 +449,12 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 		node := r.getMethodNode(mtd)
 		fqn, dsc, _ := l.resolve(fd, mtd.GetInputType(), isMessage, scopes)
 		if dsc == nil {
-			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getInputType().start(), Underlying: fmt.Errorf("%s: unknown request type %s", scope, mtd.GetInputType())}); err != nil {
+			if err := l.errs.handleErrorWithPos(node.getInputType().start(), "%s: unknown request type %s", scope, mtd.GetInputType()); err != nil {
 				return err
 			}
 		} else if _, ok := dsc.(*dpb.DescriptorProto); !ok {
 			otherType := descriptorType(dsc)
-			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getInputType().start(), Underlying: fmt.Errorf("%s: invalid request type: %s is a %s, not a message", scope, fqn, otherType)}); err != nil {
+			if err := l.errs.handleErrorWithPos(node.getInputType().start(), "%s: invalid request type: %s is a %s, not a message", scope, fqn, otherType); err != nil {
 				return err
 			}
 		} else {
@@ -458,12 +463,12 @@ func (l *linker) resolveServiceTypes(r *parseResult, fd *dpb.FileDescriptorProto
 
 		fqn, dsc, _ = l.resolve(fd, mtd.GetOutputType(), isMessage, scopes)
 		if dsc == nil {
-			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getOutputType().start(), Underlying: fmt.Errorf("%s: unknown response type %s", scope, mtd.GetOutputType())}); err != nil {
+			if err := l.errs.handleErrorWithPos(node.getOutputType().start(), "%s: unknown response type %s", scope, mtd.GetOutputType()); err != nil {
 				return err
 			}
 		} else if _, ok := dsc.(*dpb.DescriptorProto); !ok {
 			otherType := descriptorType(dsc)
-			if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.getOutputType().start(), Underlying: fmt.Errorf("%s: invalid response type: %s is a %s, not a message", scope, fqn, otherType)}); err != nil {
+			if err := l.errs.handleErrorWithPos(node.getOutputType().start(), "%s: invalid response type: %s is a %s, not a message", scope, fqn, otherType); err != nil {
 				return err
 			}
 		} else {
@@ -485,19 +490,19 @@ opts:
 				node := r.getOptionNamePartNode(nm)
 				fqn, dsc, _ := l.resolve(fd, nm.GetNamePart(), isField, scopes)
 				if dsc == nil {
-					if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sunknown extension %s", scope, nm.GetNamePart())}); err != nil {
+					if err := l.errs.handleErrorWithPos(node.start(), "%sunknown extension %s", scope, nm.GetNamePart()); err != nil {
 						return err
 					}
 					continue opts
 				}
 				if ext, ok := dsc.(*dpb.FieldDescriptorProto); !ok {
 					otherType := descriptorType(dsc)
-					if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sinvalid extension: %s is a %s, not an extension", scope, nm.GetNamePart(), otherType)}); err != nil {
+					if err := l.errs.handleErrorWithPos(node.start(), "%sinvalid extension: %s is a %s, not an extension", scope, nm.GetNamePart(), otherType); err != nil {
 						return err
 					}
 					continue opts
 				} else if ext.GetExtendee() == "" {
-					if err := l.errs.handleError(ErrorWithSourcePos{Pos: node.start(), Underlying: fmt.Errorf("%sinvalid extension: %s is a field but not an extension", scope, nm.GetNamePart())}); err != nil {
+					if err := l.errs.handleErrorWithPos(node.start(), "%sinvalid extension: %s is a field but not an extension", scope, nm.GetNamePart()); err != nil {
 						return err
 					}
 					continue opts
@@ -668,9 +673,9 @@ func (l *linker) linkFile(name string, rootImportLoc *SourcePos, seen []string, 
 				} else {
 					msg.WriteString(" -> ")
 				}
-				fmt.Fprintf(&msg, "%q", s)
+				_, _ = fmt.Fprintf(&msg, "%q", s)
 			}
-			fmt.Fprintf(&msg, " -> %q", name)
+			_, _ = fmt.Fprintf(&msg, " -> %q", name)
 			return nil, ErrorWithSourcePos{
 				Underlying: fmt.Errorf("cycle found in imports: %s", msg.String()),
 				Pos:        rootImportLoc,

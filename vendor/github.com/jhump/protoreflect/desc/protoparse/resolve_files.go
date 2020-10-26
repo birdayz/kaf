@@ -49,6 +49,11 @@ func ResolveFilenames(importPaths []string, fileNames ...string) ([]string, erro
 		if err != nil {
 			return nil, err
 		}
+		// On Windows, the resolved paths will use "\", but proto imports
+		// require the use of "/". So fix up here.
+		if filepath.Separator != '/' {
+			resolvedFileName = strings.Replace(resolvedFileName, string(filepath.Separator), "/", -1)
+		}
 		resolvedFileNames = append(resolvedFileNames, resolvedFileName)
 	}
 	return resolvedFileNames, nil

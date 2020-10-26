@@ -7,6 +7,10 @@
 // GENERATED CODE -- DO NOT EDIT!
 
 
+/* eslint-disable */
+// @ts-nocheck
+
+
 
 const grpc = {};
 grpc.web = require('grpc-web');
@@ -137,7 +141,7 @@ proto.kaf.api.TopicServiceClient.prototype.createTopic =
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
  * @return {!Promise<!proto.kaf.api.Topic>}
- *     A native promise that resolves to the response
+ *     Promise that resolves to the response
  */
 proto.kaf.api.TopicServicePromiseClient.prototype.createTopic =
     function(request, metadata) {
@@ -217,7 +221,7 @@ proto.kaf.api.TopicServiceClient.prototype.getTopic =
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
  * @return {!Promise<!proto.kaf.api.Topic>}
- *     A native promise that resolves to the response
+ *     Promise that resolves to the response
  */
 proto.kaf.api.TopicServicePromiseClient.prototype.getTopic =
     function(request, metadata) {
@@ -297,7 +301,7 @@ proto.kaf.api.TopicServiceClient.prototype.updateTopic =
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
  * @return {!Promise<!proto.kaf.api.Topic>}
- *     A native promise that resolves to the response
+ *     Promise that resolves to the response
  */
 proto.kaf.api.TopicServicePromiseClient.prototype.updateTopic =
     function(request, metadata) {
@@ -377,7 +381,7 @@ proto.kaf.api.TopicServiceClient.prototype.listTopics =
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
  * @return {!Promise<!proto.kaf.api.ListTopicsResponse>}
- *     A native promise that resolves to the response
+ *     Promise that resolves to the response
  */
 proto.kaf.api.TopicServicePromiseClient.prototype.listTopics =
     function(request, metadata) {
@@ -457,7 +461,7 @@ proto.kaf.api.TopicServiceClient.prototype.deleteTopic =
  * @param {?Object<string, string>} metadata User defined
  *     call metadata
  * @return {!Promise<!proto.google.protobuf.Empty>}
- *     A native promise that resolves to the response
+ *     Promise that resolves to the response
  */
 proto.kaf.api.TopicServicePromiseClient.prototype.deleteTopic =
     function(request, metadata) {
@@ -466,6 +470,86 @@ proto.kaf.api.TopicServicePromiseClient.prototype.deleteTopic =
       request,
       metadata || {},
       methodDescriptor_TopicService_DeleteTopic);
+};
+
+
+/**
+ * @const
+ * @type {!grpc.web.MethodDescriptor<
+ *   !proto.kaf.api.GetHighWatermarksRequest,
+ *   !proto.kaf.api.GetHighWatermarksResponse>}
+ */
+const methodDescriptor_TopicService_GetHighWatermarks = new grpc.web.MethodDescriptor(
+  '/kaf.api.TopicService/GetHighWatermarks',
+  grpc.web.MethodType.UNARY,
+  proto.kaf.api.GetHighWatermarksRequest,
+  proto.kaf.api.GetHighWatermarksResponse,
+  /**
+   * @param {!proto.kaf.api.GetHighWatermarksRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.kaf.api.GetHighWatermarksResponse.deserializeBinary
+);
+
+
+/**
+ * @const
+ * @type {!grpc.web.AbstractClientBase.MethodInfo<
+ *   !proto.kaf.api.GetHighWatermarksRequest,
+ *   !proto.kaf.api.GetHighWatermarksResponse>}
+ */
+const methodInfo_TopicService_GetHighWatermarks = new grpc.web.AbstractClientBase.MethodInfo(
+  proto.kaf.api.GetHighWatermarksResponse,
+  /**
+   * @param {!proto.kaf.api.GetHighWatermarksRequest} request
+   * @return {!Uint8Array}
+   */
+  function(request) {
+    return request.serializeBinary();
+  },
+  proto.kaf.api.GetHighWatermarksResponse.deserializeBinary
+);
+
+
+/**
+ * @param {!proto.kaf.api.GetHighWatermarksRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @param {function(?grpc.web.Error, ?proto.kaf.api.GetHighWatermarksResponse)}
+ *     callback The callback function(error, response)
+ * @return {!grpc.web.ClientReadableStream<!proto.kaf.api.GetHighWatermarksResponse>|undefined}
+ *     The XHR Node Readable Stream
+ */
+proto.kaf.api.TopicServiceClient.prototype.getHighWatermarks =
+    function(request, metadata, callback) {
+  return this.client_.rpcCall(this.hostname_ +
+      '/kaf.api.TopicService/GetHighWatermarks',
+      request,
+      metadata || {},
+      methodDescriptor_TopicService_GetHighWatermarks,
+      callback);
+};
+
+
+/**
+ * @param {!proto.kaf.api.GetHighWatermarksRequest} request The
+ *     request proto
+ * @param {?Object<string, string>} metadata User defined
+ *     call metadata
+ * @return {!Promise<!proto.kaf.api.GetHighWatermarksResponse>}
+ *     Promise that resolves to the response
+ */
+proto.kaf.api.TopicServicePromiseClient.prototype.getHighWatermarks =
+    function(request, metadata) {
+  return this.client_.unaryCall(this.hostname_ +
+      '/kaf.api.TopicService/GetHighWatermarks',
+      request,
+      metadata || {},
+      methodDescriptor_TopicService_GetHighWatermarks);
 };
 
 

@@ -39,6 +39,53 @@ func (c *ConnManager) GetClient(cluster string) (sarama.Client, error) {
 	}
 
 	var cl *config.Cluster
+	for _, cx := range configTotal.Clusters {
+		if cx.Name == cluster {
+			cl = cx
+		}
+	}
+	if cl == nil {
+		return nil, fmt.Errorf("Cluster \"%v\" not found.", cluster)
+	}
+
+	cfg, err := toSaramaConfig(cl)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := sarama.NewClient(cl.Brokers, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	c.conns[cluster] = client
+
+	return client, nil
+
+}
+
+func (c *ConnManager) GetAvailableOffsets(broker *sarama.Broker, cluster string, req *sarama.OffsetRequest) (*sarama.OffsetResponse, error) {
+	resp, err := broker.GetAvailableOffsets(req)
+	if err != nil {
+		broker.Close()
+		cfg, err := c.GetConfig(cluster)
+		if err != nil {
+			return nil, err
+		}
+		broker.Open(cfg)
+		return broker.GetAvailableOffsets(req)
+
+	}
+	return resp, nil
+}
+
+func (c *ConnManager) GetConfig(cluster string) (*sarama.Config, error) {
+	configTotal, err := config.ReadConfig("")
+	if err != nil {
+		return nil, err
+	}
+
+	var cl *config.Cluster
 	if cluster == "" {
 		cl = configTotal.ActiveCluster()
 	} else {
@@ -56,15 +103,7 @@ func (c *ConnManager) GetClient(cluster string) (sarama.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	client, err := sarama.NewClient(cl.Brokers, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	c.conns[cluster] = client
-
-	return client, nil
+	return cfg, nil
 
 }
 

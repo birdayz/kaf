@@ -34,10 +34,7 @@ func (md *MessageDescriptor) FindFieldByJSONName(jsonName string) *FieldDescript
 		// slow path: compute the index
 		index = map[string]*FieldDescriptor{}
 		for _, f := range md.fields {
-			jn := f.proto.GetJsonName()
-			if jn == "" {
-				jn = f.proto.GetName()
-			}
+			jn := f.GetJSONName()
 			index[jn] = f
 		}
 		atomic.StorePointer(addrOfJsonNames, *(*unsafe.Pointer)(unsafe.Pointer(&index)))

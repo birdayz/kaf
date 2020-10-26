@@ -6,18 +6,23 @@ import (
 
 	"regexp"
 
+	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/config"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
-var flagEhConnString string
+var (
+	flagEhConnString  string
+	flagBrokerVersion string
+)
 
 func init() {
 	configCmd.AddCommand(configImportCmd)
 	configCmd.AddCommand(configUseCmd)
 	configCmd.AddCommand(configLsCmd)
 	configCmd.AddCommand(configAddClusterCmd)
+	configCmd.AddCommand(configRemoveClusterCmd)
 	configCmd.AddCommand(configSelectCluster)
 	configCmd.AddCommand(configCurrentContext)
 	configCmd.AddCommand(configAddEventhub)
@@ -25,6 +30,7 @@ func init() {
 
 	configLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	configAddEventhub.Flags().StringVar(&flagEhConnString, "eh-connstring", "", "EventHub ConnectionString")
+	configAddClusterCmd.Flags().StringVar(&flagBrokerVersion, "broker-version", "", fmt.Sprintf("Broker Version. Available Versions: %v", sarama.SupportedVersions))
 }
 
 var configCmd = &cobra.Command{
@@ -138,7 +144,7 @@ var configSelectCluster = &cobra.Command{
 
 var configAddClusterCmd = &cobra.Command{
 	Use:   "add-cluster [NAME]",
-	Short: "add cluster",
+	Short: "Add cluster",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		name := args[0]
@@ -152,12 +158,42 @@ var configAddClusterCmd = &cobra.Command{
 			Name:              name,
 			Brokers:           brokersFlag,
 			SchemaRegistryURL: schemaRegistryURL,
+			Version:           flagBrokerVersion,
 		})
 		err := cfg.Write()
 		if err != nil {
 			errorExit("Unable to write config: %v\n", err)
 		}
 		fmt.Println("Added cluster.")
+	},
+}
+
+var configRemoveClusterCmd = &cobra.Command{
+	Use:   "remove-cluster [NAME]",
+	Short: "remove cluster",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		name := args[0]
+
+		var pos = -1
+		for i, cluster := range cfg.Clusters {
+			if cluster.Name == name {
+				pos = i
+				break
+			}
+		}
+
+		if pos == -1 {
+			errorExit("Could not delete cluster: cluster with name '%v' not exists.", name)
+		}
+
+		cfg.Clusters = append(cfg.Clusters[:pos], cfg.Clusters[pos+1:]...)
+
+		err := cfg.Write()
+		if err != nil {
+			errorExit("Unable to write config: %v\n", err)
+		}
+		fmt.Println("Removed cluster.")
 	},
 }
 

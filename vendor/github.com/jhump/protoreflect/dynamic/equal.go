@@ -13,6 +13,12 @@ import (
 // have the same message type and same fields set to equal values. For proto3 messages, fields set
 // to their zero value are considered unset.
 func Equal(a, b *Message) bool {
+	if a == b {
+		return true
+	}
+	if (a == nil) != (b == nil) {
+		return false
+	}
 	if a.md.GetFullyQualifiedName() != b.md.GetFullyQualifiedName() {
 		return false
 	}
@@ -128,25 +134,24 @@ func MessagesEqual(a, b proto.Message) bool {
 		return proto.Equal(a, b)
 	}
 	// Mixed
-	if aok {
-		md, err := desc.LoadMessageDescriptorForMessage(b)
-		if err != nil {
-			return false
-		}
-		db = NewMessageWithMessageFactory(md, da.mf)
-		if db.ConvertFrom(b) != nil {
-			return false
-		}
-		return Equal(da, db)
-	} else {
-		md, err := desc.LoadMessageDescriptorForMessage(a)
-		if err != nil {
-			return false
-		}
-		da = NewMessageWithMessageFactory(md, db.mf)
-		if da.ConvertFrom(a) != nil {
-			return false
-		}
-		return Equal(da, db)
+	if bok {
+		// we want a to be the dynamic one
+		b, da = a, db
 	}
+
+	// Instead of panic'ing below if we have a nil dynamic message, check
+	// now and return false if the input message is not also nil.
+	if da == nil {
+		return isNil(b)
+	}
+
+	md, err := desc.LoadMessageDescriptorForMessage(b)
+	if err != nil {
+		return false
+	}
+	db = NewMessageWithMessageFactory(md, da.mf)
+	if db.ConvertFrom(b) != nil {
+		return false
+	}
+	return Equal(da, db)
 }

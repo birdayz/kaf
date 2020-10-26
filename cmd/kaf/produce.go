@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 
 	"time"
 
@@ -13,15 +14,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var keyFlag string
-var numFlag int
-var partitionerFlag string
-var timestampFlag string
+var (
+	keyFlag         string
+	headerFlag      []string
+	numFlag         int
+	partitionerFlag string
+	timestampFlag   string
+	partitionFlag   int32
+)
 
 func init() {
 	rootCmd.AddCommand(produceCmd)
 
 	produceCmd.Flags().StringVarP(&keyFlag, "key", "k", "", "Key for the record. Currently only strings are supported.")
+	produceCmd.Flags().StringArrayVarP(&headerFlag, "header", "H", []string{}, "Header in format <key>:<value>. May be used multiple times to add more headers.")
 	produceCmd.Flags().IntVarP(&numFlag, "num", "n", 1, "Number of records to send.")
 
 	produceCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
@@ -31,6 +37,7 @@ func init() {
 	produceCmd.Flags().StringVar(&keyProtoType, "key-proto-type", "", "Fully qualified name of the proto key type. Example: com.test.SampleMessage")
 	produceCmd.Flags().StringVar(&partitionerFlag, "partitioner", "", "Select partitioner: Default or jvm")
 	produceCmd.Flags().StringVar(&timestampFlag, "timestamp", "", "Select timestamp for record")
+	produceCmd.Flags().Int32VarP(&partitionFlag, "partition", "p", -1, "Partition to produce to")
 
 }
 
@@ -44,6 +51,11 @@ var produceCmd = &cobra.Command{
 		if partitionerFlag != "" {
 			cfg.Producer.Partitioner = partitioner.NewJVMCompatiblePartitioner
 		}
+
+		if partitionFlag != int32(-1) {
+			cfg.Producer.Partitioner = sarama.NewManualPartitioner
+		}
+
 		producer, err := sarama.NewSyncProducer(currentCluster.Brokers, cfg)
 		if err != nil {
 			errorExit("Unable to create new sync producer: %v\n", err)
@@ -102,13 +114,29 @@ var produceCmd = &cobra.Command{
 			ts = t
 		}
 
+		var headers []sarama.RecordHeader
+		for _, h := range headerFlag {
+			v := strings.SplitN(h, ":", 2)
+			if len(v) == 2 {
+				headers = append(headers, sarama.RecordHeader{
+					Key:   []byte(v[0]),
+					Value: []byte(v[1]),
+				})
+			}
+		}
+
 		for i := 0; i < numFlag; i++ {
-			partition, offset, err := producer.SendMessage(&sarama.ProducerMessage{
+			msg := &sarama.ProducerMessage{
 				Topic:     args[0],
 				Key:       key,
+				Headers:   headers,
 				Timestamp: ts,
 				Value:     sarama.ByteEncoder(data),
-			})
+			}
+			if partitionFlag != -1 {
+				msg.Partition = partitionFlag
+			}
+			partition, offset, err := producer.SendMessage(msg)
 			if err != nil {
 				fmt.Printf("Failed to send record: %v.", err)
 				os.Exit(1)

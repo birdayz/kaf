@@ -25,6 +25,8 @@ github.com/eapache/queue
 github.com/fatih/color
 # github.com/golang/gddo v0.0.0-20200324184333-3c2cc9a6329d
 github.com/golang/gddo/httputil/header
+# github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+github.com/golang/glog
 # github.com/golang/lint v0.0.0-20181026193005-c67002cb31c3
 github.com/golang/lint/golint
 # github.com/golang/protobuf v1.3.1
@@ -58,7 +60,7 @@ github.com/inconshreveable/mousetrap
 # github.com/jcmturner/gofork v1.0.0
 github.com/jcmturner/gofork/encoding/asn1
 github.com/jcmturner/gofork/x/crypto/pbkdf2
-# github.com/jhump/protoreflect v1.5.0
+# github.com/jhump/protoreflect v1.6.1
 github.com/jhump/protoreflect/codec
 github.com/jhump/protoreflect/desc
 github.com/jhump/protoreflect/desc/internal
@@ -120,12 +122,12 @@ github.com/tsenart/deadcode
 github.com/xdg/scram
 # github.com/xdg/stringprep v1.0.0
 github.com/xdg/stringprep
-# golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
+# golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 golang.org/x/crypto/md4
 golang.org/x/crypto/pbkdf2
-# golang.org/x/lint v0.0.0-20190313153728-d0100b6bd8b3
+# golang.org/x/lint v0.0.0-20190930215403-16217165b5de
 golang.org/x/lint
-# golang.org/x/net v0.0.0-20190620200207-3b0461eec859
+# golang.org/x/net v0.0.0-20200226121028-0de0cce0169b
 golang.org/x/net/context
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
@@ -142,7 +144,7 @@ golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi
 golang.org/x/text/unicode/norm
-# golang.org/x/tools v0.0.0-20190712213246-8b927904ee0d
+# golang.org/x/tools v0.0.0-20200426102838-f3a5411a4c3b
 golang.org/x/tools/go/ast/astutil
 golang.org/x/tools/go/gcexportdata
 golang.org/x/tools/go/internal/gcimporter
