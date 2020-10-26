@@ -39,7 +39,7 @@ func init() {
 	lsTopicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	topicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	updateTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(-1), "Number of partitions")
-	updateTopicCmd.Flags().StringVar(&partitionAssignmentsFlag, "partition-assignments", "", "Partition Assignments. Optional. If set, an assignment must be provided for each new partition. Example: '[[1,2,3],[1,2,3]]' (JSON Array syntax) assigns two new partitions to brokers 1,2,3")
+	updateTopicCmd.Flags().StringVar(&partitionAssignmentsFlag, "partition-assignments", "", "Partition Assignments. Optional. If set in combination with -p, an assignment must be provided for each new partition. Example: '[[1,2,3],[1,2,3]]' (JSON Array syntax) assigns two new partitions to brokers 1,2,3. If used by itself, a reassignment must be provided for all partitions.")
 }
 
 var topicCmd = &cobra.Command{
@@ -98,8 +98,8 @@ var updateTopicCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		if partitionsFlag == -1 {
-			errorExit("Number of partitions must be given")
+		if partitionsFlag == -1 && partitionAssignmentsFlag == "" {
+			errorExit("Number of partitions and/or partition assigments must be given")
 		}
 
 		var assignments [][]int32
@@ -109,11 +109,18 @@ var updateTopicCmd = &cobra.Command{
 			}
 		}
 
-		err := admin.CreatePartitions(args[0], partitionsFlag, assignments, false)
-		if err != nil {
-			errorExit("Failed to create partitions: %v", err)
+		if partitionsFlag != int32(-1) {
+			err := admin.CreatePartitions(args[0], partitionsFlag, assignments, false)
+			if err != nil {
+				errorExit("Failed to create partitions: %v", err)
+			}
+		} else {
+			// Needs at least Kafka version 2.4.0.
+			err := admin.AlterPartitionReassignments(args[0], assignments)
+			if err != nil {
+				errorExit("Failed to reassign the partition assigments: %v", err)
+			}
 		}
-
 		fmt.Printf("\xE2\x9C\x85 Updated topic!\n")
 	},
 }
