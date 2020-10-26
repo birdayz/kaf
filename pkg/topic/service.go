@@ -2,14 +2,12 @@ package topic
 
 import (
 	context "context"
-	"fmt"
 	"sort"
 	"sync"
 
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/api"
 	"github.com/birdayz/kaf/pkg/connection"
-	"github.com/davecgh/go-spew/spew"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -102,7 +100,6 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 	}
 
 	for _, topic := range resp.Topics {
-		spew.Dump(topic)
 		var ps []int32
 		for _, p := range topic.Partitions {
 			ps = append(ps, int32(p.Number))
@@ -112,7 +109,6 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 		for _, v := range wms {
 			msgs += v
 		}
-		fmt.Println("WMS!!", wms)
 		topic.Messages = msgs
 	}
 
@@ -122,7 +118,6 @@ func (s *Service) ListTopics(ctx context.Context, req *api.ListTopicsRequest) (*
 }
 
 func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (watermarks map[int32]int64, err error) {
-	fmt.Println("ZZ")
 	leaders := make(map[*sarama.Broker][]int32)
 
 	for _, partition := range partitions {
@@ -134,10 +129,7 @@ func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (
 
 	results := make(chan map[int32]int64, len(leaders))
 
-	fmt.Println(leaders, partitions)
-
 	for leader, partitions := range leaders {
-		fmt.Println("DD")
 		req := &sarama.OffsetRequest{
 			Version: int16(1),
 		}
@@ -150,11 +142,8 @@ func getHighWatermarks(client sarama.Client, topic string, partitions []int32) (
 		go func(leader *sarama.Broker, req *sarama.OffsetRequest) {
 			resp, err := leader.GetAvailableOffsets(req)
 			if err != nil {
-				fmt.Println(err)
 				return
 			}
-
-			spew.Dump(resp)
 
 			watermarksFromLeader := make(map[int32]int64)
 			for partition, block := range resp.Blocks[topic] {

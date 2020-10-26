@@ -31,7 +31,6 @@ func (c *ConnManager) Connect(cluster string) error {
 
 func (c *ConnManager) GetClient(cluster string) (sarama.Client, error) {
 	if cl, ok := c.conns[cluster]; ok {
-		fmt.Println("Using cached client")
 		return cl, nil
 	}
 	configTotal, err := config.ReadConfig("")
@@ -71,7 +70,6 @@ func (c *ConnManager) GetClient(cluster string) (sarama.Client, error) {
 
 func (c *ConnManager) GetAdminClient(cluster string) (sarama.ClusterAdmin, error) {
 	if cl, ok := c.conns[cluster]; ok {
-		fmt.Println("Using cached client")
 		return sarama.NewClusterAdminFromClient(cl)
 	}
 	configTotal, err := config.ReadConfig("")
