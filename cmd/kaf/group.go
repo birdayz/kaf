@@ -91,7 +91,7 @@ func (r *resetHandler) Setup(s sarama.ConsumerGroupSession) error {
 		ConsumerGroupGeneration: s.GenerationID(),
 		ConsumerID:              s.MemberID(),
 	}
-	req.AddBlock(r.topic, r.partition, r.offset, 0, "reseted by kaf")
+	req.AddBlock(r.topic, r.partition, r.offset, 0, "")
 	br, err := r.client.Coordinator(r.group)
 	if err != nil {
 		return err
