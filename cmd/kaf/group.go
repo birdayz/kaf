@@ -306,6 +306,7 @@ var groupDescribeCmd = &cobra.Command{
 
 			metadata, err := member.GetMemberMetadata()
 			if err != nil {
+				fmt.Fprintf(w, "\n")
 				continue
 			}
 
@@ -325,6 +326,8 @@ var groupDescribeCmd = &cobra.Command{
 					fmt.Fprintf(w, "\t\t  UserEndpoint:\t%v\n", d.UserEndpoint)
 				}
 			}
+
+			fmt.Fprintf(w, "\n")
 
 		}
 
