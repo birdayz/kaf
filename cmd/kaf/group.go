@@ -17,6 +17,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/streams"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 
 	"strconv"
@@ -77,11 +78,11 @@ var groupDeleteCmd = &cobra.Command{
 }
 
 type resetHandler struct {
-	topic     string
-	partition int32
-	offset    int64
-	client    sarama.Client
-	group     string
+	topic            string
+	partitionOffsets map[int32]int64
+	offset           int64
+	client           sarama.Client
+	group            string
 }
 
 func (r *resetHandler) Setup(s sarama.ConsumerGroupSession) error {
@@ -91,7 +92,10 @@ func (r *resetHandler) Setup(s sarama.ConsumerGroupSession) error {
 		ConsumerGroupGeneration: s.GenerationID(),
 		ConsumerID:              s.MemberID(),
 	}
-	req.AddBlock(r.topic, r.partition, r.offset, 0, "")
+
+	for p, o := range r.partitionOffsets {
+		req.AddBlock(r.topic, p, o, 0, "")
+	}
 	br, err := r.client.Coordinator(r.group)
 	if err != nil {
 		return err
@@ -115,7 +119,9 @@ func (r *resetHandler) ConsumeClaim(s sarama.ConsumerGroupSession, c sarama.Cons
 func createGroupCommitOffsetCmd() *cobra.Command {
 	var topic string
 	var offset string
-	var partition int32
+	var partitionFlag int32
+	var allPartitions bool
+	var noconfirm bool
 	res := &cobra.Command{
 		Use:  "commit",
 		Args: cobra.ExactArgs(1),
@@ -124,54 +130,100 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 			group := args[0]
 
-			var off int64
-
-			i, err := strconv.ParseInt(offset, 10, 64)
-			if err != nil {
-				// No int -> try timestamp
-				t, err := time.Parse(time.RFC3339, offset)
+			var partitions []int32
+			if allPartitions {
+				// Determine partitions
+				admin := getClusterAdmin()
+				topicDetails, err := admin.DescribeTopics([]string{topic})
 				if err != nil {
-					errorExit("offset is neither offset nor timestamp", nil)
+					errorExit("Unable to determine partitions of topic: %v\n", err)
 				}
 
-				o, err := client.GetOffset(topic, partition, t.UnixNano()/(int64(time.Millisecond)/int64(time.Nanosecond)))
-				if err != nil {
-					errorExit("Failed to determine offset for timestamp: %v", err)
+				detail := topicDetails[0]
+
+				for _, p := range detail.Partitions {
+					partitions = append(partitions, p.ID)
 				}
-
-				if o == -1 {
-					errorExit("Determined offset -1 from timestamp. Skipping.", o)
-				}
-
-				off = o
-
-				fmt.Printf("Determined offset %v from timestamp.\n", off)
+			} else if partitionFlag != -1 {
+				partitions = []int32{partitionFlag}
 			} else {
-				off = i
+				errorExit("Either --partition or --all-partitions flag must be provided")
+			}
+
+			sort.Slice(partitions, func(i int, j int) bool { return partitions[i] < partitions[j] })
+
+			partitionOffsets := make(map[int32]int64)
+
+			// TODO offset must be calced per partition
+
+			for _, partition := range partitions {
+				i, err := strconv.ParseInt(offset, 10, 64)
+				if err != nil {
+					// No int -> try timestamp
+					t, err := time.Parse(time.RFC3339, offset)
+					if err != nil {
+						errorExit("offset is neither offset nor timestamp", nil)
+					}
+
+					o, err := client.GetOffset(topic, partition, t.UnixNano()/(int64(time.Millisecond)/int64(time.Nanosecond)))
+					if err != nil {
+						errorExit("Failed to determine offset for timestamp: %v", err)
+					}
+
+					if o == -1 {
+						fmt.Printf("Partition %v: could not determine offset from timestamp. Skipping.\n", partition)
+						continue
+						//errorExit("Determined offset -1 from timestamp. Skipping.", o)
+					}
+
+					partitionOffsets[partition] = o
+
+					fmt.Printf("Partition %v: determined offset %v from timestamp.\n", partition, o)
+
+				} else {
+					partitionOffsets[partition] = i
+				}
+
+			}
+
+			fmt.Printf("Resetting offsets to: %v\n", partitionOffsets)
+
+			if !noconfirm {
+				prompt := promptui.Prompt{
+					Label:     "Reset offsets as described",
+					IsConfirm: true,
+				}
+
+				_, err := prompt.Run()
+				if err != nil {
+					errorExit("Aborted, exiting.\n")
+					return
+				}
 			}
 
 			g, err := sarama.NewConsumerGroupFromClient(group, client)
 			if err != nil {
-				errorExit("Failed to create consumer group: %v", err)
+				errorExit("Failed to create consumer group: %v\n", err)
 			}
 
 			err = g.Consume(context.Background(), []string{topic}, &resetHandler{
-				topic:     topic,
-				partition: partition,
-				offset:    off,
-				client:    client,
-				group:     group,
+				topic:            topic,
+				partitionOffsets: partitionOffsets,
+				client:           client,
+				group:            group,
 			})
 			if err != nil {
-				errorExit("Failed to commit offset: %v", err)
+				errorExit("Failed to commit offset: %v\n", err)
 			}
 
-			fmt.Printf("Set offset to %v.", off)
+			fmt.Printf("Successfully committed offsets to %v.\n", partitionOffsets)
 		},
 	}
 	res.Flags().StringVarP(&topic, "topic", "t", "", "topic")
 	res.Flags().StringVarP(&offset, "offset", "o", "", "offset to commit")
-	res.Flags().Int32VarP(&partition, "partition", "p", 0, "partition")
+	res.Flags().Int32VarP(&partitionFlag, "partition", "p", 0, "partition")
+	res.Flags().BoolVar(&allPartitions, "all-partitions", false, "apply to all partitions")
+	res.Flags().BoolVar(&noconfirm, "noconfirm", false, "Do not prompt for confirmation")
 	return res
 }
 
