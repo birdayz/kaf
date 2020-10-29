@@ -81,6 +81,44 @@ func (err ConfigurationError) Error() string {
 // See https://cwiki.apache.org/confluence/display/KAFKA/A+Guide+To+The+Kafka+Protocol#AGuideToTheKafkaProtocol-ErrorCodes
 type KError int16
 
+// MultiError is used to contain multi error.
+type MultiError struct {
+	Errors *[]error
+}
+
+func (mErr MultiError) Error() string {
+	var errString = ""
+	for _, err := range *mErr.Errors {
+		errString += err.Error() + ","
+	}
+	return errString
+}
+
+func (mErr MultiError) PrettyError() string {
+	var errString = ""
+	for _, err := range *mErr.Errors {
+		errString += err.Error() + "\n"
+	}
+	return errString
+}
+
+// ErrDeleteRecords is the type of error returned when fail to delete the required records
+type ErrDeleteRecords struct {
+	MultiError
+}
+
+func (err ErrDeleteRecords) Error() string {
+	return "kafka server: failed to delete records " + err.MultiError.Error()
+}
+
+type ErrReassignPartitions struct {
+	MultiError
+}
+
+func (err ErrReassignPartitions) Error() string {
+	return fmt.Sprintf("failed to reassign partitions for topic: \n%s", err.MultiError.PrettyError())
+}
+
 // Numeric error codes returned by the Kafka server.
 const (
 	ErrNoError                            KError = 0
@@ -166,6 +204,7 @@ const (
 	ErrMemberIdRequired                   KError = 79
 	ErrPreferredLeaderNotAvailable        KError = 80
 	ErrGroupMaxSizeReached                KError = 81
+	ErrFencedInstancedId                  KError = 82
 )
 
 func (err KError) Error() string {
@@ -338,6 +377,8 @@ func (err KError) Error() string {
 		return "kafka server: The preferred leader was not available"
 	case ErrGroupMaxSizeReached:
 		return "kafka server: Consumer group The consumer group has reached its max size. already has the configured maximum number of members."
+	case ErrFencedInstancedId:
+		return "kafka server: The broker rejected this static consumer since another consumer with the same group.instance.id has registered with a different member.id."
 	}
 
 	return fmt.Sprintf("Unknown error, how did this happen? Error code = %d", err)
