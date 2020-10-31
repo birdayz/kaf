@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"regexp"
 
@@ -122,10 +123,19 @@ var configSelectCluster = &cobra.Command{
 		for _, cluster := range cfg.Clusters {
 			clusterNames = append(clusterNames, cluster.Name)
 		}
+
+		searcher := func(input string, index int) bool {
+			cluster := clusterNames[index]
+			name := strings.Replace(strings.ToLower(cluster), " ", "", -1)
+			input = strings.Replace(strings.ToLower(input), " ", "", -1)
+			return strings.Contains(name, input)
+		}
+
 		p := promptui.Select{
-			Label: "Select cluster",
-			Items: clusterNames,
-			Size:  10,
+			Label:    "Select cluster",
+			Items:    clusterNames,
+			Searcher: searcher,
+			Size:     10,
 		}
 
 		_, selected, err := p.Run()
