@@ -34,3 +34,6 @@ Bash
 Zsh
 
 ```echo 'source <(kaf completion zsh)' >> ~/.zshrc```
+
+Powershell
+```Invoke-Expression (@(kaf completion powershell) -replace " ''\)$"," ' ')" -join "`n")```
