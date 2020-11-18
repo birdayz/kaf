@@ -15,7 +15,7 @@ var completionCmd = &cobra.Command{
 	Use:       "completion [SHELL]",
 	Short:     "Generate bash completion script for bash or zsh",
 	Args:      cobra.ExactValidArgs(1),
-	ValidArgs: []string{"bash", "zsh"},
+	ValidArgs: []string{"bash", "zsh", "powershell"},
 	Run: func(cmd *cobra.Command, args []string) {
 		switch args[0] {
 		case "bash":
@@ -26,6 +26,11 @@ var completionCmd = &cobra.Command{
 		case "zsh":
 			if err := genZshCompletion(outWriter); err != nil {
 				errorExit("Failed to generate zsh completion: %w", err)
+			}
+		case "powershell":
+			err := rootCmd.GenPowerShellCompletion(outWriter)
+			if err != nil {
+				errorExit("Failed to generate powershell completion: %w", err)
 			}
 		}
 	},
