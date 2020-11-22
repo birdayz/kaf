@@ -98,8 +98,10 @@ var consumeCmd = &cobra.Command{
 			// syntax.
 			offset = sarama.OffsetNewest
 		}
+		cfg := getConfig()
+		cfg.Consumer.Offsets.Initial = offset
 		topic := args[0]
-		client := getClient()
+		client := getClientFromConfig(cfg)
 
 		if groupFlag != "" {
 			withConsumerGroup(cmd.Context(), client, topic, groupFlag)

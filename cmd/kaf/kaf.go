@@ -220,6 +220,14 @@ func getClient() (client sarama.Client) {
 	return client
 }
 
+func getClientFromConfig(config *sarama.Config) (client sarama.Client) {
+	client, err := sarama.NewClient(currentCluster.Brokers, config)
+	if err != nil {
+		errorExit("Unable to get client: %v\n", err)
+	}
+	return client
+}
+
 func getSchemaCache() (cache *avro.SchemaCache) {
 	if currentCluster.SchemaRegistryURL == "" {
 		return nil
