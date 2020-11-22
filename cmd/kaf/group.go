@@ -159,13 +159,21 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 			for _, partition := range partitions {
 				i, err := strconv.ParseInt(offset, 10, 64)
 				if err != nil {
-					// No int -> try timestamp
-					t, err := time.Parse(time.RFC3339, offset)
-					if err != nil {
-						errorExit("offset is neither offset nor timestamp", nil)
+					// Try oldest/newest/..
+					if offset == "oldest" {
+						i = sarama.OffsetOldest
+					} else if offset == "newest" || offset == "latest" {
+						i = sarama.OffsetNewest
+					} else {
+						// Try timestamp
+						t, err := time.Parse(time.RFC3339, offset)
+						if err != nil {
+							errorExit("offset is neither offset nor timestamp", nil)
+						}
+						i = t.UnixNano() / (int64(time.Millisecond) / int64(time.Nanosecond))
 					}
 
-					o, err := client.GetOffset(topic, partition, t.UnixNano()/(int64(time.Millisecond)/int64(time.Nanosecond)))
+					o, err := client.GetOffset(topic, partition, i)
 					if err != nil {
 						errorExit("Failed to determine offset for timestamp: %v", err)
 					}
@@ -179,7 +187,6 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 					partitionOffsets[partition] = o
 
 					fmt.Printf("Partition %v: determined offset %v from timestamp.\n", partition, o)
-
 				} else {
 					partitionOffsets[partition] = i
 				}
