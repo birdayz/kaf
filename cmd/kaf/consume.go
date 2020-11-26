@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"text/tabwriter"
 	"time"
@@ -22,6 +23,7 @@ import (
 var (
 	offsetFlag      string
 	groupFlag       string
+	filter          string
 	groupCommitFlag bool
 	raw             bool
 	follow          bool
@@ -40,6 +42,7 @@ func init() {
 	rootCmd.AddCommand(consumeCmd)
 	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest.")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON")
+	consumeCmd.Flags().StringVarP(&filter, "filter", "F", "", "Filter output of messages, prettier than grep")
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition. Overrides --offset flag")
 	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
 	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
@@ -140,7 +143,7 @@ func withConsumerGroup(ctx context.Context, client sarama.Client, topic, group s
 		errorExit("Failed to create consumer group: %v", err)
 	}
 
-	err = cg.Consume(ctx, []string{topic}, &g{})
+	err = cg.Consume(ctx, strings.Split(topic, ","), &g{})
 	if err != nil {
 		errorExit("Error on consume: %v", err)
 	}
@@ -242,6 +245,10 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		}
 	}
 
+	if !strings.Contains(string(dataToDisplay), filter) {
+		return
+	}
+
 	if !raw {
 		if isJSON(dataToDisplay) {
 			dataToDisplay = formatValue(dataToDisplay)
@@ -278,7 +285,7 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		if msg.Key != nil && len(msg.Key) > 0 {
 			fmt.Fprintf(w, "Key:\t%v\n", string(keyToDisplay))
 		}
-		fmt.Fprintf(w, "Partition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", msg.Partition, msg.Offset, msg.Timestamp)
+		fmt.Fprintf(w, "Topic: %v\tPartition: %v\t Offset: %v\tTimestamp: %v\t\n", msg.Topic, msg.Partition, msg.Offset, msg.Timestamp)
 		w.Flush()
 	}
 
@@ -286,6 +293,7 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 	stderr.WriteTo(errWriter)
 	_, _ = colorableOut.Write(dataToDisplay)
 	fmt.Fprintln(outWriter)
+	fmt.Println()
 	mu.Unlock()
 
 }
