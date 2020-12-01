@@ -173,6 +173,19 @@ var describeTopicCmd = &cobra.Command{
 	Short: "Describe topic",
 	Long:  "Describe a topic. Default values of the configuration are omitted.",
 	Args:  cobra.ExactArgs(1),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		admin := getClusterAdmin()
+
+		topics, err := admin.ListTopics()
+		if err != nil {
+			errorExit("Unable to list topics: %v\n", err)
+		}
+		topicList := make([]string, 0, len(topics))
+		for topic := range topics {
+			topicList = append(topicList, topic)
+		}
+		return topicList, cobra.ShellCompDirectiveNoFileComp
+	},
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
