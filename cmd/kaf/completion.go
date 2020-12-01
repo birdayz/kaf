@@ -9,10 +9,11 @@ func init() {
 }
 
 var completionCmd = &cobra.Command{
-	Use:       "completion [SHELL]",
-	Short:     "Generate bash completion script for bash or zsh",
-	Args:      cobra.ExactValidArgs(1),
-	ValidArgs: []string{"bash", "zsh", "powershell"},
+	Use:                   "completion [SHELL]",
+	Short:                 "Generate completion script for bash, zsh or powershell",
+	DisableFlagsInUseLine: true,
+	Args:                  cobra.ExactValidArgs(1),
+	ValidArgs:             []string{"bash", "zsh", "powershell"},
 	Run: func(cmd *cobra.Command, args []string) {
 		switch args[0] {
 		case "bash":
