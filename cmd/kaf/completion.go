@@ -9,8 +9,27 @@ func init() {
 }
 
 var completionCmd = &cobra.Command{
-	Use:                   "completion [SHELL]",
-	Short:                 "Generate completion script for bash, zsh or powershell",
+	Use:   "completion [SHELL]",
+	Short: "Generate completion script for bash, zsh or powershell",
+	Long: `To load completions:
+
+Bash:
+
+$ source <(kaf completion bash)
+
+# To load completions for each session, execute once:
+Linux:
+  $ kaf completion bash > /etc/bash_completion.d/kaf
+MacOS:
+  $ kaf completion bash > /usr/local/etc/bash_completion.d/kaf
+
+Zsh:
+
+# To load completions for each session, execute once:
+$ kaf completion zsh > "${fpath[1]}/_kaf"
+
+# You will need to start a new shell for this setup to take effect.
+`,
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactValidArgs(1),
 	ValidArgs:             []string{"bash", "zsh", "powershell"},
