@@ -117,9 +117,8 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:                    "kaf",
-	Short:                  "Kafka Command Line utility for cluster management",
-	BashCompletionFunction: bashCompletion,
+	Use:   "kaf",
+	Short: "Kafka Command Line utility for cluster management",
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		outWriter = cmd.OutOrStdout()
 		errWriter = cmd.ErrOrStderr()

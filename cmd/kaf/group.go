@@ -58,9 +58,10 @@ var groupsCmd = &cobra.Command{
 }
 
 var groupDeleteCmd = &cobra.Command{
-	Use:   "delete",
-	Short: "Delete group",
-	Args:  cobra.MaximumNArgs(1),
+	Use:               "delete",
+	Short:             "Delete group",
+	Args:              cobra.MaximumNArgs(1),
+	ValidArgsFunction: validGroupArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 		var group string
@@ -276,10 +277,25 @@ var groupLsCmd = &cobra.Command{
 	},
 }
 
+func validGroupArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	admin := getClusterAdmin()
+
+	groups, err := admin.ListConsumerGroups()
+	if err != nil {
+		errorExit("Unable to list consumer groups: %v\n", err)
+	}
+	groupList := make([]string, 0, len(groups))
+	for grp := range groups {
+		groupList = append(groupList, grp)
+	}
+	return groupList, cobra.ShellCompDirectiveNoFileComp
+}
+
 var groupDescribeCmd = &cobra.Command{
-	Use:   "describe",
-	Short: "Describe consumer group",
-	Args:  cobra.ExactArgs(1),
+	Use:               "describe",
+	Short:             "Describe consumer group",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: validGroupArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO List: This API can be used to find the current groups managed by a broker. To get a list of all groups in the cluster, you must send ListGroup to all brokers.
 		// same goes probably for topics
