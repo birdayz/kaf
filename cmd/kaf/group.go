@@ -25,16 +25,26 @@ import (
 	"time"
 )
 
+var (
+	flagPeekPartitions []int32
+	flagPeekBefore     int
+	flagPeekAfter      int
+)
+
 func init() {
 	rootCmd.AddCommand(groupCmd)
 	rootCmd.AddCommand(groupsCmd)
 	groupCmd.AddCommand(groupDescribeCmd)
 	groupCmd.AddCommand(groupLsCmd)
 	groupCmd.AddCommand(groupDeleteCmd)
+	groupCmd.AddCommand(groupPeekCmd)
 	groupCmd.AddCommand(createGroupCommitOffsetCmd())
 
 	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	groupsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+	groupPeekCmd.Flags().Int32SliceVarP(&flagPeekPartitions, "partitions", "p", []int32{}, "Partitions to peek from")
+	groupPeekCmd.Flags().IntVarP(&flagPeekBefore, "before", "B", 0, "Number of messages to peek before current offset")
+	groupPeekCmd.Flags().IntVarP(&flagPeekAfter, "after", "A", 0, "Number of messages to peek after current offset")
 }
 
 const (
@@ -274,6 +284,90 @@ var groupLsCmd = &cobra.Command{
 		}
 
 		w.Flush()
+	},
+}
+
+var groupPeekCmd = &cobra.Command{
+	Use:               "peek",
+	Short:             "Peek messages from consumer group offset",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: validGroupArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		admin := getClusterAdmin()
+
+		groups, err := admin.DescribeConsumerGroups([]string{args[0]})
+		if err != nil {
+			errorExit("Unable to describe consumer groups: %v\n", err)
+		}
+
+		if len(groups) == 0 {
+			errorExit("Did not receive expected describe consumergroup result\n")
+		}
+		group := groups[0]
+
+		if group.State == "Dead" {
+			fmt.Printf("Group %v not found.\n", args[0])
+			return
+		}
+
+		peekPartitions := make(map[int32]struct{})
+		for _, partition := range flagPeekPartitions {
+			peekPartitions[partition] = struct{}{}
+		}
+
+		offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], nil)
+		if err != nil {
+			errorExit("Failed to fetch group offsets: %v\n", err)
+		}
+
+		cfg := getConfig()
+		client := getClientFromConfig(cfg)
+		consumer, err := sarama.NewConsumerFromClient(client)
+		if err != nil {
+			errorExit("Unable to create consumer from client: %v\n", err)
+		}
+
+		mu := &sync.Mutex{}
+		wg := &sync.WaitGroup{}
+
+		for topic, partitions := range offsetAndMetadata.Blocks {
+			for partition, offset := range partitions {
+				_, ok := peekPartitions[partition]
+				if !ok {
+					continue
+				}
+
+				wg.Add(1)
+				go func(topic string, partition int32, offset int64) {
+					defer wg.Done()
+					var start int64
+					if offset > int64(flagPeekBefore) {
+						start = offset - int64(flagPeekBefore)
+					}
+
+					limit := int(offset-start) + 1 + flagPeekAfter
+					pc, err := consumer.ConsumePartition(topic, partition, start)
+					if err != nil {
+						errorExit("Unable to consume partition: %v %v %v %v\n", topic, partition, offset, err)
+					}
+
+					count := 0
+					for {
+						select {
+						case <-cmd.Context().Done():
+							return
+						case msg := <-pc.Messages():
+							handleMessage(msg, mu)
+							count++
+							if count == limit {
+								return
+							}
+						}
+					}
+				}(topic, partition, offset.Offset)
+			}
+		}
+		wg.Wait()
 	},
 }
 
