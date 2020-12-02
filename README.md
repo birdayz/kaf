@@ -44,6 +44,10 @@ Zsh
 
 ```kaf completion zsh > "${fpath[1]}/_kaf"```
 
+Fish
+
+```kaf completion fish > ~/.config/fish/completions/kaf.fish```
+
 Powershell
 
 ```Invoke-Expression (@(kaf completion powershell) -replace " ''\)$"," ' ')" -join "`n")```

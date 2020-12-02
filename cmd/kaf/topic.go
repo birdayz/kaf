@@ -168,20 +168,6 @@ var lsTopicsCmd = &cobra.Command{
 	},
 }
 
-func validTopicArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	admin := getClusterAdmin()
-
-	topics, err := admin.ListTopics()
-	if err != nil {
-		errorExit("Unable to list topics: %v\n", err)
-	}
-	topicList := make([]string, 0, len(topics))
-	for topic := range topics {
-		topicList = append(topicList, topic)
-	}
-	return topicList, cobra.ShellCompDirectiveNoFileComp
-}
-
 var describeTopicCmd = &cobra.Command{
 	Use:               "describe",
 	Short:             "Describe topic",
