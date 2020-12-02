@@ -10,7 +10,7 @@ func init() {
 
 var completionCmd = &cobra.Command{
 	Use:   "completion [SHELL]",
-	Short: "Generate completion script for bash, zsh or powershell",
+	Short: "Generate completion script for bash, zsh, fish or powershell",
 	Long: `To load completions:
 
 Bash:
@@ -29,10 +29,17 @@ Zsh:
 $ kaf completion zsh > "${fpath[1]}/_kaf"
 
 # You will need to start a new shell for this setup to take effect.
+
+Fish:
+
+$ kaf completion fish | source
+
+# To load completions for each session, execute once:
+$ kaf completion fish > ~/.config/fish/completions/kaf.fish
 `,
 	DisableFlagsInUseLine: true,
 	Args:                  cobra.ExactValidArgs(1),
-	ValidArgs:             []string{"bash", "zsh", "powershell"},
+	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Run: func(cmd *cobra.Command, args []string) {
 		switch args[0] {
 		case "bash":
@@ -43,6 +50,10 @@ $ kaf completion zsh > "${fpath[1]}/_kaf"
 		case "zsh":
 			if err := rootCmd.GenZshCompletion(outWriter); err != nil {
 				errorExit("Failed to generate zsh completion: %w", err)
+			}
+		case "fish":
+			if err := rootCmd.GenFishCompletion(outWriter, true); err != nil {
+				errorExit("Failed to generate fish completion: %w", err)
 			}
 		case "powershell":
 			err := rootCmd.GenPowerShellCompletion(outWriter)
