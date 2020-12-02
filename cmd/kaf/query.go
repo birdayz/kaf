@@ -26,10 +26,11 @@ func init() {
 }
 
 var queryCmd = &cobra.Command{
-	Use:    "query TOPIC",
-	Short:  "Query topic by key",
-	Args:   cobra.ExactArgs(1),
-	PreRun: setupProtoDescriptorRegistry,
+	Use:               "query TOPIC",
+	Short:             "Query topic by key",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: validTopicArgs,
+	PreRun:            setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
 		topic := args[0]
 		client := getClient()

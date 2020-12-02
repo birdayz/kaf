@@ -277,20 +277,6 @@ var groupLsCmd = &cobra.Command{
 	},
 }
 
-func validGroupArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	admin := getClusterAdmin()
-
-	groups, err := admin.ListConsumerGroups()
-	if err != nil {
-		errorExit("Unable to list consumer groups: %v\n", err)
-	}
-	groupList := make([]string, 0, len(groups))
-	for grp := range groups {
-		groupList = append(groupList, grp)
-	}
-	return groupList, cobra.ShellCompDirectiveNoFileComp
-}
-
 var groupDescribeCmd = &cobra.Command{
 	Use:               "describe",
 	Short:             "Describe consumer group",

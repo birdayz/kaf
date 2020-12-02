@@ -42,10 +42,11 @@ func init() {
 }
 
 var produceCmd = &cobra.Command{
-	Use:    "produce TOPIC",
-	Short:  "Produce record. Reads data from stdin.",
-	Args:   cobra.ExactArgs(1),
-	PreRun: setupProtoDescriptorRegistry,
+	Use:               "produce TOPIC",
+	Short:             "Produce record. Reads data from stdin.",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: validTopicArgs,
+	PreRun:            setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := getConfig()
 		if partitionerFlag != "" {
