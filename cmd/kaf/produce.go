@@ -24,7 +24,6 @@ var (
 	timestampFlag   string
 	partitionFlag   int32
 	bufferSizeFlag  int
-	byLineFlag      bool
 	inputModeFlag   string
 )
 
