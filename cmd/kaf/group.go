@@ -29,7 +29,7 @@ var (
 	flagPeekPartitions []int32
 	flagPeekBefore     int64
 	flagPeekAfter      int64
-	flagPeekTopic      string
+	flagPeekTopics     []string
 )
 
 func init() {
@@ -44,7 +44,7 @@ func init() {
 	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	groupsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 
-	groupPeekCmd.Flags().StringVarP(&flagPeekTopic, "topic", "t", "", "Topic")
+	groupPeekCmd.Flags().StringSliceVarP(&flagPeekTopics, "topics", "t", []string{}, "Topics to peek from")
 	groupPeekCmd.Flags().Int32SliceVarP(&flagPeekPartitions, "partitions", "p", []int32{}, "Partitions to peek from")
 	groupPeekCmd.Flags().Int64VarP(&flagPeekBefore, "before", "B", 0, "Number of messages to peek before current offset")
 	groupPeekCmd.Flags().Int64VarP(&flagPeekAfter, "after", "A", 0, "Number of messages to peek after current offset")
@@ -319,26 +319,29 @@ var groupPeekCmd = &cobra.Command{
 		}
 
 		var topicPartitions map[string][]int32
-		if flagPeekTopic != "" {
-			topicDetails, err := admin.DescribeTopics([]string{flagPeekTopic})
+		if len(flagPeekTopics) > 0 {
+			topicPartitions = make(map[string][]int32, len(flagPeekTopics))
+		}
+		for _, topic := range flagPeekTopics {
+			topicDetails, err := admin.DescribeTopics([]string{topic})
 			if err != nil {
 				errorExit("Unable to describe topics: %v\n", err)
 			}
 
 			detail := topicDetails[0]
 			if detail.Err == sarama.ErrUnknownTopicOrPartition {
-				fmt.Printf("Topic %v not found.\n", flagPeekTopic)
+				fmt.Printf("Topic %v not found.\n", topic)
 				return
 			}
 
 			if len(flagPeekPartitions) > 0 {
-				topicPartitions = map[string][]int32{flagPeekTopic: flagPeekPartitions}
+				topicPartitions[topic] = flagPeekPartitions
 			} else {
 				partitions := make([]int32, 0, len(detail.Partitions))
 				for _, partition := range detail.Partitions {
 					partitions = append(partitions, partition.ID)
 				}
-				topicPartitions = map[string][]int32{flagPeekTopic: partitions}
+				topicPartitions[topic] = partitions
 			}
 		}
 
