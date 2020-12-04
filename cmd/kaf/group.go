@@ -27,8 +27,9 @@ import (
 
 var (
 	flagPeekPartitions []int32
-	flagPeekBefore     int
-	flagPeekAfter      int
+	flagPeekBefore     int64
+	flagPeekAfter      int64
+	flagPeekTopic      string
 )
 
 func init() {
@@ -42,9 +43,11 @@ func init() {
 
 	groupLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	groupsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+
+	groupPeekCmd.Flags().StringVarP(&flagPeekTopic, "topic", "t", "", "Topic")
 	groupPeekCmd.Flags().Int32SliceVarP(&flagPeekPartitions, "partitions", "p", []int32{}, "Partitions to peek from")
-	groupPeekCmd.Flags().IntVarP(&flagPeekBefore, "before", "B", 0, "Number of messages to peek before current offset")
-	groupPeekCmd.Flags().IntVarP(&flagPeekAfter, "after", "A", 0, "Number of messages to peek after current offset")
+	groupPeekCmd.Flags().Int64VarP(&flagPeekBefore, "before", "B", 0, "Number of messages to peek before current offset")
+	groupPeekCmd.Flags().Int64VarP(&flagPeekAfter, "after", "A", 0, "Number of messages to peek after current offset")
 }
 
 const (
@@ -315,7 +318,31 @@ var groupPeekCmd = &cobra.Command{
 			peekPartitions[partition] = struct{}{}
 		}
 
-		offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], nil)
+		var topicPartitions map[string][]int32
+		if flagPeekTopic != "" {
+			topicDetails, err := admin.DescribeTopics([]string{flagPeekTopic})
+			if err != nil {
+				errorExit("Unable to describe topics: %v\n", err)
+			}
+
+			detail := topicDetails[0]
+			if detail.Err == sarama.ErrUnknownTopicOrPartition {
+				fmt.Printf("Topic %v not found.\n", flagPeekTopic)
+				return
+			}
+
+			if len(flagPeekPartitions) > 0 {
+				topicPartitions = map[string][]int32{flagPeekTopic: flagPeekPartitions}
+			} else {
+				partitions := make([]int32, 0, len(detail.Partitions))
+				for _, partition := range detail.Partitions {
+					partitions = append(partitions, partition.ID)
+				}
+				topicPartitions = map[string][]int32{flagPeekTopic: partitions}
+			}
+		}
+
+		offsetAndMetadata, err := admin.ListConsumerGroupOffsets(args[0], topicPartitions)
 		if err != nil {
 			errorExit("Failed to fetch group offsets: %v\n", err)
 		}
@@ -332,34 +359,33 @@ var groupPeekCmd = &cobra.Command{
 
 		for topic, partitions := range offsetAndMetadata.Blocks {
 			for partition, offset := range partitions {
-				_, ok := peekPartitions[partition]
-				if !ok {
-					continue
+				if len(peekPartitions) > 0 {
+					_, ok := peekPartitions[partition]
+					if !ok {
+						continue
+					}
 				}
 
 				wg.Add(1)
 				go func(topic string, partition int32, offset int64) {
 					defer wg.Done()
 					var start int64
-					if offset > int64(flagPeekBefore) {
-						start = offset - int64(flagPeekBefore)
+					if offset > flagPeekBefore {
+						start = offset - flagPeekBefore
 					}
 
-					limit := int(offset-start) + 1 + flagPeekAfter
 					pc, err := consumer.ConsumePartition(topic, partition, start)
 					if err != nil {
 						errorExit("Unable to consume partition: %v %v %v %v\n", topic, partition, offset, err)
 					}
 
-					count := 0
 					for {
 						select {
 						case <-cmd.Context().Done():
 							return
 						case msg := <-pc.Messages():
 							handleMessage(msg, mu)
-							count++
-							if count == limit {
+							if msg.Offset >= offset+flagPeekAfter {
 								return
 							}
 						}
