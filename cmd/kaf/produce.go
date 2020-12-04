@@ -45,11 +45,11 @@ func init() {
 	produceCmd.Flags().Int32VarP(&partitionFlag, "partition", "p", -1, "Partition to produce to")
 
 	produceCmd.Flags().IntVarP(&bufferSizeFlag, "buffer-size", "B", 0, "Buffer size for scanning input")
-	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "M", "single", "Scanning input mode: [single|byline]")
+	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "M", "byline", "Scanning input mode: [single|byline]")
 }
 
 func readLines(reader io.Reader, out chan []byte) {
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := bufio.NewScanner(reader)
 	if bufferSizeFlag > 0 {
 		scanner.Buffer(make([]byte, bufferSizeFlag), bufferSizeFlag)
 	}
@@ -186,6 +186,5 @@ var produceCmd = &cobra.Command{
 				fmt.Fprintf(outWriter, "Sent record to partition %v at offset %v.\n", partition, offset)
 			}
 		}
-
 	},
 }
