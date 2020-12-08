@@ -33,6 +33,8 @@ var (
 
 	flagPartitions []int32
 
+	limitMessagesFlag int64
+
 	reg *proto.DescriptorRegistry
 )
 
@@ -46,6 +48,7 @@ func init() {
 	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 	consumeCmd.Flags().StringVar(&keyProtoType, "key-proto-type", "", "Fully qualified name of the proto key type. Example: com.test.SampleMessage")
 	consumeCmd.Flags().Int32SliceVarP(&flagPartitions, "partitions", "p", []int32{}, "Partitions to consume from")
+	consumeCmd.Flags().Int64VarP(&limitMessagesFlag, "limit-messages", "l", 0, "Limit messages per partition")
 	consumeCmd.Flags().StringVarP(&groupFlag, "group", "g", "", "Consumer Group to use for consume")
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
 
@@ -205,6 +208,9 @@ func withoutConsumerGroup(ctx context.Context, client sarama.Client, topic strin
 					return
 				case msg := <-pc.Messages():
 					handleMessage(msg, &mu)
+					if limitMessagesFlag > 0 && msg.Offset >= offset+limitMessagesFlag {
+						return
+					}
 				}
 			}
 		}(partition, offset)
