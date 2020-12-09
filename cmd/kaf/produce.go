@@ -43,8 +43,8 @@ func init() {
 	produceCmd.Flags().StringVar(&timestampFlag, "timestamp", "", "Select timestamp for record")
 	produceCmd.Flags().Int32VarP(&partitionFlag, "partition", "p", -1, "Partition to produce to")
 
-	produceCmd.Flags().IntVarP(&bufferSizeFlag, "buffer-size", "B", 0, "Buffer size for scanning input")
-	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "M", "byline", "Scanning input mode: [single|byline]")
+	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "", "line", "Scanning input mode: [line|full]")
+	produceCmd.Flags().IntVarP(&bufferSizeFlag, "line-length-limit", "", 0, "line length limit in line input mode")
 }
 
 func readLines(reader io.Reader, out chan []byte) {
@@ -63,7 +63,7 @@ func readLines(reader io.Reader, out chan []byte) {
 	}
 }
 
-func readSingle(reader io.Reader, out chan []byte) {
+func readFull(reader io.Reader, out chan []byte) {
 	data, err := ioutil.ReadAll(inReader)
 	if err != nil {
 		errorExit("Unable to read data\n")
@@ -100,8 +100,8 @@ var produceCmd = &cobra.Command{
 
 		out := make(chan []byte, 1)
 		switch inputModeFlag {
-		case "single":
-			go readSingle(inReader, out)
+		case "full":
+			go readFull(inReader, out)
 		default:
 			go readLines(inReader, out)
 		}
