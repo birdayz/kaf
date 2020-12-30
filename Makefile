@@ -1,7 +1,7 @@
 build:
-	GO111MODULE=on go build -ldflags "-w -s" ./cmd/kaf
+	go build -ldflags "-w -s" ./cmd/kaf
 install:
-	GO111MODULE=on go install -ldflags "-w -s" ./cmd/kaf
+	go install -ldflags "-w -s" ./cmd/kaf
 release:
 	rm -rf dist/ && goreleaser
 run-kafka:
