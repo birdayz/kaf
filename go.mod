@@ -23,7 +23,7 @@ require (
 	github.com/nicksnyder/go-i18n v1.10.1 // indirect
 	github.com/orlangure/gnomock v0.9.4
 	github.com/samuel/go-zookeeper v0.0.0-20190923202752-2cc03de413da // indirect
-	github.com/spf13/cobra v1.1.1
+	github.com/spf13/cobra v1.1.2-0.20201229145732-a4ab3fa09e3d
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.0 // indirect
 	github.com/wvanbergen/kazoo-go v0.0.0-20180202103751-f72d8611297a // indirect
