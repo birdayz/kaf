@@ -39,3 +39,5 @@ require (
 	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v2 v2.2.4
 )
+
+replace github.com/birdayz/kaf v1.4.0 => github.com/lihuacai168/kaf v1.4.0
