@@ -222,6 +222,7 @@ var describeTopicCmd = &cobra.Command{
 			partitions = append(partitions, partition.ID)
 		}
 		highWatermarks := getHighWatermarks(args[0], partitions)
+		highWatermarksSum := 0
 
 		for _, partition := range detail.Partitions {
 			sortedReplicas := partition.Replicas
@@ -230,8 +231,16 @@ var describeTopicCmd = &cobra.Command{
 			sortedISR := partition.Isr
 			sort.Slice(sortedISR, func(i, j int) bool { return sortedISR[i] < sortedISR[j] })
 
+			highWatermarksSum += int(highWatermarks[partition.ID])
+
 			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.ID, highWatermarks[partition.ID], partition.Leader, sortedReplicas, sortedISR)
 		}
+
+		w.Flush()
+
+		fmt.Fprintf(w, "Summed HighWatermark:\t%d\n", highWatermarksSum)
+		w.Flush()
+
 		fmt.Fprintf(w, "Config:\n")
 		fmt.Fprintf(w, "\tName\tValue\tReadOnly\tSensitive\t\n")
 		fmt.Fprintf(w, "\t----\t-----\t--------\t---------\t\n")
