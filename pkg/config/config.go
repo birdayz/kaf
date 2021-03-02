@@ -10,9 +10,12 @@ import (
 )
 
 type SASL struct {
-	Mechanism string
-	Username  string
-	Password  string
+	Mechanism string `yaml:"mechanism"`
+	Username  string `yaml:"username"`
+	Password  string `yaml:"password"`
+	ClientID  string `yaml:"clientID"`
+	Secret    string `yaml:"secret"`
+	TokenURL  string `yaml:"tokenURL"`
 }
 
 type TLS struct {
