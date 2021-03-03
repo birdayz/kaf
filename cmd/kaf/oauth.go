@@ -42,7 +42,7 @@ func newTokenProvider() *tokenProvider {
 		tokenProv = &tokenProvider{
 			oauthClientCFG: &clientcredentials.Config{
 				ClientID:     cluster.SASL.ClientID,
-				ClientSecret: cluster.SASL.Secret,
+				ClientSecret: cluster.SASL.ClientSecret,
 				TokenURL:     cluster.SASL.TokenURL,
 			},
 		}

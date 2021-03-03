@@ -5,7 +5,7 @@ clusters:
   SASL:
     mechanism: OAUTHBEARER
     clientID: my_client_oauth
-    secret: my_secret_oauth
+    clientSecret: my_secret_oauth
     tokenURL: https//some.token.endpoint.com/token
   TLS: 
     insecure: true
