@@ -46,7 +46,7 @@ List topics, partitions and replicas
 
 Describe a given topic called _mqtt.messages.incoming_
 
-`kaf topics describe mqtt.messages.incoming`
+`kaf topic describe mqtt.messages.incoming`
 
 List consumer groups
 
