@@ -1,0 +1,12 @@
+clusters:
+- name: test
+  brokers:
+  - localhost:9092
+  SASL:
+    mechanism: OAUTHBEARER
+    clientID: my_client_oauth
+    clientSecret: my_secret_oauth
+    tokenURL: https//some.token.endpoint.com/token
+  TLS: 
+    insecure: true
+  security-protocol: SASL_SSL

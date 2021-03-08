@@ -36,8 +36,10 @@ func getConfig() (saramaConfig *sarama.Config) {
 	}
 	if cluster.SASL != nil {
 		saramaConfig.Net.SASL.Enable = true
-		saramaConfig.Net.SASL.User = cluster.SASL.Username
-		saramaConfig.Net.SASL.Password = cluster.SASL.Password
+		if cluster.SASL.Mechanism != "OAUTHBEARER" {
+			saramaConfig.Net.SASL.User = cluster.SASL.Username
+			saramaConfig.Net.SASL.Password = cluster.SASL.Password
+		}
 	}
 	if cluster.TLS != nil && cluster.SecurityProtocol != "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
@@ -103,6 +105,11 @@ func getConfig() (saramaConfig *sarama.Config) {
 		} else if cluster.SASL.Mechanism == "SCRAM-SHA-256" {
 			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeSCRAMSHA256)
+		} else if cluster.SASL.Mechanism == "OAUTHBEARER" {
+			//Here setup get token function
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeOAuth)
+			saramaConfig.Net.SASL.TokenProvider = newTokenProvider()
+
 		}
 	}
 	return saramaConfig
