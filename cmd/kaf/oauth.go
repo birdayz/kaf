@@ -33,43 +33,61 @@ type tokenProvider struct {
 	ctx context.Context
 	// cfg for token fetching from
 	oauthClientCFG *clientcredentials.Config
+	// static token
+	staticToken bool
 }
 
 // This is a singleton
 func newTokenProvider() *tokenProvider {
 	once.Do(func() {
 		cluster := currentCluster
-		tokenProv = &tokenProvider{
-			oauthClientCFG: &clientcredentials.Config{
-				ClientID:     cluster.SASL.ClientID,
-				ClientSecret: cluster.SASL.ClientSecret,
-				TokenURL:     cluster.SASL.TokenURL,
-			},
-		}
-		// create context with timeout
-		ctx := context.Background()
-		httpClient := &http.Client{Timeout: tokenFetchTimeout}
-		ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
-		tokenProv.ctx = ctx
 
-		// get first token
-		firstToken, err := tokenProv.oauthClientCFG.Token(ctx)
-		if err != nil {
-			panic("Could not fetch OAUTH token: " + err.Error())
+		//token either from tokenURL or static
+		if len(cluster.SASL.Token) != 0 {
+			tokenProv = &tokenProvider{
+				oauthClientCFG: &clientcredentials.Config{},
+				staticToken:    true,
+				currentToken:   cluster.SASL.Token,
+			}
+		} else {
+			tokenProv = &tokenProvider{
+				oauthClientCFG: &clientcredentials.Config{
+					ClientID:     cluster.SASL.ClientID,
+					ClientSecret: cluster.SASL.ClientSecret,
+					TokenURL:     cluster.SASL.TokenURL,
+				},
+				staticToken: false,
+			}
 		}
-		tokenProv.currentToken = firstToken.AccessToken
-		tokenProv.expiresAt = firstToken.Expiry
-		tokenProv.replaceAt = firstToken.Expiry.Add(-refreshBuffer)
+		if !tokenProv.staticToken {
+			// create context with timeout
+			ctx := context.Background()
+			httpClient := &http.Client{Timeout: tokenFetchTimeout}
+			ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+			tokenProv.ctx = ctx
+
+			// get first token
+			firstToken, err := tokenProv.oauthClientCFG.Token(ctx)
+			if err != nil {
+				errorExit("Could not fetch OAUTH token: " + err.Error())
+			}
+			tokenProv.currentToken = firstToken.AccessToken
+			tokenProv.expiresAt = firstToken.Expiry
+			tokenProv.replaceAt = firstToken.Expiry.Add(-refreshBuffer)
+		}
 	})
 	return tokenProv
 }
 
 func (tp *tokenProvider) Token() (*sarama.AccessToken, error) {
-	if time.Now().After(tp.replaceAt) {
-		if err := tp.refreshToken(); err != nil {
-			return nil, err
-		}
 
+	if !tp.staticToken {
+		if time.Now().After(tp.replaceAt) {
+			if err := tp.refreshToken(); err != nil {
+				return nil, err
+			}
+
+		}
 	}
 	return &sarama.AccessToken{
 		Token:      tp.currentToken,

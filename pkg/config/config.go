@@ -16,6 +16,7 @@ type SASL struct {
 	ClientID     string `yaml:"clientID"`
 	ClientSecret string `yaml:"clientSecret"`
 	TokenURL     string `yaml:"tokenURL"`
+	Token        string `yaml:"token"`
 }
 
 type TLS struct {
