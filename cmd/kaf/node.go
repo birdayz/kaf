@@ -33,7 +33,7 @@ var nodeLsCommand = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		brokers, _, err := admin.DescribeCluster()
+		brokers, ctlID, err := admin.DescribeCluster()
 		if err != nil {
 			errorExit("Unable to describe cluster: %v\n", err)
 		}
@@ -44,11 +44,11 @@ var nodeLsCommand = &cobra.Command{
 
 		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		if !noHeaderFlag {
-			fmt.Fprintf(w, "ID\tADDRESS\t\n")
+			_, _ = fmt.Fprintf(w, "ID\tADDRESS\tcontroller\t\n")
 		}
 
 		for _, broker := range brokers {
-			fmt.Fprintf(w, "%v\t%v\t\n", broker.ID(), broker.Addr())
+			_, _ = fmt.Fprintf(w, "%v\t%v\t%v\t\n", broker.ID(), broker.Addr(), broker.ID() == ctlID)
 		}
 
 		w.Flush()
