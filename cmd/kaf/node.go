@@ -44,7 +44,7 @@ var nodeLsCommand = &cobra.Command{
 
 		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 		if !noHeaderFlag {
-			_, _ = fmt.Fprintf(w, "ID\tADDRESS\tcontroller\t\n")
+			_, _ = fmt.Fprintf(w, "ID\tADDRESS\tCONTROLLER\t\n")
 		}
 
 		for _, broker := range brokers {
