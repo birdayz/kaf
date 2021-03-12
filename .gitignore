@@ -1,4 +1,5 @@
 /cmd/kaf/kaf
 /dist
 /kaf*
+.idea
 
