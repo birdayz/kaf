@@ -1,0 +1,10 @@
+clusters:
+- name: test
+  brokers:
+  - localhost:9092
+  SASL:
+    mechanism: OAUTHBEARER
+    token: someTOKENfromYOURprovider=====
+  TLS: 
+    insecure: true
+  security-protocol: SASL_SSL
