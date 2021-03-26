@@ -6,10 +6,11 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"sync"
 	"text/tabwriter"
 	"time"
+
+	"strconv"
 
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/avro"
@@ -106,6 +107,16 @@ var consumeCmd = &cobra.Command{
 		cfg.Consumer.Offsets.Initial = offset
 		topic := args[0]
 		client := getClientFromConfig(cfg)
+
+		// Switch offset to number provided by user, if it's a number
+		switch offsetFlag {
+		case "oldest":
+		case "newest":
+		default:
+			if o, err := strconv.Atoi(offsetFlag); err == nil {
+				offset = int64(o)
+			}
+		}
 
 		if groupFlag != "" {
 			withConsumerGroup(cmd.Context(), client, topic, groupFlag)
