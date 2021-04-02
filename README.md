@@ -54,7 +54,7 @@ List consumer groups
 
 Describe a given consumer group called _dispatcher_
 
-`kafa group describe dispatcher`
+`kaf group describe dispatcher`
 
 Write message into given topic from stdin
 
