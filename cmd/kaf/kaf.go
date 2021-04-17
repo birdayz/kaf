@@ -152,6 +152,7 @@ var (
 	schemaRegistryURL string
 	protoFiles        []string
 	protoExclude      []string
+	decodeMsgPack     bool
 	verbose           bool
 	clusterOverride   string
 )

@@ -18,6 +18,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 var (
@@ -46,6 +47,7 @@ func init() {
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition. Overrides --offset flag")
 	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
 	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
+	consumeCmd.Flags().BoolVar(&decodeMsgPack, "decode-msgpack", false, "Enable deserializing msgpack")
 	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 	consumeCmd.Flags().StringVar(&keyProtoType, "key-proto-type", "", "Fully qualified name of the proto key type. Example: com.test.SampleMessage")
 	consumeCmd.Flags().Int32SliceVarP(&flagPartitions, "partitions", "p", []int32{}, "Partitions to consume from")
@@ -257,6 +259,19 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		keyToDisplay, err = avroDecode(msg.Key)
 		if err != nil {
 			fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+		}
+	}
+
+	if decodeMsgPack {
+		var obj interface{}
+		err = msgpack.Unmarshal(msg.Value, &obj)
+		if err != nil {
+			fmt.Fprintf(&stderr, "could not decode msgpack data: %v\n", err)
+		}
+
+		dataToDisplay, err = json.Marshal(obj)
+		if err != nil {
+			fmt.Fprintf(&stderr, "could not decode msgpack data: %v\n", err)
 		}
 	}
 

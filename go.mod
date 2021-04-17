@@ -26,6 +26,7 @@ require (
 	github.com/spf13/cobra v1.1.2-0.20201229145732-a4ab3fa09e3d
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.0 // indirect
+	github.com/vmihailenco/msgpack/v5 v5.3.1
 	github.com/wvanbergen/kazoo-go v0.0.0-20180202103751-f72d8611297a // indirect
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
