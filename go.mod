@@ -1,6 +1,6 @@
 module github.com/birdayz/kaf
 
-go 1.13
+go 1.16
 
 require (
 	github.com/Landoop/schema-registry v0.0.0-20190327143759-50a5701c1891
