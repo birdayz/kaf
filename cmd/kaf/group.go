@@ -137,8 +137,10 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 	var allPartitions bool
 	var noconfirm bool
 	res := &cobra.Command{
-		Use:  "commit",
-		Args: cobra.ExactArgs(1),
+		Use:   "commit",
+		Short: "Set offset for given consumer group",
+		Long:  "Set offset for a given consumer group, creates one if it does not exist. Offsets cannot be set on a consumer group with active consumers.",
+		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getClient()
 
@@ -162,6 +164,18 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 				partitions = []int32{partitionFlag}
 			} else {
 				errorExit("Either --partition or --all-partitions flag must be provided")
+			}
+
+			admin := getClusterAdmin()
+			groupDescs, err := admin.DescribeConsumerGroups([]string{args[0]})
+			if err != nil {
+				errorExit("Unable to describe consumer groups: %v\n", err)
+			}
+			for _, detail := range groupDescs {
+				state := detail.State
+				if state != "Empty" {
+					errorExit("Consumer group %s has active consumers in it, cannot set offset\n", group)
+				}
 			}
 
 			sort.Slice(partitions, func(i int, j int) bool { return partitions[i] < partitions[j] })
