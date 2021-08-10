@@ -60,6 +60,10 @@ Write message into given topic from stdin
 
 `echo test | kaf produce mqtt.messages.incoming`
 
+Set offset for consumer group _dispatcher_ consuming from topic _mqtt.messages.incoming_ to latest for all partitions
+
+`kaf group commit dispatcher -t mqtt.messages.incoming --offset latest --all-partitions`
+
 ## Configuration
 See the [examples](examples) folder
 
