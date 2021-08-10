@@ -21,8 +21,10 @@ func TestMain(m *testing.M) {
 }
 
 func testMain(m *testing.M) (code int) {
-	p := kafka.Preset(kafka.WithTopics("kaf-testing", "gnomock-kafka"))
-	c, err := gnomock.Start(p)
+	c, err := gnomock.Start(
+		kafka.Preset(kafka.WithTopics("kaf-testing", "gnomock-kafka")),
+		gnomock.WithContainerName("kaf-kafka"),
+	)
 	if err != nil {
 		return 1
 	}
