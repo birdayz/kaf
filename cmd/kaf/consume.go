@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"sync"
 	"text/tabwriter"
-	"time"
 
 	"strconv"
 
@@ -27,6 +26,7 @@ var (
 	groupCommitFlag bool
 	raw             bool
 	follow          bool
+	tail            int32
 	schemaCache     *avro.SchemaCache
 	keyfmt          *prettyjson.Formatter
 
@@ -42,9 +42,10 @@ var (
 
 func init() {
 	rootCmd.AddCommand(consumeCmd)
-	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest.")
+	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest, or integer.")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON")
-	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Shorthand to start consuming with offset HEAD-1 on each partition. Overrides --offset flag")
+	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Continue to consume messages until program execution is interrupted/terminated")
+	consumeCmd.Flags().Int32VarP(&tail, "tail", "n", 0, "Print last n messages per partition")
 	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
 	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	consumeCmd.Flags().BoolVar(&decodeMsgPack, "decode-msgpack", false, "Enable deserializing msgpack")
@@ -60,30 +61,27 @@ func init() {
 	keyfmt.Indent = 0
 }
 
-func getAvailableOffsetsRetry(
-	ldr *sarama.Broker, req *sarama.OffsetRequest, d time.Duration,
-) (*sarama.OffsetResponse, error) {
-	var (
-		err     error
-		offsets *sarama.OffsetResponse
-	)
-
-	for {
-		select {
-		case <-time.After(d):
-			return nil, err
-		default:
-			offsets, err = ldr.GetAvailableOffsets(req)
-			if err == nil {
-				return offsets, err
-			}
-		}
-	}
+type offsets struct {
+	newest int64
+	oldest int64
 }
 
-const (
-	offsetsRetry = 500 * time.Millisecond
-)
+func getOffsets(client sarama.Client, topic string, partition int32) (*offsets, error) {
+	newest, err := client.GetOffset(topic, partition, sarama.OffsetNewest)
+	if err != nil {
+		return nil, err
+	}
+
+	oldest, err := client.GetOffset(topic, partition, sarama.OffsetOldest)
+	if err != nil {
+		return nil, err
+	}
+
+	return &offsets{
+		newest: newest,
+		oldest: oldest,
+	}, nil
+}
 
 var consumeCmd = &cobra.Command{
 	Use:               "consume TOPIC",
@@ -93,31 +91,23 @@ var consumeCmd = &cobra.Command{
 	PreRun:            setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
 		var offset int64
-		switch offsetFlag {
-		case "oldest":
-			offset = sarama.OffsetOldest
-		case "newest":
-			offset = sarama.OffsetNewest
-		default:
-			// TODO: normally we would parse this to int64 but it's
-			// difficult as we can have multiple partitions. need to
-			// find a way to give offsets from CLI with a good
-			// syntax.
-			offset = sarama.OffsetNewest
-		}
 		cfg := getConfig()
-		cfg.Consumer.Offsets.Initial = offset
 		topic := args[0]
 		client := getClientFromConfig(cfg)
 
-		// Switch offset to number provided by user, if it's a number
 		switch offsetFlag {
 		case "oldest":
+			offset = sarama.OffsetOldest
+			cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
 		case "newest":
+			offset = sarama.OffsetNewest
+			cfg.Consumer.Offsets.Initial = sarama.OffsetNewest
 		default:
-			if o, err := strconv.Atoi(offsetFlag); err == nil {
-				offset = int64(o)
+			o, err := strconv.ParseInt(offsetFlag, 10, 64)
+			if err != nil {
+				errorExit("Could not parse '%s' to int64: %w", offsetFlag, err)
 			}
+			offset = o
 		}
 
 		if groupFlag != "" {
@@ -184,28 +174,26 @@ func withoutConsumerGroup(ctx context.Context, client sarama.Client, topic strin
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{} // Synchronizes stderr and stdout.
 	for _, partition := range partitions {
-
 		wg.Add(1)
 
 		go func(partition int32, offset int64) {
-			req := &sarama.OffsetRequest{
-				Version: int16(1),
-			}
-			req.AddBlock(topic, partition, int64(-1), int32(0))
-			ldr, err := client.Leader(topic, partition)
+			defer wg.Done()
+
+			offsets, err := getOffsets(client, topic, partition)
 			if err != nil {
-				errorExit("Unable to get leader: %v\n", err)
+				errorExit("Failed to get %s offsets for partition %d: %w", topic, partition, err)
 			}
 
-			offsets, err := getAvailableOffsetsRetry(ldr, req, offsetsRetry)
-			if err != nil {
-				errorExit("Unable to get available offsets: %v\n", err)
+			if tail != 0 {
+				offset = offsets.newest - int64(tail)
+				if offset < offsets.oldest {
+					offset = offsets.oldest
+				}
 			}
-			followOffset := offsets.GetBlock(topic, partition).Offset - 1
 
-			if follow && followOffset > 0 {
-				offset = followOffset
-				fmt.Fprintf(errWriter, "Starting on partition %v with offset %v\n", partition, offset)
+			// Already at end of partition, return early
+			if !follow && offsets.newest == offsets.oldest {
+				return
 			}
 
 			pc, err := consumer.ConsumePartition(topic, partition, offset)
@@ -213,15 +201,18 @@ func withoutConsumerGroup(ctx context.Context, client sarama.Client, topic strin
 				errorExit("Unable to consume partition: %v %v %v %v\n", topic, partition, offset, err)
 			}
 
-			defer wg.Done()
-
+			var count int64 = 0
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case msg := <-pc.Messages():
 					handleMessage(msg, &mu)
-					if limitMessagesFlag > 0 && msg.Offset >= offset+limitMessagesFlag {
+					count++
+					if limitMessagesFlag > 0 && count >= limitMessagesFlag {
+						return
+					}
+					if !follow && msg.Offset+1 >= pc.HighWaterMarkOffset() {
 						return
 					}
 				}
