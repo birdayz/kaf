@@ -11,7 +11,7 @@ Kafka CLI inspired by kubectl & docker
 Install from source:
 
 ```
-go get -u github.com/birdayz/kaf/cmd/kaf
+go get install github.com/birdayz/kaf/cmd/kaf@latest
 ```
 
 Install binary:
