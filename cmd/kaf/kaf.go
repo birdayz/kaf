@@ -123,9 +123,15 @@ var (
 	colorableOut io.Writer = colorable.NewColorableStdout()
 )
 
+// Will be replaced by GitHub action and by goreleaser
+// see https://goreleaser.com/customization/build/
+var commit string = "HEAD"
+var version string = "latest"
+
 var rootCmd = &cobra.Command{
-	Use:   "kaf",
-	Short: "Kafka Command Line utility for cluster management",
+	Use:     "kaf",
+	Short:   "Kafka Command Line utility for cluster management",
+	Version: fmt.Sprintf("%s (%s)", version, commit),
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		outWriter = cmd.OutOrStdout()
 		errWriter = cmd.ErrOrStderr()
