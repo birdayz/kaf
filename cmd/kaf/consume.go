@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"sync"
 	"text/tabwriter"
 
@@ -38,6 +39,9 @@ var (
 	limitMessagesFlag int64
 
 	reg *proto.DescriptorRegistry
+
+	keySearch string
+	valueGrep string
 )
 
 func init() {
@@ -55,6 +59,9 @@ func init() {
 	consumeCmd.Flags().Int64VarP(&limitMessagesFlag, "limit-messages", "l", 0, "Limit messages per partition")
 	consumeCmd.Flags().StringVarP(&groupFlag, "group", "g", "", "Consumer Group to use for consume")
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
+
+	consumeCmd.Flags().StringVarP(&keySearch, "key", "k", "", "Key to search for")
+	consumeCmd.Flags().StringVarP(&valueGrep, "grep", "e", "", "Value to search for")
 
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
@@ -229,18 +236,6 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 	var keyToDisplay []byte
 	var err error
 
-	if protoType != "" {
-		dataToDisplay, err = protoDecode(reg, msg.Value, protoType)
-		if err != nil {
-			fmt.Fprintf(&stderr, "failed to decode proto. falling back to binary outputla. Error: %v\n", err)
-		}
-	} else {
-		dataToDisplay, err = avroDecode(msg.Value)
-		if err != nil {
-			fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
-		}
-	}
-
 	if keyProtoType != "" {
 		keyToDisplay, err = protoDecode(reg, msg.Key, keyProtoType)
 		if err != nil {
@@ -248,6 +243,18 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		}
 	} else {
 		keyToDisplay, err = avroDecode(msg.Key)
+		if err != nil {
+			fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
+		}
+	}
+
+	if protoType != "" {
+		dataToDisplay, err = protoDecode(reg, msg.Value, protoType)
+		if err != nil {
+			fmt.Fprintf(&stderr, "failed to decode proto. falling back to binary outputla. Error: %v\n", err)
+		}
+	} else {
+		dataToDisplay, err = avroDecode(msg.Value)
 		if err != nil {
 			fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
 		}
@@ -266,6 +273,14 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		}
 	}
 
+	if keySearch != "" && keySearch != string(keyToDisplay) {
+		return
+	}
+
+	if valueGrep != "" && !strings.Contains(string(dataToDisplay), grepValue) {
+		return
+	}
+
 	if !raw {
 		if isJSON(dataToDisplay) {
 			dataToDisplay = formatValue(dataToDisplay)
@@ -279,24 +294,9 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 
 		if len(msg.Headers) > 0 {
 			fmt.Fprintf(w, "Headers:\n")
-		}
-
-		for _, hdr := range msg.Headers {
-			var hdrValue string
-			// Try to detect azure eventhub-specific encoding
-			if len(hdr.Value) > 0 {
-				switch hdr.Value[0] {
-				case 161:
-					hdrValue = string(hdr.Value[2 : 2+hdr.Value[1]])
-				case 131:
-					hdrValue = strconv.FormatUint(binary.BigEndian.Uint64(hdr.Value[1:9]), 10)
-				default:
-					hdrValue = string(hdr.Value)
-				}
+			for hkey, hvalue := range getHeaders(msg) {
+				fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", hkey, hvalue)
 			}
-
-			fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", string(hdr.Key), hdrValue)
-
 		}
 
 		if msg.Key != nil && len(msg.Key) > 0 {
@@ -312,6 +312,26 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 	fmt.Fprintln(outWriter)
 	mu.Unlock()
 
+}
+
+func getHeaders(msg *sarama.ConsumerMessage) map[string]string {
+	var headers = make(map[string]string)
+	for _, hdr := range msg.Headers {
+		var hdrValue string
+		// Try to detect azure eventhub-specific encoding
+		if len(hdr.Value) > 0 {
+			switch hdr.Value[0] {
+			case 161:
+				hdrValue = string(hdr.Value[2 : 2+hdr.Value[1]])
+			case 131:
+				hdrValue = strconv.FormatUint(binary.BigEndian.Uint64(hdr.Value[1:9]), 10)
+			default:
+				hdrValue = string(hdr.Value)
+			}
+		}
+		headers[string(hdr.Key)] = hdrValue
+	}
+	return headers
 }
 
 // proto to JSON
