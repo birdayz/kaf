@@ -28,6 +28,10 @@ yay -S kaf
 
 ## Usage
 
+Show the tool version
+
+`kaf --version`
+
 Add a local Kafka with no auth
 
 `kaf config add-cluster local -b localhost:9092`

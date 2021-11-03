@@ -23,7 +23,7 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Build
-      run: go build -v ./cmd/kaf
+      run: go build -v -ldflags "-s -w -X main.version=$GITHUB_REF -X main.commit=${GITHUB_SHA::8}" ./cmd/kaf
 
     - name: Test
       run: go test -v ./...
