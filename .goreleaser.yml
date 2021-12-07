@@ -12,6 +12,7 @@ builds:
   main: ./cmd/kaf
   goarch:
   - amd64
+  - arm64
   goos:
   - linux
   - darwin
