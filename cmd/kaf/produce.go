@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/Shopify/sarama"
-	"github.com/burdiyan/kafkautil"
+	"github.com/birdayz/kaf/pkg/partitioner"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
@@ -82,7 +82,7 @@ var produceCmd = &cobra.Command{
 		cfg := getConfig()
 		switch partitionerFlag {
 		case "jvm":
-			cfg.Producer.Partitioner = kafkautil.NewJVMCompatiblePartitioner
+			cfg.Producer.Partitioner = partitioner.NewJVMCompatiblePartitioner
 		case "rand":
 			cfg.Producer.Partitioner = sarama.NewRandomPartitioner
 		case "rr":
