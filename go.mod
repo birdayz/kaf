@@ -7,16 +7,16 @@ require (
 	github.com/Shopify/sarama v1.30.1
 	github.com/golang/protobuf v1.5.2
 	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
-	github.com/jhump/protoreflect v1.9.0
+	github.com/jhump/protoreflect v1.10.1
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/magiconair/properties v1.8.1
 	github.com/manifoldco/promptui v0.9.0
-	github.com/mattn/go-colorable v0.1.8
+	github.com/mattn/go-colorable v0.1.12
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/orlangure/gnomock v0.19.0
 	github.com/spf13/cobra v1.1.2-0.20201229145732-a4ab3fa09e3d
 	github.com/stretchr/testify v1.7.0
-	github.com/vmihailenco/msgpack/v5 v5.3.1
+	github.com/vmihailenco/msgpack/v5 v5.3.5
 	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gopkg.in/yaml.v2 v2.4.0
@@ -47,7 +47,7 @@ require (
 	github.com/jcmturner/gokrb5/v8 v8.4.2 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/mattn/go-isatty v0.0.12 // indirect
+	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect
 	github.com/pierrec/lz4 v2.6.1+incompatible // indirect
