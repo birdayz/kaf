@@ -8,7 +8,7 @@ require (
 	github.com/burdiyan/kafkautil v0.0.0-20190131162249-eaf83ed22d5b
 	github.com/golang/protobuf v1.5.2
 	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
-	github.com/jhump/protoreflect v1.9.0
+	github.com/jhump/protoreflect v1.10.1
 	github.com/linkedin/goavro v2.1.0+incompatible
 	github.com/magiconair/properties v1.8.1
 	github.com/manifoldco/promptui v0.3.2
