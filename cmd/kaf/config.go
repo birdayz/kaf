@@ -25,7 +25,6 @@ func init() {
 	configCmd.AddCommand(configAddClusterCmd)
 	configCmd.AddCommand(configRemoveClusterCmd)
 	configCmd.AddCommand(configSelectCluster)
-	rootCmd.AddCommand(lsCommand)
 	configCmd.AddCommand(configCurrentContext)
 	configCmd.AddCommand(configAddEventhub)
 	rootCmd.AddCommand(configCmd)
@@ -117,52 +116,45 @@ var configAddEventhub = &cobra.Command{
 	},
 }
 
-var configSelectClusterRunFunc = func(cmd *cobra.Command, args []string) {
-	var clusterNames []string
-	var pos = 0
-	for k, cluster := range cfg.Clusters {
-		clusterNames = append(clusterNames, cluster.Name)
-		if cluster.Name == cfg.CurrentCluster {
-			pos = k
-		}
-	}
-
-	searcher := func(input string, index int) bool {
-		cluster := clusterNames[index]
-		name := strings.Replace(strings.ToLower(cluster), " ", "", -1)
-		input = strings.Replace(strings.ToLower(input), " ", "", -1)
-		return strings.Contains(name, input)
-	}
-
-	p := promptui.Select{
-		Label:     "Select cluster",
-		Items:     clusterNames,
-		Searcher:  searcher,
-		Size:      10,
-		CursorPos: pos,
-	}
-
-	_, selected, err := p.Run()
-	if err != nil {
-		os.Exit(0)
-	}
-
-	// TODO copy pasta
-	if err := cfg.SetCurrentCluster(selected); err != nil {
-		fmt.Printf("Cluster with selected %v not found\n", selected)
-	}
-}
-
 var configSelectCluster = &cobra.Command{
-	Use:   "select-cluster",
-	Short: "Interactively select a cluster",
-	Run:   configSelectClusterRunFunc,
-}
+	Use:     "select-cluster",
+	Aliases: []string{"ls"},
+	Short:   "Interactively select a cluster",
+	Run: func(cmd *cobra.Command, args []string) {
+		var clusterNames []string
+		var pos = 0
+		for k, cluster := range cfg.Clusters {
+			clusterNames = append(clusterNames, cluster.Name)
+			if cluster.Name == cfg.CurrentCluster {
+				pos = k
+			}
+		}
 
-var lsCommand = &cobra.Command{
-	Use:   "ls",
-	Short: "Interactively select a cluster",
-	Run:   configSelectClusterRunFunc,
+		searcher := func(input string, index int) bool {
+			cluster := clusterNames[index]
+			name := strings.Replace(strings.ToLower(cluster), " ", "", -1)
+			input = strings.Replace(strings.ToLower(input), " ", "", -1)
+			return strings.Contains(name, input)
+		}
+
+		p := promptui.Select{
+			Label:     "Select cluster",
+			Items:     clusterNames,
+			Searcher:  searcher,
+			Size:      10,
+			CursorPos: pos,
+		}
+
+		_, selected, err := p.Run()
+		if err != nil {
+			os.Exit(0)
+		}
+
+		// TODO copy pasta
+		if err := cfg.SetCurrentCluster(selected); err != nil {
+			fmt.Printf("Cluster with selected %v not found\n", selected)
+		}
+	},
 }
 
 var configAddClusterCmd = &cobra.Command{
