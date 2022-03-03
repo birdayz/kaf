@@ -117,12 +117,17 @@ var configAddEventhub = &cobra.Command{
 }
 
 var configSelectCluster = &cobra.Command{
-	Use:   "select-cluster",
-	Short: "Interactively select a cluster",
+	Use:     "select-cluster",
+	Aliases: []string{"ls"},
+	Short:   "Interactively select a cluster",
 	Run: func(cmd *cobra.Command, args []string) {
 		var clusterNames []string
-		for _, cluster := range cfg.Clusters {
+		var pos = 0
+		for k, cluster := range cfg.Clusters {
 			clusterNames = append(clusterNames, cluster.Name)
+			if cluster.Name == cfg.CurrentCluster {
+				pos = k
+			}
 		}
 
 		searcher := func(input string, index int) bool {
@@ -133,18 +138,17 @@ var configSelectCluster = &cobra.Command{
 		}
 
 		p := promptui.Select{
-			Label:    "Select cluster",
-			Items:    clusterNames,
-			Searcher: searcher,
-			Size:     10,
+			Label:     "Select cluster",
+			Items:     clusterNames,
+			Searcher:  searcher,
+			Size:      10,
+			CursorPos: pos,
 		}
 
 		_, selected, err := p.Run()
 		if err != nil {
 			os.Exit(0)
 		}
-
-		// How to have selection on currently selected cluster?
 
 		// TODO copy pasta
 		if err := cfg.SetCurrentCluster(selected); err != nil {
