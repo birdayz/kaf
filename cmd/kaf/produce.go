@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,6 +19,7 @@ import (
 
 var (
 	keyFlag         string
+	rawKeyFlag      bool
 	headerFlag      []string
 	repeatFlag      int
 	partitionerFlag string
@@ -31,6 +33,7 @@ func init() {
 	rootCmd.AddCommand(produceCmd)
 
 	produceCmd.Flags().StringVarP(&keyFlag, "key", "k", "", "Key for the record. Currently only strings are supported.")
+	produceCmd.Flags().BoolVar(&rawKeyFlag, "raw-key", false, "Treat value of --key as base64 and use its decoded raw value as key")
 	produceCmd.Flags().StringArrayVarP(&headerFlag, "header", "H", []string{}, "Header in format <key>:<value>. May be used multiple times to add more headers.")
 	produceCmd.Flags().IntVarP(&repeatFlag, "repeat", "n", 1, "Repeat records to send.")
 
@@ -107,7 +110,15 @@ var produceCmd = &cobra.Command{
 		}
 
 		var key sarama.Encoder
-		key = sarama.StringEncoder(keyFlag)
+		if rawKeyFlag {
+			keyBytes, err := base64.RawStdEncoding.DecodeString(keyFlag)
+			if err != nil {
+				errorExit("--raw-key is given, but value of --key is not base64")
+			}
+			key = sarama.ByteEncoder(keyBytes)
+		} else {
+			key = sarama.StringEncoder(keyFlag)
+		}
 		if keyProtoType != "" {
 			if dynamicMessage := reg.MessageForType(keyProtoType); dynamicMessage != nil {
 				err = dynamicMessage.UnmarshalJSON([]byte(keyFlag))
