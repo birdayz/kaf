@@ -28,6 +28,7 @@ var (
 	bufferSizeFlag  int
 	inputModeFlag   string
 	avroSchemaID    int
+	avroKeySchemaID int
 )
 
 func init() {
@@ -48,6 +49,7 @@ func init() {
 	produceCmd.Flags().Int32VarP(&partitionFlag, "partition", "p", -1, "Partition to produce to")
 
 	produceCmd.Flags().IntVarP(&avroSchemaID, "avro-schema-id", "", -1, "Value schema id for avro messsage encoding")
+	produceCmd.Flags().IntVarP(&avroKeySchemaID, "avro-key-schema-id", "", -1, "Key schema id for avro messsage encoding")
 
 	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "", "line", "Scanning input mode: [line|full]")
 	produceCmd.Flags().IntVarP(&bufferSizeFlag, "line-length-limit", "", 0, "line length limit in line input mode")
@@ -104,6 +106,13 @@ var produceCmd = &cobra.Command{
 			errorExit("Unable to create new sync producer: %v\n", err)
 		}
 
+		if avroSchemaID != -1 || avroKeySchemaID != -1 {
+			schemaCache = getSchemaCache()
+			if schemaCache == nil {
+				errorExit("Could not connect to schema registry")
+			}
+		}
+
 		out := make(chan []byte, 1)
 		switch inputModeFlag {
 		case "full":
@@ -139,13 +148,12 @@ var produceCmd = &cobra.Command{
 				errorExit("Failed to load key proto type")
 			}
 
-		}
-
-		if avroSchemaID != -1 {
-			schemaCache = getSchemaCache()
-			if schemaCache == nil {
-				errorExit("Error getting a instance of schemaCache")
+		} else if avroKeySchemaID != -1 {
+			avroKey, err := schemaCache.EncodeMessage(avroKeySchemaID, []byte(keyFlag))
+			if err != nil {
+				errorExit("Failed to encode avro key", err)
 			}
+			key = sarama.ByteEncoder(avroKey)
 		}
 
 		var headers []sarama.RecordHeader
@@ -179,7 +187,7 @@ var produceCmd = &cobra.Command{
 			} else if avroSchemaID != -1 {
 				avro, err := schemaCache.EncodeMessage(avroSchemaID, data)
 				if err != nil {
-					errorExit("Failed to encode avro", err)
+					errorExit("Failed to encode avro value", err)
 				}
 				data = avro
 			}
