@@ -119,9 +119,9 @@ func (c *SchemaCache) EncodeMessage(schemaID int, json []byte) (message []byte, 
 		return nil, err
 	}
 
-    // Creates a header with an initial zero byte and
-    // the schema id encoded as a big endian uint32
-    buf := make([]byte, 5)
+	// Creates a header with an initial zero byte and
+	// the schema id encoded as a big endian uint32
+	buf := make([]byte, 5)
 	binary.BigEndian.PutUint32(buf[1:5], uint32(schemaID))
 
 	// Convert textual json data to native Go form

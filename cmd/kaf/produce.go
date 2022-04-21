@@ -27,7 +27,7 @@ var (
 	partitionFlag   int32
 	bufferSizeFlag  int
 	inputModeFlag   string
-	schemaID        int
+	avroSchemaID    int
 )
 
 func init() {
@@ -47,7 +47,7 @@ func init() {
 	produceCmd.Flags().StringVar(&timestampFlag, "timestamp", "", "Select timestamp for record")
 	produceCmd.Flags().Int32VarP(&partitionFlag, "partition", "p", -1, "Partition to produce to")
 
-	produceCmd.Flags().IntVarP(&schemaID, "schema-id", "", -1, "Value schema id for avro messsage encoding")
+	produceCmd.Flags().IntVarP(&avroSchemaID, "avro-schema-id", "", -1, "Value schema id for avro messsage encoding")
 
 	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "", "line", "Scanning input mode: [line|full]")
 	produceCmd.Flags().IntVarP(&bufferSizeFlag, "line-length-limit", "", 0, "line length limit in line input mode")
@@ -141,7 +141,7 @@ var produceCmd = &cobra.Command{
 
 		}
 
-		if schemaID != -1 {
+		if avroSchemaID != -1 {
 			schemaCache = getSchemaCache()
 			if schemaCache == nil {
 				errorExit("Error getting a instance of schemaCache")
@@ -176,8 +176,8 @@ var produceCmd = &cobra.Command{
 				} else {
 					errorExit("Failed to load payload proto type")
 				}
-			} else if schemaID != -1 {
-				avro, err := schemaCache.EncodeMessage(schemaID, data)
+			} else if avroSchemaID != -1 {
+				avro, err := schemaCache.EncodeMessage(avroSchemaID, data)
 				if err != nil {
 					errorExit("Failed to encode avro", err)
 				}
