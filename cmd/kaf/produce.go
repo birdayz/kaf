@@ -17,8 +17,8 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/partitioner"
+	"github.com/birdayz/kaf/pkg/proto"
 	"github.com/birdayz/kaf/pkg/util"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -89,6 +89,26 @@ func readFull(reader io.Reader, out chan []byte) {
 	close(out)
 }
 
+func valueEncoder() util.Encoder {
+	if protoType != "" {
+		return proto.NewProtoCodec(protoType, reg)
+	} else if avroSchemaID != -1 {
+		return avro.NewAvroCodec(avroSchemaID, schemaCache)
+	} else {
+		return &util.BypassCodec{}
+	}
+}
+
+func keyEncoder() util.Encoder {
+	if keyProtoType != "" {
+		return proto.NewProtoCodec(keyProtoType, reg)
+	} else if avroKeySchemaID != -1 {
+		return avro.NewAvroCodec(avroKeySchemaID, schemaCache)
+	} else {
+		return &util.BypassCodec{}
+	}
+}
+
 var produceCmd = &cobra.Command{
 	Use:               "produce TOPIC",
 	Short:             "Produce record. Reads data from stdin.",
@@ -130,6 +150,9 @@ var produceCmd = &cobra.Command{
 			go readLines(inReader, out)
 		}
 
+		valueEncoder := valueEncoder()
+		keyEncoder := keyEncoder()
+
 		var key sarama.Encoder
 		if rawKeyFlag {
 			keyBytes, err := base64.RawStdEncoding.DecodeString(keyFlag)
@@ -138,40 +161,11 @@ var produceCmd = &cobra.Command{
 			}
 			key = sarama.ByteEncoder(keyBytes)
 		} else {
-			key = sarama.StringEncoder(keyFlag)
-		}
-		if keyProtoType != "" {
-			if dynamicMessage := reg.MessageForType(keyProtoType); dynamicMessage != nil {
-				err = dynamicMessage.UnmarshalJSON([]byte(keyFlag))
-				if err != nil {
-					errorExit("Failed to parse input JSON as proto type %v: %v", protoType, err)
-				}
-
-				pb, err := pb.Marshal(dynamicMessage)
-				if err != nil {
-					errorExit("Failed to marshal proto: %v", err)
-				}
-
-				key = sarama.ByteEncoder(pb)
-			} else {
-				errorExit("Failed to load key proto type")
-			}
-
-		} else if avroKeySchemaID != -1 {
-			avroKey, err := schemaCache.EncodeMessage(avroKeySchemaID, []byte(keyFlag))
+			encodedKey, err := keyEncoder.Encode([]byte(keyFlag))
 			if err != nil {
-				errorExit("Failed to encode avro key", err)
+				errorExit("%v", err)
 			}
-			key = sarama.ByteEncoder(avroKey)
-		}
-
-		var encoder util.Encoder
-		if avroSchemaID != -1 {
-			schemaCache = getSchemaCache()
-			if schemaCache == nil {
-				errorExit("Error getting a instance of schemaCache")
-			}
-			encoder = avro.NewAvroCodec(avroSchemaID, schemaCache)
+			key = sarama.ByteEncoder(encodedKey)
 		}
 
 		var headers []sarama.RecordHeader
@@ -186,29 +180,9 @@ var produceCmd = &cobra.Command{
 		}
 
 		for data := range out {
-			if protoType != "" {
-				if dynamicMessage := reg.MessageForType(protoType); dynamicMessage != nil {
-					err = dynamicMessage.UnmarshalJSON(data)
-					if err != nil {
-						errorExit("Failed to parse input JSON as proto type %v: %v", protoType, err)
-					}
-
-					pb, err := pb.Marshal(dynamicMessage)
-					if err != nil {
-						errorExit("Failed to marshal proto: %v", err)
-					}
-
-					data = pb
-				} else {
-					errorExit("Failed to load payload proto type")
-				}
-			} else if avroSchemaID != -1 {
-				// avro, err := schemaCache.EncodeMessage(avroSchemaID, data)
-				avro, err := encoder.Encode(data)
-				if err != nil {
-					errorExit("Failed to encode avro value", err)
-				}
-				data = avro
+			data, err = valueEncoder.Encode(data)
+			if err != nil {
+				errorExit("%v", err)
 			}
 
 			var ts time.Time

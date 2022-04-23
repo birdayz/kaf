@@ -2,6 +2,7 @@ package proto
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -86,20 +87,19 @@ func NewProtoCodec(protoType string, registry *DescriptorRegistry) *ProtoCodec {
 }
 
 func (p *ProtoCodec) Encode(in []byte) ([]byte, error) {
-
 	if dynamicMessage := p.registry.MessageForType(p.protoType); dynamicMessage != nil {
 		err := dynamicMessage.UnmarshalJSON(in)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed to parse input JSON as proto type %v: %v", p.protoType, err)
 		}
 
 		pb, err := proto.Marshal(dynamicMessage)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Failed to marshal proto: %v", err)
 		}
 
 		return pb, nil
 	} else {
-		return nil, errors.New("Error")
+		return nil, errors.New("Failed to load payload proto type")
 	}
 }
