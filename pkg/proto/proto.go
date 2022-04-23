@@ -1,11 +1,13 @@
 package proto
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
 	"strings"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
@@ -72,4 +74,32 @@ func (d *DescriptorRegistry) MessageForType(_type string) *dynamic.Message {
 		}
 	}
 	return nil
+}
+
+type ProtoCodec struct {
+	registry  *DescriptorRegistry
+	protoType string
+}
+
+func NewProtoCodec(protoType string, registry *DescriptorRegistry) *ProtoCodec {
+	return &ProtoCodec{registry, protoType}
+}
+
+func (p *ProtoCodec) Encode(in []byte) ([]byte, error) {
+
+	if dynamicMessage := p.registry.MessageForType(p.protoType); dynamicMessage != nil {
+		err := dynamicMessage.UnmarshalJSON(in)
+		if err != nil {
+			return nil, err
+		}
+
+		pb, err := proto.Marshal(dynamicMessage)
+		if err != nil {
+			return nil, err
+		}
+
+		return pb, nil
+	} else {
+		return nil, errors.New("Error")
+	}
 }

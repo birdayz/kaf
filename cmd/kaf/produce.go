@@ -15,7 +15,9 @@ import (
 
 	"github.com/Masterminds/sprig"
 	"github.com/Shopify/sarama"
+	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/partitioner"
+	"github.com/birdayz/kaf/pkg/util"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
@@ -163,6 +165,15 @@ var produceCmd = &cobra.Command{
 			key = sarama.ByteEncoder(avroKey)
 		}
 
+		var encoder util.Encoder
+		if avroSchemaID != -1 {
+			schemaCache = getSchemaCache()
+			if schemaCache == nil {
+				errorExit("Error getting a instance of schemaCache")
+			}
+			encoder = avro.NewAvroCodec(avroSchemaID, schemaCache)
+		}
+
 		var headers []sarama.RecordHeader
 		for _, h := range headerFlag {
 			v := strings.SplitN(h, ":", 2)
@@ -192,7 +203,8 @@ var produceCmd = &cobra.Command{
 					errorExit("Failed to load payload proto type")
 				}
 			} else if avroSchemaID != -1 {
-				avro, err := schemaCache.EncodeMessage(avroSchemaID, data)
+				// avro, err := schemaCache.EncodeMessage(avroSchemaID, data)
+				avro, err := encoder.Encode(data)
 				if err != nil {
 					errorExit("Failed to encode avro value", err)
 				}
