@@ -2,15 +2,18 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"strings"
+	"text/template"
 
 	"time"
 
+	"github.com/Masterminds/sprig"
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/partitioner"
 	pb "github.com/golang/protobuf/proto"
@@ -29,6 +32,7 @@ var (
 	inputModeFlag   string
 	avroSchemaID    int
 	avroKeySchemaID int
+	templateFlag    bool
 )
 
 func init() {
@@ -53,6 +57,9 @@ func init() {
 
 	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "", "line", "Scanning input mode: [line|full]")
 	produceCmd.Flags().IntVarP(&bufferSizeFlag, "line-length-limit", "", 0, "line length limit in line input mode")
+
+	produceCmd.Flags().BoolVar(&templateFlag, "template", false, "run data through go template engine")
+
 }
 
 func readLines(reader io.Reader, out chan []byte) {
@@ -201,12 +208,34 @@ var produceCmd = &cobra.Command{
 			}
 
 			for i := 0; i < repeatFlag; i++ {
+
+				input := data
+
+				if templateFlag {
+					vars := map[string]interface{}{}
+					vars["i"] = i
+					tpl := template.New("kaf").Funcs(sprig.TxtFuncMap())
+
+					tpl, err = tpl.Parse(string(data))
+					if err != nil {
+						errorExit("failed to parse go template: %v", err)
+					}
+
+					buf := bytes.NewBuffer(nil)
+
+					if err := tpl.Execute(buf, vars); err != nil {
+						errorExit("failed to execute go template: %v", err)
+					}
+
+					input = buf.Bytes()
+				}
+
 				msg := &sarama.ProducerMessage{
 					Topic:     args[0],
 					Key:       key,
 					Headers:   headers,
 					Timestamp: ts,
-					Value:     sarama.ByteEncoder(data),
+					Value:     sarama.ByteEncoder(input),
 				}
 				if partitionFlag != -1 {
 					msg.Partition = partitionFlag
