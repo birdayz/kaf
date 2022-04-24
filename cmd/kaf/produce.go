@@ -18,7 +18,7 @@ import (
 	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/partitioner"
 	"github.com/birdayz/kaf/pkg/proto"
-	"github.com/birdayz/kaf/pkg/util"
+	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/spf13/cobra"
 )
 
@@ -89,23 +89,23 @@ func readFull(reader io.Reader, out chan []byte) {
 	close(out)
 }
 
-func valueEncoder() util.Encoder {
+func valueEncoder() codec.Encoder {
 	if protoType != "" {
 		return proto.NewProtoCodec(protoType, reg)
 	} else if avroSchemaID != -1 {
 		return avro.NewAvroCodec(avroSchemaID, schemaCache)
 	} else {
-		return &util.BypassCodec{}
+		return &codec.BypassCodec{}
 	}
 }
 
-func keyEncoder() util.Encoder {
+func keyEncoder() codec.Encoder {
 	if keyProtoType != "" {
 		return proto.NewProtoCodec(keyProtoType, reg)
 	} else if avroKeySchemaID != -1 {
 		return avro.NewAvroCodec(avroKeySchemaID, schemaCache)
 	} else {
-		return &util.BypassCodec{}
+		return &codec.BypassCodec{}
 	}
 }
 

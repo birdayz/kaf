@@ -1,4 +1,4 @@
-package util
+package codec
 
 type Encoder interface {
 	Encode(in []byte) ([]byte, error)
