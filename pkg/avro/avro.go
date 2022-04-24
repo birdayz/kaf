@@ -6,7 +6,7 @@ type AvroCodec struct {
 }
 
 func NewAvroCodec(schemaID int, cache *SchemaCache) *AvroCodec {
-  return &AvroCodec {schemaID, cache}
+	return &AvroCodec{schemaID, cache}
 }
 
 func (a *AvroCodec) Encode(in []byte) ([]byte, error) {
@@ -14,5 +14,5 @@ func (a *AvroCodec) Encode(in []byte) ([]byte, error) {
 }
 
 func (a *AvroCodec) Decode(in []byte) ([]byte, error) {
-  return a.schemaCache.DecodeMessage(in)
+	return a.schemaCache.DecodeMessage(in)
 }

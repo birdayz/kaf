@@ -16,9 +16,9 @@ import (
 	"github.com/Masterminds/sprig"
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/avro"
+	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/birdayz/kaf/pkg/partitioner"
 	"github.com/birdayz/kaf/pkg/proto"
-	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/spf13/cobra"
 )
 
@@ -163,7 +163,7 @@ var produceCmd = &cobra.Command{
 		} else {
 			encodedKey, err := keyEncoder.Encode([]byte(keyFlag))
 			if err != nil {
-				errorExit("%v", err)
+				errorExit("Error encoding key: %v", err)
 			}
 			key = sarama.ByteEncoder(encodedKey)
 		}
@@ -182,7 +182,7 @@ var produceCmd = &cobra.Command{
 		for data := range out {
 			data, err = valueEncoder.Encode(data)
 			if err != nil {
-				errorExit("%v", err)
+				errorExit("Error encoding value: %v", err)
 			}
 
 			var ts time.Time
