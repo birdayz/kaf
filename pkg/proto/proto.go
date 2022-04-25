@@ -75,6 +75,8 @@ func (d *DescriptorRegistry) MessageForType(_type string) *dynamic.Message {
 	return nil
 }
 
+// ProtoCodec implements the Encoder/Decoder interfaces
+// for protobuf messages
 type ProtoCodec struct {
 	registry  *DescriptorRegistry
 	protoType string
