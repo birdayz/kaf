@@ -111,30 +111,3 @@ func (c *SchemaCache) DecodeMessage(b []byte) (message []byte, err error) {
 
 	return message, nil
 }
-
-// EncodeMessage returns a binary representation of an Avro-encoded message.
-func (c *SchemaCache) EncodeMessage(schemaID int, json []byte) (message []byte, err error) {
-	codec, err := c.getCodecForSchemaID(schemaID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Creates a header with an initial zero byte and
-	// the schema id encoded as a big endian uint32
-	buf := make([]byte, 5)
-	binary.BigEndian.PutUint32(buf[1:5], uint32(schemaID))
-
-	// Convert textual json data to native Go form
-	native, _, err := codec.NativeFromTextual(json)
-	if err != nil {
-		return nil, err
-	}
-
-	// Convert native Go form to binary Avro data
-	message, err = codec.BinaryFromNative(buf, native)
-	if err != nil {
-		return nil, err
-	}
-
-	return message, nil
-}

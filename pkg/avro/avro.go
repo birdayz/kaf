@@ -13,6 +13,7 @@ func NewAvroCodec(schemaID int, cache *SchemaCache) *AvroCodec {
 	return &AvroCodec{schemaID, cache}
 }
 
+// Encode returns a binary representation of an Avro-encoded message.
 func (a *AvroCodec) Encode(in []byte) ([]byte, error) {
 	codec, err := a.schemaCache.getCodecForSchemaID(a.encodeSchemaID)
 	if err != nil {
@@ -39,6 +40,32 @@ func (a *AvroCodec) Encode(in []byte) ([]byte, error) {
 	return message, nil
 }
 
+// Decode returns a text representation of an Avro-encoded message.
 func (a *AvroCodec) Decode(in []byte) ([]byte, error) {
-	return a.schemaCache.DecodeMessage(in)
+	// Ensure avro header is present with the magic start-byte.
+	if len(in) < 5 || in[0] != 0x00 {
+		// The message does not contain Avro-encoded data
+		return in, nil
+	}
+
+	// Schema ID is stored in the 4 bytes following the magic byte.
+	schemaID := binary.BigEndian.Uint32(in[1:5])
+	codec, err := a.schemaCache.getCodecForSchemaID(int(schemaID))
+	if err != nil {
+		return in, err
+	}
+
+	// Convert binary Avro data back to native Go form
+	native, _, err := codec.NativeFromBinary(in[5:])
+	if err != nil {
+		return in, err
+	}
+
+	// Convert native Go form to textual Avro data
+	message, err := codec.TextualFromNative(nil, native)
+	if err != nil {
+		return in, err
+	}
+
+	return message, nil
 }
