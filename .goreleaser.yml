@@ -213,7 +213,7 @@ aurs:
 
     # The AUR Git URL for this package.
     # Defaults to empty.
-    git_url: 'https://aur.archlinux.org/kaf.git'
+    git_url: 'ssh://aur@aur.archlinux.org/kaf.git'
 
     # Setting this will prevent goreleaser to actually try to commit the updated
     # formula - instead, the formula file will be stored on the dist folder only,
