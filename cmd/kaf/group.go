@@ -510,7 +510,7 @@ var groupDescribeCmd = &cobra.Command{
 			fmt.Fprintf(w, "\t\tHost:\t%v\n", member.ClientHost)
 
 			assignment, err := member.GetMemberAssignment()
-			if err != nil {
+			if err != nil || assignment == nil {
 				continue
 			}
 
