@@ -9,7 +9,7 @@ require (
 	github.com/golang/protobuf v1.5.2
 	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
 	github.com/jhump/protoreflect v1.12.0
-	github.com/linkedin/goavro v2.1.0+incompatible
+	github.com/linkedin/goavro/v2 v2.11.1
 	github.com/magiconair/properties v1.8.6
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-colorable v0.1.12
@@ -78,7 +78,6 @@ require (
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	google.golang.org/grpc v1.42.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
-	gopkg.in/linkedin/goavro.v1 v1.0.5 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 

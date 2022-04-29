@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	schemaregistry "github.com/Landoop/schema-registry"
-	"github.com/linkedin/goavro"
+	"github.com/linkedin/goavro/v2"
 )
 
 type cachedCodec struct {
