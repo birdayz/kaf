@@ -23,7 +23,7 @@ curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BIND
 Install on Archlinux via [AUR](https://aur.archlinux.org/packages/kaf/):
 
 ```
-yay -S kaf
+yay -S kaf-bin
 ```
 
 ## Usage
