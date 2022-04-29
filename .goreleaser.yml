@@ -181,7 +181,7 @@ aurs:
     # Note that since this integration does not create a PKGBUILD to build from
     # source, per Arch's guidelines.
     # That said, GoReleaser will enforce a `-bin` suffix if its not present.
-    name: kaf
+    name: kaf-bin
 
     # Your app's homepage.
     # Default is empty.
@@ -213,7 +213,7 @@ aurs:
 
     # The AUR Git URL for this package.
     # Defaults to empty.
-    git_url: 'ssh://aur@aur.archlinux.org/kaf.git'
+    git_url: 'ssh://aur@aur.archlinux.org/kaf-bin.git'
 
     # Setting this will prevent goreleaser to actually try to commit the updated
     # formula - instead, the formula file will be stored on the dist folder only,
@@ -228,14 +228,14 @@ aurs:
     # List of additional packages that the software provides the features of.
     #
     # Defaults to the project name.
-    # provides:
-      # - kaf
+    provides:
+      - kaf-bin
 
     # List of packages that conflict with, or cause problems with the package.
     #
     # Defaults to the project name.
-    # conflicts:
-      # - mybin
+    conflicts:
+      - kaf-bin
 
     # List of packages that must be installed to install this.
     #
