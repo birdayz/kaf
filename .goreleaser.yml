@@ -263,9 +263,6 @@ aurs:
       # bin
       install -Dm755 "./kaf" "${pkgdir}/usr/bin/kaf"
 
-      # license
-      install -Dm644 "./LICENSE.md" "${pkgdir}/usr/share/licenses/kaf/LICENSE"
-
       # completions
       # bash
       mkdir -p "${pkgdir}/etc/bash_completion.d"
