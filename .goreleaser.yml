@@ -236,6 +236,7 @@ aurs:
     # Defaults to the project name.
     conflicts:
       - kaf-bin
+      - kaf
 
     # List of packages that must be installed to install this.
     #
