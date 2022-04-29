@@ -38,3 +38,134 @@ release:
   github:
     owner: birdayz 
     name: kaf
+
+brews:
+  -
+    # Name template of the recipe
+    # Default to project name
+    name: kaf
+
+    # GOARM to specify which 32-bit arm version to use if there are multiple versions
+    # from the build section. Brew formulas support only one 32-bit version.
+    # Default is 6 for all artifacts or each id if there a multiple versions.
+    goarm: 6
+
+    # GOAMD64 to specify which amd64 version to use if there are multiple versions
+    # from the build section.
+    # Default is v1.
+    #goamd64: v3
+
+    # NOTE: make sure the url_template, the token and given repo (github or gitlab) owner and name are from the
+    # same kind. We will probably unify this in the next major version like it is done with scoop.
+
+    # GitHub/GitLab repository to push the formula to
+    tap:
+      owner: birdayz
+      name: homebrew-kaf
+
+      # Optionally a branch can be provided.
+      # Defaults to the default repository branch.
+      branch: master
+
+      # Optionally a token can be provided, if it differs from the token provided to GoReleaser
+      #token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+
+    # Template for the url which is determined by the given Token (github, gitlab or gitea)
+    #
+    # Default depends on the client.
+    #url_template: "http://github.mycompany.com/foo/bar/releases/{{ .Tag }}/{{ .ArtifactName }}"
+
+    # Allows you to set a custom download strategy. Note that you'll need
+    # to implement the strategy and add it to your tap repository.
+    # Example: https://docs.brew.sh/Formula-Cookbook#specifying-the-download-strategy-explicitly
+    # Default is empty.
+    # download_strategy: CurlDownloadStrategy
+
+    # Allows you to add a custom require_relative at the top of the formula template
+    # Default is empty
+    # custom_require: custom_download_strategy
+
+    # Git author used to commit to the repository.
+    # Defaults are shown.
+    # commit_author:
+      # name: goreleaserbot
+      # email: goreleaser@carlosbecker.com
+
+    # The project name and current git tag are used in the format string.
+    # commit_msg_template: "Brew formula update for {{ .ProjectName }} version {{ .Tag }}"
+
+    # Folder inside the repository to put the formula.
+    # Default is the root folder.
+    # folder: Formula
+
+    # Caveats for the user of your binary.
+    # Default is empty.
+    # caveats: "How to use this binary"
+
+    # Your app's homepage.
+    # Default is empty.
+    # homepage: "https://example.com/"
+
+    # Template of your app's description.
+    # Default is empty.
+    # description: "Software to create fast and easy drum rolls."
+
+    # SPDX identifier of your app's license.
+    # Default is empty.
+    # license: "MIT"
+
+    # Setting this will prevent goreleaser to actually try to commit the updated
+    # formula - instead, the formula file will be stored on the dist folder only,
+    # leaving the responsibility of publishing it to the user.
+    # If set to auto, the release will not be uploaded to the homebrew tap
+    # in case there is an indicator for prerelease in the tag e.g. v1.0.0-rc1
+    # Default is false.
+    # skip_upload: true
+
+    # Custom block for brew.
+    # Can be used to specify alternate downloads for devel or head releases.
+    # Default is empty.
+    # custom_block: |
+      # head "https://github.com/some/package.git"
+      # ...
+
+    # Packages your package depends on.
+    # dependencies:
+      # - name: git
+      # - name: zsh
+        # type: optional
+
+    # Packages that conflict with your package.
+    # conflicts:
+      # - svn
+      # - bash
+
+    # Specify for packages that run as a service.
+    # Default is empty.
+    # plist: |
+      # <?xml version="1.0" encoding="UTF-8"?>
+      # ...
+
+    # Service block.
+    # service: |
+      # run: foo/bar
+      # ...
+
+    # So you can `brew test` your formula.
+    # Default is empty.
+    # test: |
+      # system "#{bin}/program --version"
+      # ...
+
+    # Custom install script for brew.
+    # Default is 'bin.install "program"'.
+    # install: |
+      # bin.install "program"
+      # ...
+
+    # Custom post_install script for brew.
+    # Could be used to do any additional work after the "install" script
+    # Default is empty.
+    # post_install: |
+        # etc.install "app-config.conf"
+        # ...
