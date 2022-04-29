@@ -273,6 +273,7 @@ aurs:
       ./kaf completion zsh > "${pkgdir}/usr/share/zsh/site-functions/_kaf"
 
       # Fish
+      mkdir -p "${pkgdir}/usr/share/fish/vendor_completions.d"
       ./kaf completion fish > ${pkgdir}/usr/share/fish/vendor_completions.d/kaf.fish
 
     # Git author used to commit to the repository.
