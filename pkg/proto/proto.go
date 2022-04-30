@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -86,7 +87,7 @@ func NewProtoCodec(protoType string, registry *DescriptorRegistry) *ProtoCodec {
 	return &ProtoCodec{registry, protoType}
 }
 
-func (p *ProtoCodec) Encode(in []byte) ([]byte, error) {
+func (p *ProtoCodec) Encode(in json.RawMessage) ([]byte, error) {
 	if dynamicMessage := p.registry.MessageForType(p.protoType); dynamicMessage != nil {
 		err := dynamicMessage.UnmarshalJSON(in)
 		if err != nil {

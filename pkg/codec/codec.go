@@ -18,10 +18,10 @@ type Decoder interface {
 // BypassCodec is a no-op implementation of Encoder and Decoder
 type BypassCodec struct{}
 
-func (BypassCodec) Encode(in []byte) ([]byte, error) {
+func (BypassCodec) Encode(in json.RawMessage) ([]byte, error) {
 	return in, nil
 }
 
-func (BypassCodec) Decode(in []byte) ([]byte, error) {
+func (BypassCodec) Decode(in json.RawMessage) ([]byte, error) {
 	return in, nil
 }

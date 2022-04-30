@@ -1,6 +1,9 @@
 package avro
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+	"encoding/json"
+)
 
 // AvroCodec implements the Encoder/Decoder interfaces for
 // avro formats
@@ -14,7 +17,7 @@ func NewAvroCodec(schemaID int, cache *SchemaCache) *AvroCodec {
 }
 
 // Encode returns a binary representation of an Avro-encoded message.
-func (a *AvroCodec) Encode(in []byte) ([]byte, error) {
+func (a *AvroCodec) Encode(in json.RawMessage) ([]byte, error) {
 	codec, err := a.schemaCache.getCodecForSchemaID(a.encodeSchemaID)
 	if err != nil {
 		return nil, err
@@ -41,7 +44,7 @@ func (a *AvroCodec) Encode(in []byte) ([]byte, error) {
 }
 
 // Decode returns a text representation of an Avro-encoded message.
-func (a *AvroCodec) Decode(in []byte) ([]byte, error) {
+func (a *AvroCodec) Decode(in []byte) (json.RawMessage, error) {
 	// Ensure avro header is present with the magic start-byte.
 	if len(in) < 5 || in[0] != 0x00 {
 		// The message does not contain Avro-encoded data
