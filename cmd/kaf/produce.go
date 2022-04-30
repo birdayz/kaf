@@ -180,11 +180,6 @@ var produceCmd = &cobra.Command{
 		}
 
 		for data := range out {
-			data, err = valueEncoder.Encode(data)
-			if err != nil {
-				errorExit("Error encoding value: %v", err)
-			}
-
 			var ts time.Time
 			t, err := time.Parse(time.RFC3339, timestampFlag)
 			if err != nil {
@@ -214,6 +209,11 @@ var produceCmd = &cobra.Command{
 					}
 
 					input = buf.Bytes()
+				}
+
+				input, err = valueEncoder.Encode(input)
+				if err != nil {
+					errorExit("Error encoding value: %v", err)
 				}
 
 				msg := &sarama.ProducerMessage{
