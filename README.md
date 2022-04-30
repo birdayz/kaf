@@ -4,7 +4,7 @@ Kafka CLI inspired by kubectl & docker
 [![Actions Status](https://github.com/birdayz/kaf/workflows/Go/badge.svg)](https://github.com/birdayz/kaf/actions)
 [![GoReportCard](https://goreportcard.com/badge/github.com/birdayz/kaf)](https://goreportcard.com/report/github.com/birdayz/kaf)
 [![GoDoc](https://godoc.org/github.com/birdayz/kaf?status.svg)](https://godoc.org/github.com/birdayz/kaf)
-![AUR version](https://img.shields.io/aur/version/kaf-bin)
+[![AUR version](https://img.shields.io/aur/version/kaf-bin)
 
 ![asciicinema](asciicinema.gif)
 
