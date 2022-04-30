@@ -15,10 +15,8 @@ import (
 
 	"github.com/Masterminds/sprig"
 	"github.com/Shopify/sarama"
-	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/birdayz/kaf/pkg/partitioner"
-	"github.com/birdayz/kaf/pkg/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -91,9 +89,9 @@ func readFull(reader io.Reader, out chan []byte) {
 
 func valueEncoder() codec.Encoder {
 	if protoType != "" {
-		return proto.NewProtoCodec(protoType, reg)
+		return codec.NewProtoCodec(protoType, reg)
 	} else if avroSchemaID != -1 {
-		return avro.NewAvroCodec(avroSchemaID, schemaCache)
+		return codec.NewAvroCodec(avroSchemaID, schemaCache)
 	} else {
 		return &codec.BypassCodec{}
 	}
@@ -101,9 +99,9 @@ func valueEncoder() codec.Encoder {
 
 func keyEncoder() codec.Encoder {
 	if keyProtoType != "" {
-		return proto.NewProtoCodec(keyProtoType, reg)
+		return codec.NewProtoCodec(keyProtoType, reg)
 	} else if avroKeySchemaID != -1 {
-		return avro.NewAvroCodec(avroKeySchemaID, schemaCache)
+		return codec.NewAvroCodec(avroKeySchemaID, schemaCache)
 	} else {
 		return &codec.BypassCodec{}
 	}

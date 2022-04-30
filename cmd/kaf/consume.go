@@ -13,7 +13,7 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/avro"
-	"github.com/birdayz/kaf/pkg/proto"
+	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
@@ -37,7 +37,7 @@ var (
 
 	limitMessagesFlag int64
 
-	reg *proto.DescriptorRegistry
+	reg *codec.DescriptorRegistry
 )
 
 func init() {
@@ -315,7 +315,7 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 }
 
 // proto to JSON
-func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte, error) {
+func protoDecode(reg *codec.DescriptorRegistry, b []byte, _type string) ([]byte, error) {
 	dynamicMessage := reg.MessageForType(_type)
 	if dynamicMessage == nil {
 		return b, nil

@@ -15,8 +15,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf/pkg/avro"
+	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/birdayz/kaf/pkg/config"
-	"github.com/birdayz/kaf/pkg/proto"
 )
 
 var cfgFile string
@@ -174,7 +174,7 @@ func init() {
 
 var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
 	if protoType != "" {
-		r, err := proto.NewDescriptorRegistry(protoFiles, protoExclude)
+		r, err := codec.NewDescriptorRegistry(protoFiles, protoExclude)
 		if err != nil {
 			errorExit("Failed to load protobuf files: %v\n", err)
 		}

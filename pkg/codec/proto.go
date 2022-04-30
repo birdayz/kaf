@@ -1,4 +1,4 @@
-package proto
+package codec
 
 import (
 	"encoding/json"

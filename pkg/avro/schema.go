@@ -38,7 +38,7 @@ func NewSchemaCache(url string) (*SchemaCache, error) {
 }
 
 // getCodecForSchemaID returns a goavro codec for transforming data.
-func (c *SchemaCache) getCodecForSchemaID(schemaID int) (codec *goavro.Codec, err error) {
+func (c *SchemaCache) GetCodecForSchemaID(schemaID int) (codec *goavro.Codec, err error) {
 	c.mu.RLock()
 	cc, ok := c.codecsBySchemaID[schemaID]
 	c.mu.RUnlock()
@@ -92,7 +92,7 @@ func (c *SchemaCache) DecodeMessage(b []byte) (message []byte, err error) {
 
 	// Schema ID is stored in the 4 bytes following the magic byte.
 	schemaID := binary.BigEndian.Uint32(b[1:5])
-	codec, err := c.getCodecForSchemaID(int(schemaID))
+	codec, err := c.GetCodecForSchemaID(int(schemaID))
 	if err != nil {
 		return b, err
 	}
