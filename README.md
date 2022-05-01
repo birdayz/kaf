@@ -9,13 +9,13 @@ Kafka CLI inspired by kubectl & docker
 ![asciicinema](asciicinema.gif)
 
 ## Install
-Install from source:
+Install via Go from source:
 
 ```
 go install github.com/birdayz/kaf/cmd/kaf@latest
 ```
 
-Install binary:
+Install via install script:
 
 ```
 curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BINDIR=$HOME/bin bash
@@ -25,6 +25,13 @@ Install on Archlinux via [AUR](https://aur.archlinux.org/packages/kaf/):
 
 ```
 yay -S kaf-bin
+```
+
+Install via Homebrew:
+
+```
+brew tap birdayz/kaf
+brew install kaf
 ```
 
 ## Usage
