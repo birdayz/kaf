@@ -32,6 +32,7 @@ var (
 	inputModeFlag   string
 	avroSchemaID    int
 	avroKeySchemaID int
+	avroStrictFlag  bool
 	templateFlag    bool
 )
 
@@ -54,6 +55,7 @@ func init() {
 
 	produceCmd.Flags().IntVarP(&avroSchemaID, "avro-schema-id", "", -1, "Value schema id for avro messsage encoding")
 	produceCmd.Flags().IntVarP(&avroKeySchemaID, "avro-key-schema-id", "", -1, "Key schema id for avro messsage encoding")
+	produceCmd.Flags().BoolVar(&avroStrictFlag, "avro-strict", false, "Uses strict version of the input json to parse unions")
 
 	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "", "line", "Scanning input mode: [line|full]")
 	produceCmd.Flags().IntVarP(&bufferSizeFlag, "line-length-limit", "", 0, "line length limit in line input mode")
@@ -91,7 +93,7 @@ func valueEncoder() codec.Encoder {
 	if protoType != "" {
 		return codec.NewProtoCodec(protoType, reg)
 	} else if avroSchemaID != -1 {
-		return codec.NewAvroCodec(avroSchemaID, schemaCache)
+		return codec.NewAvroCodec(avroSchemaID, avroStrictFlag, schemaCache)
 	} else {
 		return &codec.BypassCodec{}
 	}
@@ -101,7 +103,7 @@ func keyEncoder() codec.Encoder {
 	if keyProtoType != "" {
 		return codec.NewProtoCodec(keyProtoType, reg)
 	} else if avroKeySchemaID != -1 {
-		return codec.NewAvroCodec(avroKeySchemaID, schemaCache)
+		return codec.NewAvroCodec(avroKeySchemaID, avroStrictFlag, schemaCache)
 	} else {
 		return &codec.BypassCodec{}
 	}

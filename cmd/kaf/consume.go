@@ -99,7 +99,7 @@ var consumeCmd = &cobra.Command{
 		client := getClientFromConfig(cfg)
 
 		schemaCache = getSchemaCache()
-		avroDecoder = codec.NewAvroCodec(-1, schemaCache)
+		avroDecoder = codec.NewAvroCodec(-1, false, schemaCache)
 		protoDecoder = codec.NewProtoCodec(protoType, reg)
 		protoKeyDecoder = codec.NewProtoCodec(keyProtoType, reg)
 

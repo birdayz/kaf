@@ -11,16 +11,17 @@ import (
 // avro formats
 type AvroCodec struct {
 	encodeSchemaID int
+	strict         bool
 	schemaCache    *avro.SchemaCache
 }
 
-func NewAvroCodec(schemaID int, cache *avro.SchemaCache) *AvroCodec {
-	return &AvroCodec{schemaID, cache}
+func NewAvroCodec(schemaID int, strict bool, cache *avro.SchemaCache) *AvroCodec {
+	return &AvroCodec{schemaID, strict, cache}
 }
 
 // Encode returns a binary representation of an Avro-encoded message.
 func (a *AvroCodec) Encode(in json.RawMessage) ([]byte, error) {
-	codec, err := a.schemaCache.GetCodecForSchemaID(a.encodeSchemaID)
+	codec, err := a.schemaCache.GetCodecForSchemaID(a.encodeSchemaID, a.strict)
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +56,7 @@ func (a *AvroCodec) Decode(in []byte) (json.RawMessage, error) {
 
 	// Schema ID is stored in the 4 bytes following the magic byte.
 	schemaID := binary.BigEndian.Uint32(in[1:5])
-	codec, err := a.schemaCache.GetCodecForSchemaID(int(schemaID))
+	codec, err := a.schemaCache.GetCodecForSchemaID(int(schemaID), a.strict)
 	if err != nil {
 		return in, err
 	}

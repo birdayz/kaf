@@ -1,7 +1,6 @@
 package avro
 
 import (
-	"encoding/binary"
 	"sync"
 
 	schemaregistry "github.com/Landoop/schema-registry"
@@ -38,7 +37,7 @@ func NewSchemaCache(url string) (*SchemaCache, error) {
 }
 
 // getCodecForSchemaID returns a goavro codec for transforming data.
-func (c *SchemaCache) GetCodecForSchemaID(schemaID int) (codec *goavro.Codec, err error) {
+func (c *SchemaCache) GetCodecForSchemaID(schemaID int, strict bool) (codec *goavro.Codec, err error) {
 	c.mu.RLock()
 	cc, ok := c.codecsBySchemaID[schemaID]
 	c.mu.RUnlock()
@@ -74,40 +73,14 @@ func (c *SchemaCache) GetCodecForSchemaID(schemaID int) (codec *goavro.Codec, er
 		return nil, err
 	}
 
-	codec, err = goavro.NewCodec(schema)
+	if strict {
+		codec, err = goavro.NewCodec(schema)
+	} else {
+		codec, err = goavro.NewCodecForStandardJSON(schema)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	return codec, nil
-}
-
-// DecodeMessage returns a text representation of an Avro-encoded message.
-func (c *SchemaCache) DecodeMessage(b []byte) (message []byte, err error) {
-	// Ensure avro header is present with the magic start-byte.
-	if len(b) < 5 || b[0] != 0x00 {
-		// The message does not contain Avro-encoded data
-		return b, nil
-	}
-
-	// Schema ID is stored in the 4 bytes following the magic byte.
-	schemaID := binary.BigEndian.Uint32(b[1:5])
-	codec, err := c.GetCodecForSchemaID(int(schemaID))
-	if err != nil {
-		return b, err
-	}
-
-	// Convert binary Avro data back to native Go form
-	native, _, err := codec.NativeFromBinary(b[5:])
-	if err != nil {
-		return b, err
-	}
-
-	// Convert native Go form to textual Avro data
-	message, err = codec.TextualFromNative(nil, native)
-	if err != nil {
-		return b, err
-	}
-
-	return message, nil
 }
