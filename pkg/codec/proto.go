@@ -1,12 +1,14 @@
 package codec
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
@@ -103,4 +105,25 @@ func (p *ProtoCodec) Encode(in json.RawMessage) ([]byte, error) {
 	} else {
 		return nil, fmt.Errorf("failed to load payload proto type: %v", p.protoType)
 	}
+}
+
+func (p *ProtoCodec) Decode(in []byte) (json.RawMessage, error) {
+	dynamicMessage := p.registry.MessageForType(p.protoType)
+	if dynamicMessage == nil {
+		return in, nil
+	}
+
+	err := dynamicMessage.Unmarshal(in)
+	if err != nil {
+		return nil, err
+	}
+
+	var m jsonpb.Marshaler
+	var w bytes.Buffer
+
+	err = m.Marshal(&w, dynamicMessage)
+	if err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
 }

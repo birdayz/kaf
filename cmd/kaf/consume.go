@@ -14,7 +14,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/codec"
-	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
 	"github.com/vmihailenco/msgpack/v5"
@@ -38,6 +37,10 @@ var (
 	limitMessagesFlag int64
 
 	reg *codec.DescriptorRegistry
+
+	protoDecoder    *codec.ProtoCodec
+	protoKeyDecoder *codec.ProtoCodec
+	avroDecoder     *codec.AvroCodec
 )
 
 func init() {
@@ -94,6 +97,11 @@ var consumeCmd = &cobra.Command{
 		cfg := getConfig()
 		topic := args[0]
 		client := getClientFromConfig(cfg)
+
+		schemaCache = getSchemaCache()
+		avroDecoder = codec.NewAvroCodec(-1, schemaCache)
+		protoDecoder = codec.NewProtoCodec(protoType, reg)
+		protoKeyDecoder = codec.NewProtoCodec(keyProtoType, reg)
 
 		switch offsetFlag {
 		case "oldest":
@@ -169,8 +177,6 @@ func withoutConsumerGroup(ctx context.Context, client sarama.Client, topic strin
 		partitions = flagPartitions
 	}
 
-	schemaCache = getSchemaCache()
-
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{} // Synchronizes stderr and stdout.
 	for _, partition := range partitions {
@@ -230,24 +236,24 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 	var err error
 
 	if protoType != "" {
-		dataToDisplay, err = protoDecode(reg, msg.Value, protoType)
+		dataToDisplay, err = protoDecoder.Decode(msg.Value)
 		if err != nil {
-			fmt.Fprintf(&stderr, "failed to decode proto. falling back to binary outputla. Error: %v\n", err)
+			fmt.Fprintf(&stderr, "failed to decode proto. falling back to binary output. Error: %v\n", err)
 		}
 	} else {
-		dataToDisplay, err = avroDecode(msg.Value)
+		dataToDisplay, err = avroDecoder.Decode(msg.Value)
 		if err != nil {
 			fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
 		}
 	}
 
 	if keyProtoType != "" {
-		keyToDisplay, err = protoDecode(reg, msg.Key, keyProtoType)
+		keyToDisplay, err = protoKeyDecoder.Decode(msg.Key)
 		if err != nil {
-			fmt.Fprintf(&stderr, "failed to decode proto key. falling back to binary outputla. Error: %v\n", err)
+			fmt.Fprintf(&stderr, "failed to decode proto key. falling back to binary output. Error: %v\n", err)
 		}
 	} else {
-		keyToDisplay, err = avroDecode(msg.Key)
+		keyToDisplay, err = avroDecoder.Decode(msg.Key)
 		if err != nil {
 			fmt.Fprintf(&stderr, "could not decode Avro data: %v\n", err)
 		}
@@ -312,36 +318,6 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 	fmt.Fprintln(outWriter)
 	mu.Unlock()
 
-}
-
-// proto to JSON
-func protoDecode(reg *codec.DescriptorRegistry, b []byte, _type string) ([]byte, error) {
-	dynamicMessage := reg.MessageForType(_type)
-	if dynamicMessage == nil {
-		return b, nil
-	}
-
-	err := dynamicMessage.Unmarshal(b)
-	if err != nil {
-		return nil, err
-	}
-
-	var m jsonpb.Marshaler
-	var w bytes.Buffer
-
-	err = m.Marshal(&w, dynamicMessage)
-	if err != nil {
-		return nil, err
-	}
-	return w.Bytes(), nil
-
-}
-
-func avroDecode(b []byte) ([]byte, error) {
-	if schemaCache != nil {
-		return schemaCache.DecodeMessage(b)
-	}
-	return b, nil
 }
 
 func formatKey(key []byte) []byte {
