@@ -21,7 +21,7 @@ Install via install script:
 curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BINDIR=$HOME/bin bash
 ```
 
-Install on Archlinux via [AUR](https://aur.archlinux.org/packages/kaf/):
+Install on Archlinux via [AUR](https://aur.archlinux.org/packages/kaf-bin/):
 
 ```
 yay -S kaf-bin
