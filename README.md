@@ -101,3 +101,11 @@ Fish
 Powershell
 
 ```Invoke-Expression (@(kaf completion powershell) -replace " ''\)$"," ' ')" -join "`n")```
+
+## Sponsors
+### [Redpanda](https://github.com/redpanda-data/redpanda)
+- The streaming data platform for developers
+- Single binary w/no dependencies
+- Fully Kafka API compatible
+- 10x lower P99 latencies, 6x faster transactions
+- Zero data loss by default
