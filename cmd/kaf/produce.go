@@ -15,8 +15,8 @@ import (
 
 	"github.com/Masterminds/sprig"
 	"github.com/Shopify/sarama"
+	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/birdayz/kaf/pkg/partitioner"
-	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +32,7 @@ var (
 	inputModeFlag   string
 	avroSchemaID    int
 	avroKeySchemaID int
+	avroStrictFlag  bool
 	templateFlag    bool
 )
 
@@ -54,6 +55,7 @@ func init() {
 
 	produceCmd.Flags().IntVarP(&avroSchemaID, "avro-schema-id", "", -1, "Value schema id for avro messsage encoding")
 	produceCmd.Flags().IntVarP(&avroKeySchemaID, "avro-key-schema-id", "", -1, "Key schema id for avro messsage encoding")
+	produceCmd.Flags().BoolVar(&avroStrictFlag, "avro-strict", false, "Uses strict version of the input json to parse unions")
 
 	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "", "line", "Scanning input mode: [line|full]")
 	produceCmd.Flags().IntVarP(&bufferSizeFlag, "line-length-limit", "", 0, "line length limit in line input mode")
@@ -85,6 +87,26 @@ func readFull(reader io.Reader, out chan []byte) {
 	}
 	out <- data
 	close(out)
+}
+
+func valueEncoder() codec.Encoder {
+	if protoType != "" {
+		return codec.NewProtoCodec(protoType, reg)
+	} else if avroSchemaID != -1 {
+		return codec.NewAvroCodec(avroSchemaID, avroStrictFlag, schemaCache)
+	} else {
+		return &codec.BypassCodec{}
+	}
+}
+
+func keyEncoder() codec.Encoder {
+	if keyProtoType != "" {
+		return codec.NewProtoCodec(keyProtoType, reg)
+	} else if avroKeySchemaID != -1 {
+		return codec.NewAvroCodec(avroKeySchemaID, avroStrictFlag, schemaCache)
+	} else {
+		return &codec.BypassCodec{}
+	}
 }
 
 var produceCmd = &cobra.Command{
@@ -128,6 +150,9 @@ var produceCmd = &cobra.Command{
 			go readLines(inReader, out)
 		}
 
+		valueEncoder := valueEncoder()
+		keyEncoder := keyEncoder()
+
 		var key sarama.Encoder
 		if rawKeyFlag {
 			keyBytes, err := base64.RawStdEncoding.DecodeString(keyFlag)
@@ -136,31 +161,11 @@ var produceCmd = &cobra.Command{
 			}
 			key = sarama.ByteEncoder(keyBytes)
 		} else {
-			key = sarama.StringEncoder(keyFlag)
-		}
-		if keyProtoType != "" {
-			if dynamicMessage := reg.MessageForType(keyProtoType); dynamicMessage != nil {
-				err = dynamicMessage.UnmarshalJSON([]byte(keyFlag))
-				if err != nil {
-					errorExit("Failed to parse input JSON as proto type %v: %v", protoType, err)
-				}
-
-				pb, err := pb.Marshal(dynamicMessage)
-				if err != nil {
-					errorExit("Failed to marshal proto: %v", err)
-				}
-
-				key = sarama.ByteEncoder(pb)
-			} else {
-				errorExit("Failed to load key proto type")
-			}
-
-		} else if avroKeySchemaID != -1 {
-			avroKey, err := schemaCache.EncodeMessage(avroKeySchemaID, []byte(keyFlag))
+			encodedKey, err := keyEncoder.Encode([]byte(keyFlag))
 			if err != nil {
-				errorExit("Failed to encode avro key", err)
+				errorExit("Error encoding key: %v", err)
 			}
-			key = sarama.ByteEncoder(avroKey)
+			key = sarama.ByteEncoder(encodedKey)
 		}
 
 		var headers []sarama.RecordHeader
@@ -175,30 +180,6 @@ var produceCmd = &cobra.Command{
 		}
 
 		for data := range out {
-			if protoType != "" {
-				if dynamicMessage := reg.MessageForType(protoType); dynamicMessage != nil {
-					err = dynamicMessage.UnmarshalJSON(data)
-					if err != nil {
-						errorExit("Failed to parse input JSON as proto type %v: %v", protoType, err)
-					}
-
-					pb, err := pb.Marshal(dynamicMessage)
-					if err != nil {
-						errorExit("Failed to marshal proto: %v", err)
-					}
-
-					data = pb
-				} else {
-					errorExit("Failed to load payload proto type")
-				}
-			} else if avroSchemaID != -1 {
-				avro, err := schemaCache.EncodeMessage(avroSchemaID, data)
-				if err != nil {
-					errorExit("Failed to encode avro value", err)
-				}
-				data = avro
-			}
-
 			var ts time.Time
 			t, err := time.Parse(time.RFC3339, timestampFlag)
 			if err != nil {
@@ -228,6 +209,11 @@ var produceCmd = &cobra.Command{
 					}
 
 					input = buf.Bytes()
+				}
+
+				input, err = valueEncoder.Encode(input)
+				if err != nil {
+					errorExit("Error encoding value: %v", err)
 				}
 
 				msg := &sarama.ProducerMessage{

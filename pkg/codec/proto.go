@@ -1,11 +1,15 @@
-package proto
+package codec
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
-
 	"strings"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
 	"github.com/jhump/protoreflect/desc"
 	"github.com/jhump/protoreflect/desc/protoparse"
 	"github.com/jhump/protoreflect/dynamic"
@@ -72,4 +76,54 @@ func (d *DescriptorRegistry) MessageForType(_type string) *dynamic.Message {
 		}
 	}
 	return nil
+}
+
+// ProtoCodec implements the Encoder/Decoder interfaces
+// for protobuf messages
+type ProtoCodec struct {
+	registry  *DescriptorRegistry
+	protoType string
+}
+
+func NewProtoCodec(protoType string, registry *DescriptorRegistry) *ProtoCodec {
+	return &ProtoCodec{registry, protoType}
+}
+
+func (p *ProtoCodec) Encode(in json.RawMessage) ([]byte, error) {
+	if dynamicMessage := p.registry.MessageForType(p.protoType); dynamicMessage != nil {
+		err := dynamicMessage.UnmarshalJSON(in)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse input JSON as proto type %v: %v", p.protoType, err)
+		}
+
+		pb, err := proto.Marshal(dynamicMessage)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal proto: %v", err)
+		}
+
+		return pb, nil
+	} else {
+		return nil, fmt.Errorf("failed to load payload proto type: %v", p.protoType)
+	}
+}
+
+func (p *ProtoCodec) Decode(in []byte) (json.RawMessage, error) {
+	dynamicMessage := p.registry.MessageForType(p.protoType)
+	if dynamicMessage == nil {
+		return in, nil
+	}
+
+	err := dynamicMessage.Unmarshal(in)
+	if err != nil {
+		return nil, err
+	}
+
+	var m jsonpb.Marshaler
+	var w bytes.Buffer
+
+	err = m.Marshal(&w, dynamicMessage)
+	if err != nil {
+		return nil, err
+	}
+	return w.Bytes(), nil
 }

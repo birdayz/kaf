@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Shopify/sarama"
+	"github.com/birdayz/kaf/pkg/codec"
 	"github.com/spf13/cobra"
 )
 
@@ -46,6 +47,8 @@ var queryCmd = &cobra.Command{
 		}
 
 		schemaCache = getSchemaCache()
+		protoDecoder := codec.NewProtoCodec(protoType, reg)
+		protoKeyDecoder := codec.NewProtoCodec(keyProtoType, reg)
 
 		wg := sync.WaitGroup{}
 
@@ -72,7 +75,7 @@ var queryCmd = &cobra.Command{
 						var keyTextRaw string
 						var valueTextRaw string
 						if protoType != "" {
-							d, err := protoDecode(reg, msg.Value, protoType)
+							d, err := protoDecoder.Decode(msg.Value)
 							if err != nil {
 								fmt.Println("Failed proto decode")
 							}
@@ -82,7 +85,7 @@ var queryCmd = &cobra.Command{
 						}
 
 						if keyProtoType != "" {
-							d, err := protoDecode(reg, msg.Key, keyProtoType)
+							d, err := protoKeyDecoder.Decode(msg.Key)
 							if err != nil {
 								fmt.Println("Failed proto decode")
 							}
