@@ -114,7 +114,7 @@ func (r *resetHandler) Setup(s sarama.ConsumerGroupSession) error {
 	}
 
 	for p, o := range r.partitionOffsets {
-		req.AddBlock(r.topic, p, o, 0, "")
+		req.AddBlock(r.topic, p, o, 0, 0, "")
 	}
 	br, err := r.client.Coordinator(r.group)
 	if err != nil {
