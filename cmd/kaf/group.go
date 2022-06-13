@@ -30,6 +30,9 @@ var (
 	flagPeekBefore     int64
 	flagPeekAfter      int64
 	flagPeekTopics     []string
+
+	flagNoMembers      bool
+	flagDescribeTopics []string
 )
 
 func init() {
@@ -48,6 +51,9 @@ func init() {
 	groupPeekCmd.Flags().Int32SliceVarP(&flagPeekPartitions, "partitions", "p", []int32{}, "Partitions to peek from")
 	groupPeekCmd.Flags().Int64VarP(&flagPeekBefore, "before", "B", 0, "Number of messages to peek before current offset")
 	groupPeekCmd.Flags().Int64VarP(&flagPeekAfter, "after", "A", 0, "Number of messages to peek after current offset")
+
+	groupDescribeCmd.Flags().BoolVar(&flagNoMembers, "no-members", false, "Hide members section of the output")
+	groupDescribeCmd.Flags().StringSliceVarP(&flagDescribeTopics, "topic", "t", []string{}, "topics to display for the group. defaults to all topics.")
 }
 
 const (
@@ -470,6 +476,18 @@ var groupDescribeCmd = &cobra.Command{
 		}
 
 		for topic, partitions := range offsetAndMetadata.Blocks {
+			if len(flagDescribeTopics) > 0 {
+				var found bool
+				for _, topicToShow := range flagDescribeTopics {
+					if topic == topicToShow {
+						found = true
+					}
+				}
+
+				if !found {
+					continue
+				}
+			}
 			fmt.Fprintf(w, "\t%v:\n", topic)
 			fmt.Fprintf(w, "\t\tPartition\tGroup Offset\tHigh Watermark\tLag\tMetadata\t\n")
 			fmt.Fprintf(w, "\t\t---------\t------------\t--------------\t---\t--------\n")
@@ -499,55 +517,58 @@ var groupDescribeCmd = &cobra.Command{
 			fmt.Fprintf(w, "\t\tTotal\t%d\t\t%d\t\n", offsetSum, lagSum)
 		}
 
-		fmt.Fprintf(w, "Members:\t")
+		if !flagNoMembers {
 
-		w.Flush()
-		w.Init(outWriter, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
+			fmt.Fprintf(w, "Members:\t")
 
-		fmt.Fprintln(w)
-		for _, member := range group.Members {
-			fmt.Fprintf(w, "\t%v:\n", member.ClientId)
-			fmt.Fprintf(w, "\t\tHost:\t%v\n", member.ClientHost)
+			w.Flush()
+			w.Init(outWriter, tabwriterMinWidthNested, 4, 2, tabwriterPadChar, tabwriterFlags)
 
-			assignment, err := member.GetMemberAssignment()
-			if err != nil || assignment == nil {
-				continue
-			}
+			fmt.Fprintln(w)
+			for _, member := range group.Members {
+				fmt.Fprintf(w, "\t%v:\n", member.ClientId)
+				fmt.Fprintf(w, "\t\tHost:\t%v\n", member.ClientHost)
 
-			fmt.Fprintf(w, "\t\tAssignments:\n")
+				assignment, err := member.GetMemberAssignment()
+				if err != nil || assignment == nil {
+					continue
+				}
 
-			fmt.Fprintf(w, "\t\t  Topic\tPartitions\t\n")
-			fmt.Fprintf(w, "\t\t  -----\t----------\t")
+				fmt.Fprintf(w, "\t\tAssignments:\n")
 
-			for topic, partitions := range assignment.Topics {
-				fmt.Fprintf(w, "\n\t\t  %v\t%v\t", topic, partitions)
-			}
+				fmt.Fprintf(w, "\t\t  Topic\tPartitions\t\n")
+				fmt.Fprintf(w, "\t\t  -----\t----------\t")
 
-			metadata, err := member.GetMemberMetadata()
-			if err != nil {
-				fmt.Fprintf(w, "\n")
-				continue
-			}
+				for topic, partitions := range assignment.Topics {
+					fmt.Fprintf(w, "\n\t\t  %v\t%v\t", topic, partitions)
+				}
 
-			decodedUserData, err := tryDecodeUserData(group.Protocol, metadata.UserData)
-			if err != nil {
-				if IsASCIIPrintable(string(metadata.UserData)) {
-					fmt.Fprintf(w, "\f\t\tMetadata:\t%v\n", string(metadata.UserData))
+				metadata, err := member.GetMemberMetadata()
+				if err != nil {
+					fmt.Fprintf(w, "\n")
+					continue
+				}
+
+				decodedUserData, err := tryDecodeUserData(group.Protocol, metadata.UserData)
+				if err != nil {
+					if IsASCIIPrintable(string(metadata.UserData)) {
+						fmt.Fprintf(w, "\f\t\tMetadata:\t%v\n", string(metadata.UserData))
+					} else {
+
+						fmt.Fprintf(w, "\f\t\tMetadata:\t%v\n", base64.StdEncoding.EncodeToString(metadata.UserData))
+					}
 				} else {
+					switch d := decodedUserData.(type) {
+					case streams.SubscriptionInfo:
+						fmt.Fprintf(w, "\f\t\tMetadata:\t\n")
+						fmt.Fprintf(w, "\t\t  UUID:\t0x%v\n", hex.EncodeToString(d.UUID))
+						fmt.Fprintf(w, "\t\t  UserEndpoint:\t%v\n", d.UserEndpoint)
+					}
+				}
 
-					fmt.Fprintf(w, "\f\t\tMetadata:\t%v\n", base64.StdEncoding.EncodeToString(metadata.UserData))
-				}
-			} else {
-				switch d := decodedUserData.(type) {
-				case streams.SubscriptionInfo:
-					fmt.Fprintf(w, "\f\t\tMetadata:\t\n")
-					fmt.Fprintf(w, "\t\t  UUID:\t0x%v\n", hex.EncodeToString(d.UUID))
-					fmt.Fprintf(w, "\t\t  UserEndpoint:\t%v\n", d.UserEndpoint)
-				}
+				fmt.Fprintf(w, "\n")
+
 			}
-
-			fmt.Fprintf(w, "\n")
-
 		}
 
 		w.Flush()
