@@ -12,12 +12,14 @@ import (
 	"strconv"
 
 	"github.com/Shopify/sarama"
-	"github.com/birdayz/kaf/pkg/avro"
-	"github.com/birdayz/kaf/pkg/proto"
 	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
+	"github.com/itchyny/gojq"
 	"github.com/spf13/cobra"
 	"github.com/vmihailenco/msgpack/v5"
+
+	"github.com/birdayz/kaf/pkg/avro"
+	"github.com/birdayz/kaf/pkg/proto"
 )
 
 var (
@@ -32,6 +34,10 @@ var (
 
 	protoType    string
 	keyProtoType string
+	keyFilter    string
+	valueFilter  string
+	keyJQCode    *gojq.Code
+	valueJQCode  *gojq.Code
 
 	flagPartitions []int32
 
@@ -55,6 +61,8 @@ func init() {
 	consumeCmd.Flags().Int64VarP(&limitMessagesFlag, "limit-messages", "l", 0, "Limit messages per partition")
 	consumeCmd.Flags().StringVarP(&groupFlag, "group", "g", "", "Consumer Group to use for consume")
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
+	consumeCmd.Flags().StringVar(&keyFilter, "key-filter", "", "jq path expression to filter on message keys.")
+	consumeCmd.Flags().StringVar(&valueFilter, "value-filter", "", "jq path expression to filter on message values.")
 
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
@@ -108,6 +116,28 @@ var consumeCmd = &cobra.Command{
 				errorExit("Could not parse '%s' to int64: %w", offsetFlag, err)
 			}
 			offset = o
+		}
+
+		if keyFilter != "" {
+			keyJQuery, err := gojq.Parse(keyFilter)
+			if err != nil {
+				errorExit("Could not parse jq key filter '%s': %w", keyFilter, err)
+			}
+			keyJQCode, err = gojq.Compile(keyJQuery)
+			if err != nil {
+				errorExit("Could not compile jq key filter '%s': %w", keyFilter, err)
+			}
+		}
+
+		if valueFilter != "" {
+			valueJQuery, err := gojq.Parse(valueFilter)
+			if err != nil {
+				errorExit("Could not parse jq value filter '%s': %w", valueFilter, err)
+			}
+			valueJQCode, err = gojq.Compile(valueJQuery)
+			if err != nil {
+				errorExit("Could not compile jq value filter '%s': %w", valueFilter, err)
+			}
 		}
 
 		if groupFlag != "" {
@@ -253,6 +283,10 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		}
 	}
 
+	if !matchesFilter(keyToDisplay, keyJQCode) {
+		return
+	}
+
 	if decodeMsgPack {
 		var obj interface{}
 		err = msgpack.Unmarshal(msg.Value, &obj)
@@ -264,6 +298,10 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		if err != nil {
 			fmt.Fprintf(&stderr, "could not decode msgpack data: %v\n", err)
 		}
+	}
+
+	if !matchesFilter(dataToDisplay, valueJQCode) {
+		return
 	}
 
 	if !raw {
@@ -365,4 +403,22 @@ func isJSON(data []byte) bool {
 		return true
 	}
 	return false
+}
+
+func matchesFilter(data []byte, filter *gojq.Code) bool {
+	if filter == nil {
+		return true
+	}
+	var in interface{}
+	err := json.Unmarshal(data, &in)
+	if err != nil {
+		return true
+	}
+	iter := filter.Run(in)
+	v, ok := iter.Next()
+	if !ok {
+		return false
+	}
+	b, ok := v.(bool)
+	return ok && b
 }
