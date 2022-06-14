@@ -18,8 +18,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/vmihailenco/msgpack/v5"
 
-	"github.com/birdayz/kaf/pkg/avro"
-	"github.com/birdayz/kaf/pkg/proto"
+	"github.com/Hinge/kaf/pkg/avro"
+	"github.com/Hinge/kaf/pkg/proto"
 )
 
 var (

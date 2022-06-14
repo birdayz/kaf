@@ -14,9 +14,9 @@ import (
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 
-	"github.com/birdayz/kaf/pkg/avro"
-	"github.com/birdayz/kaf/pkg/config"
-	"github.com/birdayz/kaf/pkg/proto"
+	"github.com/Hinge/kaf/pkg/avro"
+	"github.com/Hinge/kaf/pkg/config"
+	"github.com/Hinge/kaf/pkg/proto"
 )
 
 var cfgFile string

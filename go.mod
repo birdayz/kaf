@@ -1,4 +1,4 @@
-module github.com/birdayz/kaf
+module github.com/Hinge/kaf
 
 go 1.18
 

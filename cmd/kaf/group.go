@@ -16,9 +16,10 @@ import (
 	"sync"
 
 	"github.com/Shopify/sarama"
-	"github.com/birdayz/kaf/pkg/streams"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
+
+	"github.com/Hinge/kaf/pkg/streams"
 
 	"strconv"
 
