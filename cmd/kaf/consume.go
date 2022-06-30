@@ -352,6 +352,17 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 
 }
 
+// discardConfluentHeader removes the Confluent Schema Header so Confluent compatible messages can still be decoded
+// We assume message index is always 0 (first message in schema)
+// See https://docs.confluent.io/platform/current/schema-registry/serdes-develop/index.html#wire-format
+func discardConfluentHeader(b []byte) []byte {
+	//msg too short to contain header
+	if len(b) < 6 {
+		return b
+	}
+	return b[6:]
+}
+
 // proto to JSON
 func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte, error) {
 	dynamicMessage := reg.MessageForType(_type)
@@ -361,7 +372,13 @@ func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte,
 
 	err := dynamicMessage.Unmarshal(b)
 	if err != nil {
-		return nil, err
+		// if there is an error, it might be a Confluent message, try parsing without headers
+		bTrimmed := discardConfluentHeader(b)
+		trimmedErr := dynamicMessage.Unmarshal(bTrimmed)
+		// if trimming doesn't help just return original error
+		if trimmedErr != nil {
+			return nil, err
+		}
 	}
 
 	var m jsonpb.Marshaler
