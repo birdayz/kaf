@@ -14,11 +14,11 @@ require (
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-colorable v0.1.12
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/orlangure/gnomock v0.21.0
+	github.com/orlangure/gnomock v0.21.1
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.0
 	github.com/vmihailenco/msgpack/v5 v5.3.5
-	github.com/xdg/scram v0.0.0-20180814205039-7eeb5667e42c
+	github.com/xdg/scram v1.0.5
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -62,14 +62,14 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
-	github.com/segmentio/kafka-go v0.4.32 // indirect
+	github.com/segmentio/kafka-go v0.4.34 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
-	github.com/xdg/stringprep v1.0.0 // indirect
+	github.com/xdg/stringprep v1.0.3 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	go.uber.org/zap v1.21.0 // indirect
+	go.uber.org/zap v1.22.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/net v0.0.0-20220809184613-07c6da5e1ced // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
