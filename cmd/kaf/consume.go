@@ -28,6 +28,7 @@ var (
 	groupCommitFlag bool
 	raw             bool
 	follow          bool
+	confluentHeader bool
 	tail            int32
 	schemaCache     *avro.SchemaCache
 	keyfmt          *prettyjson.Formatter
@@ -55,6 +56,7 @@ func init() {
 	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
 	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	consumeCmd.Flags().BoolVar(&decodeMsgPack, "decode-msgpack", false, "Enable deserializing msgpack")
+	consumeCmd.Flags().BoolVar(&confluentHeader, "confluent-header", false, "Force deserialization of messages with confluent headers (use if header detection fails)")
 	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 	consumeCmd.Flags().StringVar(&keyProtoType, "key-proto-type", "", "Fully qualified name of the proto key type. Example: com.test.SampleMessage")
 	consumeCmd.Flags().Int32SliceVarP(&flagPartitions, "partitions", "p", []int32{}, "Partitions to consume from")
@@ -370,13 +372,17 @@ func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte,
 		return b, nil
 	}
 
-	err := dynamicMessage.Unmarshal(b)
-	if err != nil {
-		// if there is an error, it might be a Confluent message, try parsing without headers
+	// user requested confluent aware decoding
+	if confluentHeader {
 		bTrimmed := discardConfluentHeader(b)
-		trimmedErr := dynamicMessage.Unmarshal(bTrimmed)
-		// if trimming doesn't help just return original error
-		if trimmedErr != nil {
+		err := dynamicMessage.Unmarshal(bTrimmed)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := dynamicMessage.Unmarshal(b)
+		if err != nil {
+			err = fmt.Errorf("retry with --confluent-header if invalid proto, it may be a confluent formatted message: %w", err)
 			return nil, err
 		}
 	}
@@ -384,7 +390,7 @@ func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte,
 	var m jsonpb.Marshaler
 	var w bytes.Buffer
 
-	err = m.Marshal(&w, dynamicMessage)
+	err := m.Marshal(&w, dynamicMessage)
 	if err != nil {
 		return nil, err
 	}
