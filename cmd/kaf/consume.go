@@ -382,13 +382,8 @@ func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte,
 	} else {
 		err := dynamicMessage.Unmarshal(b)
 		if err != nil {
-			// if there is an error, it might be a Confluent message, try parsing without headers
-			bTrimmed := discardConfluentHeader(b)
-			trimmedErr := dynamicMessage.Unmarshal(bTrimmed)
-			// if trimming doesn't help just return original error
-			if trimmedErr != nil {
-				return nil, err
-			}
+			err = fmt.Errorf("retry with --confluent-header if invalid proto, it may be a confluent formatted message: %w", err)
+			return nil, err
 		}
 	}
 
