@@ -279,7 +279,7 @@ var createTopicCmd = &cobra.Command{
 			},
 		}, false)
 		if err != nil {
-			fmt.Printf("Could not create topic %v: %v\n", topicName, err.Error())
+			errorExit("Could not create topic %v: %v\n", topicName, err.Error())
 		} else {
 			w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 			fmt.Fprintf(w, "\xE2\x9C\x85 Created topic!\n")
@@ -325,7 +325,7 @@ var deleteTopicCmd = &cobra.Command{
 		topicName := args[0]
 		err := admin.DeleteTopic(topicName)
 		if err != nil {
-			fmt.Fprintf(outWriter, "Could not delete topic %v: %v\n", topicName, err.Error())
+			errorExit("Could not delete topic %v: %v\n", topicName, err.Error())
 		} else {
 			fmt.Fprintf(outWriter, "\xE2\x9C\x85 Deleted topic %v!\n", topicName)
 		}
