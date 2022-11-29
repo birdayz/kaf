@@ -19,21 +19,25 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hinge/kaf/pkg/partitioner"
+	"github.com/Hinge/kaf/pkg/proto"
 )
 
 var (
-	keyFlag         string
-	rawKeyFlag      bool
-	headerFlag      []string
-	repeatFlag      int
-	partitionerFlag string
-	timestampFlag   string
-	partitionFlag   int32
-	bufferSizeFlag  int
-	inputModeFlag   string
-	avroSchemaID    int
-	avroKeySchemaID int
-	templateFlag    bool
+	keyFlag              string
+	rawKeyFlag           bool
+	headerFlag           []string
+	repeatFlag           int
+	partitionerFlag      string
+	timestampFlag        string
+	partitionFlag        int32
+	bufferSizeFlag       int
+	inputModeFlag        string
+	avroSchemaID         int
+	avroKeySchemaID      int
+	templateFlag         bool
+	schemaRegistryKey    string
+	schemaRegistrySecret string
+	schemaRegistryUrl    string
 )
 
 func init() {
@@ -61,6 +65,10 @@ func init() {
 
 	produceCmd.Flags().BoolVar(&templateFlag, "template", false, "run data through go template engine")
 
+	produceCmd.Flags().StringVar(&schemaRegistryKey, "schema-registry-key", "", "API key for Confluent Schema Registry")
+	produceCmd.Flags().StringVar(&schemaRegistrySecret, "schema-registry-secret", "", "API secret for Confluent Schema Registry")
+	produceCmd.Flags().StringVar(&schemaRegistryUrl, "schema-registry-url", "", "URL for Confluent Schema Registry")
+	produceCmd.Flags().BoolVar(&confluentHeader, "confluent-header", false, "Prepend Confluent Schema Header to messages - key, secret, url must be provided")
 }
 
 func readLines(reader io.Reader, out chan []byte) {
@@ -119,6 +127,11 @@ var produceCmd = &cobra.Command{
 			if schemaCache == nil {
 				errorExit("Could not connect to schema registry")
 			}
+		}
+
+		var schemaClient *proto.SchemaClient
+		if confluentHeader {
+			schemaClient = proto.NewSchemaClient(schemaRegistryUrl, schemaRegistryKey, schemaRegistrySecret)
 		}
 
 		out := make(chan []byte, 1)
@@ -238,8 +251,17 @@ var produceCmd = &cobra.Command{
 					ts = t
 				}
 
+				topic := args[0]
+				if confluentHeader {
+					header, err := schemaClient.HeaderForTopic(topic)
+					if err != nil {
+						errorExit("Failed get schema header", err)
+					}
+					marshaledInput = append(header, marshaledInput...)
+				}
+
 				msg := &sarama.ProducerMessage{
-					Topic:     args[0],
+					Topic:     topic,
 					Key:       key,
 					Headers:   headers,
 					Timestamp: ts,
