@@ -146,19 +146,19 @@ var lsTopicsCmd = &cobra.Command{
 
 		sortedTopics := make(
 			[]struct {
-				name string `json:"name"`
+				Name string
 				sarama.TopicDetail
 			}, len(topics))
 
 		i := 0
 		for name, topic := range topics {
-			sortedTopics[i].name = name
+			sortedTopics[i].Name = name
 			sortedTopics[i].TopicDetail = topic
 			i++
 		}
 
 		sort.Slice(sortedTopics, func(i int, j int) bool {
-			return sortedTopics[i].name < sortedTopics[j].name
+			return sortedTopics[i].Name < sortedTopics[j].Name
 		})
 		if prettyJsonFlag {
 			jsonBytes, err := json.MarshalIndent(sortedTopics, "", "    ")
@@ -176,7 +176,7 @@ var lsTopicsCmd = &cobra.Command{
 			}
 
 			for _, topic := range sortedTopics {
-				fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor)
+				fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.Name, topic.NumPartitions, topic.ReplicationFactor)
 			}
 			w.Flush()
 
