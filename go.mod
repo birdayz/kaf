@@ -10,7 +10,7 @@ require (
 	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
 	github.com/jhump/protoreflect v1.14.0
 	github.com/linkedin/goavro/v2 v2.12.0
-	github.com/magiconair/properties v1.8.6
+	github.com/magiconair/properties v1.8.7
 	github.com/manifoldco/promptui v0.9.0
 	github.com/mattn/go-colorable v0.1.13
 	github.com/mitchellh/go-homedir v1.1.0
