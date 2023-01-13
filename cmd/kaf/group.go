@@ -2,17 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"regexp"
 	"sort"
-	"strings"
 	"unicode"
 
 	"text/tabwriter"
 
 	"encoding/base64"
-
 	"encoding/hex"
 
 	"sync"
@@ -157,16 +155,8 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 			partitionOffsets := make(map[int32]int64)
 
 			if offsetMap != "" {
-				match, _ := regexp.MatchString("^\\d+:\\d+(;\\d+:\\d+)*$", offsetMap)
-				if !match {
-					errorExit("Wrong --offset-map format. Use semicolon (;) divided list of single partition:offset mappings.\nExample: --offset-map 0:123;1:135;2:120\n")
-				}
-
-				for _, offsetEntry := range strings.Split(offsetMap, ";") {
-					entryPair := strings.Split(offsetEntry, ":")
-					partition, _ := strconv.Atoi(entryPair[0])
-					offset, _ := strconv.Atoi(entryPair[1])
-					partitionOffsets[int32(partition)] = int64(offset)
+				if err := json.Unmarshal([]byte(offsetMap), &partitionOffsets); err != nil {
+					errorExit("Wrong --offset-map format. Use JSON with keys as partition numbers and values as offsets.\nExample: --offset-map '{\"0\":123, \"1\":135, \"2\":120}'\n")
 				}
 			} else {
 				var partitions []int32
@@ -289,7 +279,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 				errorExit("Failed to commit offset: %v\n", err)
 			}
 
-			fmt.Printf("Successfully committed offsets to %v. Closing...\n", partitionOffsets)
+			fmt.Printf("Successfully committed offsets to %v.\n", partitionOffsets)
 
 			closeErr := g.Close()
 			if closeErr != nil {
@@ -301,7 +291,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 	res.Flags().StringVarP(&offset, "offset", "o", "", "offset to commit")
 	res.Flags().Int32VarP(&partitionFlag, "partition", "p", 0, "partition")
 	res.Flags().BoolVar(&allPartitions, "all-partitions", false, "apply to all partitions")
-	res.Flags().StringVar(&offsetMap, "offset-map", "", "set different offsets per different partitions")
+	res.Flags().StringVar(&offsetMap, "offset-map", "", "set different offsets per different partitions in JSON format, e.g. {\"0\": 123, \"1\": 42}")
 	res.Flags().BoolVar(&noconfirm, "noconfirm", false, "Do not prompt for confirmation")
 	return res
 }
