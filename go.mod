@@ -16,7 +16,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/orlangure/gnomock v0.24.0
 	github.com/spf13/cobra v1.5.0
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.2
 	github.com/vmihailenco/msgpack/v5 v5.3.5
 	github.com/xdg/scram v1.0.5
 	golang.org/x/oauth2 v0.6.0
