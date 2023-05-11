@@ -162,6 +162,8 @@ func withConsumerGroup(ctx context.Context, client sarama.Client, topic, group s
 		errorExit("Failed to create consumer group: %v", err)
 	}
 
+	schemaCache = getSchemaCache()
+
 	err = cg.Consume(ctx, []string{topic}, &g{})
 	if err != nil {
 		errorExit("Error on consume: %v", err)
