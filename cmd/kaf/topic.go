@@ -200,8 +200,12 @@ var describeTopicCmd = &cobra.Command{
 
 		var compacted bool
 		for _, e := range cfg {
-			if e.Name == "cleanup.policy" && e.Value == "compact" {
-				compacted = true
+			if e.Name == "cleanup.policy" {
+				for _, setting := range strings.Split(e.Value, ",") {
+					if setting == "compact" {
+						compacted = true
+					}
+				}
 			}
 		}
 
