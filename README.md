@@ -1,29 +1,42 @@
 # Kaf
 
 ## Install
+
 Run `go install` from `cmd/kaf` directory
 
-The Hinge fork has additional features for working with Confluent Schema Header messages. It supports consuming and producing with Confluent Schema Headers.
+The Hinge fork has additional features for working with Confluent and Debezium Schema Header messages. It supports consuming and producing with Confluent Schema Headers, and
+comsuming messages with Debezium schema headers.
 
 ## Usage
+
 See below/command help for general usage instructions. This section focuses on use cases involving functionality that has been added in the fork.
 
 ### Consume from topic with Confluent Headers
+
 ```
-kaf --cluster $cluster consume $topicname --proto-include /path/to/protobufs/ --proto-type $protoname --confluent-header
+kaf --cluster $cluster consume $topicname --proto-include /path/to/protobufs/ --proto-type $protoname --trim-message-header-bytes 6
+```
+
+### Consume from topic with Debezium Headers
+
+```
+kaf --cluster $cluster consume $topicname --trim-message-header-bytes 5 --rim-key-header-bytes 5
 ```
 
 ### Query for message with key in topic with Confluent Headers
+
 ```
-kaf --cluster $cluster query $topicname --key $querykey --proto-include /path/to/protobufs/ --proto-type $protoname --confluent-header
+kaf --cluster $cluster query $topicname --key $querykey --proto-include /path/to/protobufs/ --proto-type $protoname --trim-message-header-bytes 6
 ```
 
 ### Produce message to topic with Confluent Headers
+
 ```
-kaf --cluster $cluster produce $topicname --schema-registry-key $schemakey --schema-registry-secret $schemasecret --schema-registry-url $schemaurl --proto-include /path/to/protobufs/ --proto-type $protoname --key $msgkey
+kaf --cluster $cluster produce $topicname --schema-registry-type confluent --schema-registry-key $schemakey --schema-registry-secret $schemasecret --schema-registry-url $schemaurl --proto-include /path/to/protobufs/ --proto-type $protoname --key $msgkey
 ```
 
 ## Original Readme
+
 Kafka CLI inspired by kubectl & docker
 
 [![Actions Status](https://github.com/birdayz/kaf/workflows/Go/badge.svg)](https://github.com/birdayz/kaf/actions)
@@ -34,6 +47,7 @@ Kafka CLI inspired by kubectl & docker
 ![asciicinema](asciicinema.gif)
 
 ## Install
+
 Install via Go from source:
 
 ```
@@ -102,9 +116,11 @@ Set offset for consumer group _dispatcher_ consuming from topic _mqtt.messages.i
 `kaf group commit dispatcher -t mqtt.messages.incoming --offset latest --all-partitions`
 
 ## Configuration
+
 See the [examples](examples) folder
 
 ## Shell autocompletion
+
 Source the completion script in your shell commands file:
 
 Bash Linux:
@@ -128,7 +144,9 @@ Powershell
 ```Invoke-Expression (@(kaf completion powershell) -replace " ''\)$"," ' ')" -join "`n")```
 
 ## Sponsors
+
 ### [Redpanda](https://github.com/redpanda-data/redpanda)
+
 - The streaming data platform for developers
 - Single binary w/no dependencies
 - Fully Kafka API compatible

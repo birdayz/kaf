@@ -20,6 +20,8 @@ func init() {
 	queryCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	queryCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 	queryCmd.Flags().StringVar(&keyProtoType, "key-proto-type", "", "Fully qualified name of the proto key type. Example: com.test.SampleMessage")
+	queryCmd.Flags().Uint32VarP(&trimKeyHeaderBytes, "trim-key-header-bytes", "k", 0, "Trim the first n bytes from the key")
+	queryCmd.Flags().Uint32VarP(&trimMessageHeaderBytes, "trim-message-header-bytes", "m", 0, "Trim the first n bytes from the message")
 
 	queryCmd.Flags().StringVar(&grepValue, "grep", "", "Grep for value")
 
@@ -68,27 +70,30 @@ var queryCmd = &cobra.Command{
 				}
 
 				for msg := range pc.Messages() {
-					if string(msg.Key) == keyFlag {
+					trimmedKey := msg.Key[trimKeyHeaderBytes:]
+					if string(trimmedKey) == keyFlag {
 						var keyTextRaw string
 						var valueTextRaw string
+
+						trimmedValue := msg.Value[trimMessageHeaderBytes:]
 						if protoType != "" {
-							d, err := protoDecode(reg, msg.Value, protoType)
+							d, err := protoDecode(reg, trimmedValue, protoType)
 							if err != nil {
 								fmt.Println("Failed proto decode")
 							}
 							valueTextRaw = string(d)
 						} else {
-							valueTextRaw = string(msg.Value)
+							valueTextRaw = string(trimmedValue)
 						}
 
 						if keyProtoType != "" {
-							d, err := protoDecode(reg, msg.Key, keyProtoType)
+							d, err := protoDecode(reg, trimmedKey, keyProtoType)
 							if err != nil {
 								fmt.Println("Failed proto decode")
 							}
 							keyTextRaw = string(d)
 						} else {
-							keyTextRaw = string(msg.Key)
+							keyTextRaw = string(trimmedKey)
 						}
 
 						match := true
