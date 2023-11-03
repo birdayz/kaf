@@ -7,14 +7,19 @@ import (
 	"github.com/riferrei/srclient"
 )
 
-type SchemaClient struct {
+type SchemaClient interface {
+	HeaderForTopic(topic string) ([]byte, error)
+}
+
+type confluentSchemaClient struct {
 	client srclient.ISchemaRegistryClient
 }
 
-func NewSchemaClient(url string, key string, secret string) *SchemaClient {
+// NewConfluentSchemaClient returns a SchemaClient that uses Confluent Schema Registry
+func NewConfluentSchemaClient(url string, key string, secret string) SchemaClient {
 	schemaClient := srclient.CreateSchemaRegistryClient(url)
 	schemaClient.SetCredentials(key, secret)
-	return &SchemaClient{client: schemaClient}
+	return &confluentSchemaClient{client: schemaClient}
 }
 
 // HeaderForTopic returns a Confluent Wire Format header that must be pre-pended to messages
@@ -25,7 +30,7 @@ func NewSchemaClient(url string, key string, secret string) *SchemaClient {
 // messages use the header, it should be simpler to just use the
 // producer interceptor (NewConfluentProducerInterceptor) above rather
 // than doing this every time we produce to kafka
-func (sc SchemaClient) HeaderForTopic(topic string) ([]byte, error) {
+func (sc *confluentSchemaClient) HeaderForTopic(topic string) ([]byte, error) {
 	// Default Confluent naming strategy appends -value to schemas for message body
 	// https://docs.confluent.io/platform/current/schema-registry/serdes-develop/index.html#subject-name-strategy
 	schema, err := sc.client.GetLatestSchema(fmt.Sprintf("%s-value", topic))

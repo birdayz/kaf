@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hinge/kaf/pkg/partitioner"
-	"github.com/Hinge/kaf/pkg/proto"
 )
 
 var (
@@ -35,6 +34,7 @@ var (
 	avroSchemaID         int
 	avroKeySchemaID      int
 	templateFlag         bool
+	schemaRegistryType   string
 	schemaRegistryKey    string
 	schemaRegistrySecret string
 	schemaRegistryUrl    string
@@ -65,10 +65,10 @@ func init() {
 
 	produceCmd.Flags().BoolVar(&templateFlag, "template", false, "run data through go template engine")
 
-	produceCmd.Flags().StringVar(&schemaRegistryKey, "schema-registry-key", "", "API key for Confluent Schema Registry")
-	produceCmd.Flags().StringVar(&schemaRegistrySecret, "schema-registry-secret", "", "API secret for Confluent Schema Registry")
-	produceCmd.Flags().StringVar(&schemaRegistryUrl, "schema-registry-url", "", "URL for Confluent Schema Registry")
-	produceCmd.Flags().BoolVar(&confluentHeader, "confluent-header", false, "Prepend Confluent Schema Header to messages - key, secret, url must be provided")
+	produceCmd.Flags().StringVar(&schemaRegistryType, "schema-registry-type", "", "Type of schema registry to use. Registry key, secret, and URL are required. [confluent]")
+	produceCmd.Flags().StringVar(&schemaRegistryKey, "schema-registry-key", "", "API key for schema registry")
+	produceCmd.Flags().StringVar(&schemaRegistrySecret, "schema-registry-secret", "", "API secret for schema registry")
+	produceCmd.Flags().StringVar(&schemaRegistryUrl, "schema-registry-url", "", "URL for schema registry")
 }
 
 func readLines(reader io.Reader, out chan []byte) {
@@ -129,10 +129,7 @@ var produceCmd = &cobra.Command{
 			}
 		}
 
-		var schemaClient *proto.SchemaClient
-		if confluentHeader {
-			schemaClient = proto.NewSchemaClient(schemaRegistryUrl, schemaRegistryKey, schemaRegistrySecret)
-		}
+		schemaRegistryClient := getSchemaRegistryClient()
 
 		out := make(chan []byte, 1)
 		switch inputModeFlag {
@@ -252,8 +249,8 @@ var produceCmd = &cobra.Command{
 				}
 
 				topic := args[0]
-				if confluentHeader {
-					header, err := schemaClient.HeaderForTopic(topic)
+				if schemaRegistryClient != nil {
+					header, err := schemaRegistryClient.HeaderForTopic(topic)
 					if err != nil {
 						errorExit("Failed get schema header", err)
 					}

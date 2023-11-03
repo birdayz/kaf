@@ -254,6 +254,17 @@ func getSchemaCache() (cache *avro.SchemaCache) {
 	return cache
 }
 
+func getSchemaRegistryClient() (registry proto.SchemaClient) {
+	var schemaClient proto.SchemaClient
+	if schemaRegistryType == "confluent" {
+		if schemaRegistryUrl == "" || schemaRegistryKey == "" || schemaRegistrySecret == "" {
+			errorExit("schema-registry-url, schema-registry-key, and schema-registry-secret are required for confluent schema registry")
+		}
+		schemaClient = proto.NewConfluentSchemaClient(schemaRegistryUrl, schemaRegistryKey, schemaRegistrySecret)
+	}
+	return schemaClient
+}
+
 func errorExit(format string, a ...interface{}) {
 	fmt.Fprintf(errWriter, format+"\n", a...)
 	os.Exit(1)
