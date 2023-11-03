@@ -6,10 +6,9 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 	"text/tabwriter"
-
-	"strconv"
 
 	"github.com/Shopify/sarama"
 	"github.com/golang/protobuf/jsonpb"
@@ -23,16 +22,18 @@ import (
 )
 
 var (
-	offsetFlag             string
-	groupFlag              string
-	groupCommitFlag        bool
-	raw                    bool
-	follow                 bool
+	offsetFlag      string
+	groupFlag       string
+	groupCommitFlag bool
+	outputFormat    = OutputFormatDefault
+	// Deprecated: Use outputFormat instead.
+	raw         bool
+	follow      bool
 	trimKeyHeaderBytes     uint32
 	trimMessageHeaderBytes uint32
-	tail                   int32
-	schemaCache            *avro.SchemaCache
-	keyfmt                 *prettyjson.Formatter
+	tail        int32
+	schemaCache *avro.SchemaCache
+	keyfmt      *prettyjson.Formatter
 
 	protoType    string
 	keyProtoType string
@@ -52,6 +53,7 @@ func init() {
 	rootCmd.AddCommand(consumeCmd)
 	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest, or integer.")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON")
+	consumeCmd.Flags().Var(&outputFormat, "output", "Set output format messages: default, raw (without key or prettified JSON), json")
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Continue to consume messages until program execution is interrupted/terminated")
 	consumeCmd.Flags().Int32VarP(&tail, "tail", "n", 0, "Print last n messages per partition")
 	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
@@ -67,6 +69,14 @@ func init() {
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
 	consumeCmd.Flags().StringVar(&keyFilter, "key-filter", "", "jq path expression to filter on message keys.")
 	consumeCmd.Flags().StringVar(&valueFilter, "value-filter", "", "jq path expression to filter on message values.")
+
+	if err := consumeCmd.RegisterFlagCompletionFunc("output", completeOutputFormat); err != nil {
+		errorExit("Failed to register flag completion: %v", err)
+	}
+
+	if err := consumeCmd.Flags().MarkDeprecated("raw", "use --output raw instead"); err != nil {
+		errorExit("Failed to mark flag as deprecated: %v", err)
+	}
 
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
@@ -106,6 +116,11 @@ var consumeCmd = &cobra.Command{
 		cfg := getConfig()
 		topic := args[0]
 		client := getClientFromConfig(cfg)
+
+		// Allow deprecated flag to override when outputFormat is not specified, or default.
+		if outputFormat == OutputFormatDefault && raw {
+			outputFormat = OutputFormatRaw
+		}
 
 		switch offsetFlag {
 		case "oldest":
@@ -180,6 +195,8 @@ func withConsumerGroup(ctx context.Context, client sarama.Client, topic, group s
 	if err != nil {
 		errorExit("Failed to create consumer group: %v", err)
 	}
+
+	schemaCache = getSchemaCache()
 
 	err = cg.Consume(ctx, []string{topic}, &g{})
 	if err != nil {
@@ -310,16 +327,51 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		return
 	}
 
-	if !raw {
-		if isJSON(dataToDisplay) {
-			dataToDisplay = formatValue(dataToDisplay)
+	dataToDisplay = formatMessage(msg, dataToDisplay, keyToDisplay, &stderr)
+
+	mu.Lock()
+	stderr.WriteTo(errWriter)
+	_, _ = colorableOut.Write(dataToDisplay)
+	fmt.Fprintln(outWriter)
+	mu.Unlock()
+}
+
+func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay []byte, stderr *bytes.Buffer) []byte {
+	switch outputFormat {
+	case OutputFormatRaw:
+		return rawMessage
+	case OutputFormatJSON:
+		jsonMessage := make(map[string]interface{})
+
+		jsonMessage["partition"] = msg.Partition
+		jsonMessage["offset"] = msg.Offset
+		jsonMessage["timestamp"] = msg.Timestamp
+
+		if len(msg.Headers) > 0 {
+			jsonMessage["headers"] = msg.Headers
+		}
+
+		jsonMessage["key"] = formatJSON(keyToDisplay)
+		jsonMessage["payload"] = formatJSON(rawMessage)
+
+		jsonToDisplay, err := json.Marshal(jsonMessage)
+		if err != nil {
+			fmt.Fprintf(stderr, "could not decode JSON data: %v", err)
+		}
+
+		return jsonToDisplay
+	case OutputFormatDefault:
+		fallthrough
+	default:
+		if isJSON(rawMessage) {
+			rawMessage = formatValue(rawMessage)
 		}
 
 		if isJSON(keyToDisplay) {
 			keyToDisplay = formatKey(keyToDisplay)
 		}
 
-		w := tabwriter.NewWriter(&stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		w := tabwriter.NewWriter(stderr, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 
 		if len(msg.Headers) > 0 {
 			fmt.Fprintf(w, "Headers:\n")
@@ -348,14 +400,9 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		}
 		fmt.Fprintf(w, "Partition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", msg.Partition, msg.Offset, msg.Timestamp)
 		w.Flush()
+
+		return rawMessage
 	}
-
-	mu.Lock()
-	stderr.WriteTo(errWriter)
-	_, _ = colorableOut.Write(dataToDisplay)
-	fmt.Fprintln(outWriter)
-	mu.Unlock()
-
 }
 
 // proto to JSON
@@ -403,6 +450,15 @@ func formatValue(key []byte) []byte {
 	return key
 }
 
+func formatJSON(data []byte) interface{} {
+	var i interface{}
+	if err := json.Unmarshal(data, &i); err != nil {
+		return string(data)
+	}
+
+	return i
+}
+
 func isJSON(data []byte) bool {
 	var i interface{}
 	if err := json.Unmarshal(data, &i); err == nil {
@@ -427,4 +483,34 @@ func matchesFilter(data []byte, filter *gojq.Code) bool {
 	}
 	b, ok := v.(bool)
 	return ok && b
+}
+
+type OutputFormat string
+
+const (
+	OutputFormatDefault OutputFormat = "default"
+	OutputFormatRaw     OutputFormat = "raw"
+	OutputFormatJSON    OutputFormat = "json"
+)
+
+func (e *OutputFormat) String() string {
+	return string(*e)
+}
+
+func (e *OutputFormat) Set(v string) error {
+	switch v {
+	case "default", "raw", "json":
+		*e = OutputFormat(v)
+		return nil
+	default:
+		return fmt.Errorf("must be one of: default, raw, json")
+	}
+}
+
+func (e *OutputFormat) Type() string {
+	return "OutputFormat"
+}
+
+func completeOutputFormat(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return []string{"default", "raw", "json"}, cobra.ShellCompDirectiveNoFileComp
 }

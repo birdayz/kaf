@@ -26,14 +26,20 @@ type TLS struct {
 	Insecure      bool
 }
 
+type SchemaRegistryCredentials struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
 type Cluster struct {
-	Name              string
-	Version           string   `yaml:"version"`
-	Brokers           []string `yaml:"brokers"`
-	SASL              *SASL    `yaml:"SASL"`
-	TLS               *TLS     `yaml:"TLS"`
-	SecurityProtocol  string   `yaml:"security-protocol"`
-	SchemaRegistryURL string   `yaml:"schema-registry-url"`
+	Name                      string
+	Version                   string                     `yaml:"version"`
+	Brokers                   []string                   `yaml:"brokers"`
+	SASL                      *SASL                      `yaml:"SASL"`
+	TLS                       *TLS                       `yaml:"TLS"`
+	SecurityProtocol          string                     `yaml:"security-protocol"`
+	SchemaRegistryURL         string                     `yaml:"schema-registry-url"`
+	SchemaRegistryCredentials *SchemaRegistryCredentials `yaml:"schema-registry-credentials"`
 }
 
 type Config struct {

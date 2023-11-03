@@ -99,6 +99,8 @@ Describe a given topic called _mqtt.messages.incoming_
 
 `kaf topic describe mqtt.messages.incoming`
 
+### Group Inspection
+
 List consumer groups
 
 `kaf groups`
@@ -111,9 +113,19 @@ Write message into given topic from stdin
 
 `echo test | kaf produce mqtt.messages.incoming`
 
+### Offset Reset
+
 Set offset for consumer group _dispatcher_ consuming from topic _mqtt.messages.incoming_ to latest for all partitions
 
 `kaf group commit dispatcher -t mqtt.messages.incoming --offset latest --all-partitions`
+
+Set offset to oldest
+
+`kaf group commit dispatcher -t mqtt.messages.incoming --offset oldest --all-partitions`
+
+Set offset to 1001 for partition 0
+
+`kaf group commit dispatcher -t mqtt.messages.incoming --offset 1001 --partition 0`
 
 ## Configuration
 
