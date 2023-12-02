@@ -121,3 +121,5 @@ Powershell
 - Fully Kafka API compatible
 - 10x lower P99 latencies, 6x faster transactions
 - Zero data loss by default
+### [Zerodha](https://zerodha.tech)
+
