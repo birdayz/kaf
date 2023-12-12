@@ -40,6 +40,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 			saramaConfig.Net.SASL.User = cluster.SASL.Username
 			saramaConfig.Net.SASL.Password = cluster.SASL.Password
 		}
+		saramaConfig.Net.SASL.Version = cluster.SASL.Version
 	}
 	if cluster.TLS != nil && cluster.SecurityProtocol != "SASL_SSL" {
 		saramaConfig.Net.TLS.Enable = true
