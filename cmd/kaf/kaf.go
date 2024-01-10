@@ -10,7 +10,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 

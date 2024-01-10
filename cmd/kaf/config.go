@@ -7,7 +7,7 @@ import (
 
 	"regexp"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/birdayz/kaf/pkg/config"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"

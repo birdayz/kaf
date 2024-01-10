@@ -3,7 +3,7 @@ package partitioner
 import (
 	"hash"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 )
 
 // NewJVMCompatiblePartitioner creates a Sarama partitioner that uses

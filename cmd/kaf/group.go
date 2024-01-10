@@ -15,7 +15,7 @@ import (
 
 	"sync"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/birdayz/kaf/pkg/streams"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -114,7 +114,7 @@ func (r *resetHandler) Setup(s sarama.ConsumerGroupSession) error {
 	}
 
 	for p, o := range r.partitionOffsets {
-		req.AddBlock(r.topic, p, o, 0, 0, "")
+		req.AddBlock(r.topic, p, o, 0, "")
 	}
 	br, err := r.client.Coordinator(r.group)
 	if err != nil {

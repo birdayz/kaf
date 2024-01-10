@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/sprig"
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/birdayz/kaf/pkg/partitioner"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
