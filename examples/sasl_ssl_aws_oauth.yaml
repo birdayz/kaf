@@ -1,8 +1,7 @@
 clusters:
   - name: exp0
     brokers:
-      - b-1.exp0useast1n1metricsk.x03zzy.c18.kafka.us-east-1.amazonaws.com:9098
-      - b-2.exp0useast1n1metricsk.x03zzy.c18.kafka.us-east-1.amazonaws.com:9098
+      - xyz.amazonaws.com:9092
     SASL:
       mechanism: AWS_MSK_IAM
     region: us-east-1
