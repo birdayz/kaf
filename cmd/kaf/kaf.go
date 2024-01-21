@@ -36,6 +36,11 @@ func getConfig() (saramaConfig *sarama.Config) {
 	}
 	if cluster.SASL != nil {
 		saramaConfig.Net.SASL.Enable = true
+		if cluster.SASL.Mechanism == AuthAWSMSKIAM {
+			//Here setup get token function
+			saramaConfig.Net.SASL.Mechanism = sarama.SASLTypeOAuth
+			saramaConfig.Net.SASL.TokenProvider = &mskAccessTokenProvider{region: cluster.Region}
+		}
 		if cluster.SASL.Mechanism != "OAUTHBEARER" {
 			saramaConfig.Net.SASL.User = cluster.SASL.Username
 			saramaConfig.Net.SASL.Password = cluster.SASL.Password

@@ -41,6 +41,7 @@ type Cluster struct {
 	SecurityProtocol          string                     `yaml:"security-protocol"`
 	SchemaRegistryURL         string                     `yaml:"schema-registry-url"`
 	SchemaRegistryCredentials *SchemaRegistryCredentials `yaml:"schema-registry-credentials"`
+	Region                    string                     `yaml:"region"`
 }
 
 type Config struct {

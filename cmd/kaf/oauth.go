@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/IBM/sarama"
+	"github.com/aws/aws-msk-iam-sasl-signer-go/signer"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -16,6 +18,10 @@ var (
 	tokenProv         *tokenProvider
 	refreshBuffer     time.Duration = time.Second * 20
 	tokenFetchTimeout time.Duration = time.Second * 10
+)
+
+const (
+	AuthAWSMSKIAM = "AWS_MSK_IAM"
 )
 
 var _ sarama.AccessTokenProvider = &tokenProvider{}
@@ -114,4 +120,19 @@ func (tp *tokenProvider) refreshToken() error {
 	tp.expiresAt = token.Expiry
 	tp.replaceAt = token.Expiry.Add(-refreshBuffer)
 	return nil
+}
+
+// mskAccessTokenProvider provide auth for connecting to AWS MSK
+// Region is required
+type mskAccessTokenProvider struct {
+	region string
+}
+
+func (m *mskAccessTokenProvider) Token() (*sarama.AccessToken, error) {
+	if m.region == "" {
+		return nil, fmt.Errorf("AWS region is required")
+	}
+
+	token, _, err := signer.GenerateAuthToken(context.Background(), m.region)
+	return &sarama.AccessToken{Token: token}, err
 }
