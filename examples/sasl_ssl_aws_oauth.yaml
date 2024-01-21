@@ -1,5 +1,5 @@
 clusters:
-  - name: exp0
+  - name: test
     brokers:
       - xyz.amazonaws.com:9092
     SASL:
