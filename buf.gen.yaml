@@ -1,0 +1,10 @@
+version: v1
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/birdayz/kaf/proto/gen/go
+    except: []
+plugins:
+  - name: go
+    out: proto/gen/go
+    opt: paths=source_relative

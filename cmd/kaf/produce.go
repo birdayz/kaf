@@ -13,8 +13,8 @@ import (
 
 	"time"
 
-	"github.com/Masterminds/sprig"
 	"github.com/IBM/sarama"
+	"github.com/Masterminds/sprig"
 	"github.com/birdayz/kaf/pkg/partitioner"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
@@ -43,7 +43,7 @@ func init() {
 	produceCmd.Flags().StringArrayVarP(&headerFlag, "header", "H", []string{}, "Header in format <key>:<value>. May be used multiple times to add more headers.")
 	produceCmd.Flags().IntVarP(&repeatFlag, "repeat", "n", 1, "Repeat records to send.")
 
-	produceCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
+	produceCmd.Flags().StringSliceVar(&protoInclude, "proto-include", []string{}, "Path to proto files")
 	produceCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	produceCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
 

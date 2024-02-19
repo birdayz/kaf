@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package kaf.v1;
+
+message Profile {
+  repeated TopicConfig topics = 1;
+}
+
+message TopicConfig {
+  string name = 1;
+
+  message Serde {
+    oneof kind {
+      Protobuf protobuf = 2;
+    }
+  }
+
+  message Protobuf {
+    string key_type = 1;
+    string value_type = 2;
+    repeated string include_paths = 3;
+    repeated string exclude_paths = 4;
+  }
+
+  Serde serde = 2;
+}

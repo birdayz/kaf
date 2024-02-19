@@ -1,0 +1,9 @@
+version: v1
+deps: []
+breaking:
+  use:
+    - WIRE_JSON
+lint:
+  allow_comment_ignores: true
+  use:
+    - DEFAULT

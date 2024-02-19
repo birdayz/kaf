@@ -1,0 +1,9 @@
+topics:
+- name: my-topic-a
+  serde:
+    protobuf:
+      exclude_paths: []
+      include_paths:
+      - ./proto
+      key_type: google.protobuf.StringValue
+      value_type: google.protobuf.StringValue

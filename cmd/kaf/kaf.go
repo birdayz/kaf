@@ -159,11 +159,12 @@ var currentCluster *config.Cluster
 var (
 	brokersFlag       []string
 	schemaRegistryURL string
-	protoFiles        []string
+	protoInclude      []string
 	protoExclude      []string
 	decodeMsgPack     bool
 	verbose           bool
 	clusterOverride   string
+	profileFlag       string
 )
 
 func init() {
@@ -177,7 +178,7 @@ func init() {
 
 var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
 	if protoType != "" {
-		r, err := proto.NewDescriptorRegistry(protoFiles, protoExclude)
+		r, err := proto.NewDescriptorRegistry(protoInclude, protoExclude)
 		if err != nil {
 			errorExit("Failed to load protobuf files: %v\n", err)
 		}

@@ -12,7 +12,9 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/birdayz/kaf/pkg/avro"
+	"github.com/birdayz/kaf/pkg/config"
 	"github.com/birdayz/kaf/pkg/proto"
+	kafv1 "github.com/birdayz/kaf/proto/gen/go/kaf/v1"
 	"github.com/golang/protobuf/jsonpb"
 	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
@@ -39,6 +41,8 @@ var (
 	limitMessagesFlag int64
 
 	reg *proto.DescriptorRegistry
+
+	profile *kafv1.Profile
 )
 
 func init() {
@@ -48,7 +52,7 @@ func init() {
 	consumeCmd.Flags().Var(&outputFormat, "output", "Set output format messages: default, raw (without key or prettified JSON), json")
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Continue to consume messages until program execution is interrupted/terminated")
 	consumeCmd.Flags().Int32VarP(&tail, "tail", "n", 0, "Print last n messages per partition")
-	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
+	consumeCmd.Flags().StringSliceVar(&protoInclude, "proto-include", []string{}, "Path to proto files")
 	consumeCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	consumeCmd.Flags().BoolVar(&decodeMsgPack, "decode-msgpack", false, "Enable deserializing msgpack")
 	consumeCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
@@ -57,6 +61,7 @@ func init() {
 	consumeCmd.Flags().Int64VarP(&limitMessagesFlag, "limit-messages", "l", 0, "Limit messages per partition")
 	consumeCmd.Flags().StringVarP(&groupFlag, "group", "g", "", "Consumer Group to use for consume")
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
+	consumeCmd.Flags().StringVar(&profileFlag, "profile", "", "Profile")
 
 	if err := consumeCmd.RegisterFlagCompletionFunc("output", completeOutputFormat); err != nil {
 		errorExit("Failed to register flag completion: %v", err)
@@ -69,6 +74,7 @@ func init() {
 	keyfmt = prettyjson.NewFormatter()
 	keyfmt.Newline = " " // Replace newline with space to avoid condensed output.
 	keyfmt.Indent = 0
+
 }
 
 type offsets struct {
@@ -93,12 +99,47 @@ func getOffsets(client sarama.Client, topic string, partition int32) (*offsets, 
 	}, nil
 }
 
+func setupSerde(cmd *cobra.Command, args []string) {
+	// Maybe load profile
+	if profileFlag != "" {
+		p, err := config.Load(profileFlag)
+		if err != nil {
+			fmt.Println("errrr")
+			errorExit("failed to load profile: %w", err)
+		}
+		fmt.Println("ok")
+		profile = p
+		fmt.Println("Assigned profile")
+	}
+
+	// Try to load proto config from profile
+	fmt.Println(profile)
+	if profile != nil {
+		for _, topicConfig := range profile.Topics {
+
+			if serde := topicConfig.Serde; serde != nil {
+				if protobuf := serde.GetProtobuf(); protobuf != nil {
+					keyProtoType = protobuf.KeyType
+					protoType = protobuf.ValueType
+					protoInclude = protobuf.IncludePaths
+					protoExclude = protobuf.ExcludePaths
+
+					fmt.Println("Doing it")
+
+				}
+			}
+
+		}
+	}
+	setupProtoDescriptorRegistry(cmd, args)
+}
+
 var consumeCmd = &cobra.Command{
 	Use:               "consume TOPIC",
 	Short:             "Consume messages",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: validTopicArgs,
-	PreRun:            setupProtoDescriptorRegistry,
+	PreRun:            setupSerde,
 	Run: func(cmd *cobra.Command, args []string) {
 		var offset int64
 		cfg := getConfig()
@@ -247,6 +288,7 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 	var err error
 
 	if protoType != "" {
+		fmt.Println("try")
 		dataToDisplay, err = protoDecode(reg, msg.Value, protoType)
 		if err != nil {
 			fmt.Fprintf(&stderr, "failed to decode proto. falling back to binary outputla. Error: %v\n", err)
@@ -363,10 +405,13 @@ func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay 
 
 // proto to JSON
 func protoDecode(reg *proto.DescriptorRegistry, b []byte, _type string) ([]byte, error) {
+	fmt.Println("def")
 	dynamicMessage := reg.MessageForType(_type)
 	if dynamicMessage == nil {
 		return b, nil
 	}
+
+	fmt.Println("got msg")
 
 	err := dynamicMessage.Unmarshal(b)
 	if err != nil {
