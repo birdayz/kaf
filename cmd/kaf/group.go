@@ -489,7 +489,14 @@ var groupDescribeCmd = &cobra.Command{
 			errorExit("Failed to fetch group offsets: %v\n", err)
 		}
 
-		for topic, partitions := range offsetAndMetadata.Blocks {
+		topics := make([]string, 0, len(offsetAndMetadata.Blocks))
+		for k := range offsetAndMetadata.Blocks {
+			topics = append(topics, k)
+		}
+		sort.Strings(topics)
+
+		for _, topic := range topics {
+			partitions := offsetAndMetadata.Blocks[topic]
 			if len(flagDescribeTopics) > 0 {
 				var found bool
 				for _, topicToShow := range flagDescribeTopics {
