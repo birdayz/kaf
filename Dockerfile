@@ -1,4 +1,4 @@
-FROM golang:1.18 as BuildStage
+FROM golang:1.22 as BuildStage
 
 # Set destination for COPY
 WORKDIR /app
