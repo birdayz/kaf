@@ -368,7 +368,10 @@ var lagCmd = &cobra.Command{
 		var lagInfo = make(map[string]int64)
 		for _, v := range groupsInfo {
 			for _, member := range v.Members {
-				assignment, _ := member.GetMemberAssignment()
+				assignment, err := member.GetMemberAssignment()
+				if err != nil || assignment == nil {
+					continue
+				}
 				if _, exist := assignment.Topics[topic]; exist {
 					var sum int64
 					resp, _ := admin.ListConsumerGroupOffsets(v.GroupId, assignment.Topics)
