@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/golang/protobuf v1.5.3
 	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
-	github.com/jhump/protoreflect v1.15.4
+	github.com/jhump/protoreflect v1.15.6
 	github.com/linkedin/goavro/v2 v2.12.0
 	github.com/magiconair/properties v1.8.7
 	github.com/manifoldco/promptui v0.9.0
@@ -28,7 +28,7 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
-	github.com/bufbuild/protocompile v0.7.1 // indirect
+	github.com/bufbuild/protocompile v0.8.0 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect
