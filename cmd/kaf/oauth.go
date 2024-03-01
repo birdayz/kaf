@@ -55,6 +55,7 @@ func newTokenProvider() *tokenProvider {
 					ClientID:     cluster.SASL.ClientID,
 					ClientSecret: cluster.SASL.ClientSecret,
 					TokenURL:     cluster.SASL.TokenURL,
+					Scopes:       cluster.SASL.Scopes,
 				},
 				staticToken: false,
 			}
