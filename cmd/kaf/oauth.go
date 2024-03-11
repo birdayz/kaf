@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/IBM/sarama"
+	aws_signer "github.com/aws/aws-msk-iam-sasl-signer-go/signer"
+	aws_config "github.com/aws/aws-sdk-go-v2/config"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/clientcredentials"
 )
@@ -41,9 +43,24 @@ type tokenProvider struct {
 func newTokenProvider() *tokenProvider {
 	once.Do(func() {
 		cluster := currentCluster
+		ctx := context.Background()
 
-		//token either from tokenURL or static
-		if len(cluster.SASL.Token) != 0 {
+		// token either from tokenURL, static or AWS API
+		if cluster.SASL.Mechanism == "AWS_MSK_IAM" {
+			cfg, err := aws_config.LoadDefaultConfig(ctx)
+			if err != nil {
+				errorExit("Could not load AWS config: " + err.Error())
+			}
+			token, _, err := aws_signer.GenerateAuthToken(ctx, cfg.Region)
+			if err != nil {
+				errorExit("Could not generate auth token: " + err.Error())
+			}
+			tokenProv = &tokenProvider{
+				oauthClientCFG: &clientcredentials.Config{},
+				staticToken:    true,
+				currentToken:   token,
+			}
+		} else if len(cluster.SASL.Token) != 0 {
 			tokenProv = &tokenProvider{
 				oauthClientCFG: &clientcredentials.Config{},
 				staticToken:    true,
@@ -62,7 +79,6 @@ func newTokenProvider() *tokenProvider {
 		}
 		if !tokenProv.staticToken {
 			// create context with timeout
-			ctx := context.Background()
 			httpClient := &http.Client{Timeout: tokenFetchTimeout}
 			ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
 			tokenProv.ctx = ctx

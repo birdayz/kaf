@@ -108,11 +108,10 @@ func getConfig() (saramaConfig *sarama.Config) {
 		} else if cluster.SASL.Mechanism == "SCRAM-SHA-256" {
 			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeSCRAMSHA256)
-		} else if cluster.SASL.Mechanism == "OAUTHBEARER" {
+		} else if cluster.SASL.Mechanism == "OAUTHBEARER" || cluster.SASL.Mechanism == "AWS_MSK_IAM" {
 			//Here setup get token function
 			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeOAuth)
 			saramaConfig.Net.SASL.TokenProvider = newTokenProvider()
-
 		}
 	}
 	return saramaConfig
