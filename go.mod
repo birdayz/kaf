@@ -6,6 +6,7 @@ require (
 	github.com/IBM/sarama v1.43.0
 	github.com/Landoop/schema-registry v0.0.0-20190327143759-50a5701c1891
 	github.com/Masterminds/sprig v2.22.0+incompatible
+	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.0
 	github.com/golang/protobuf v1.5.4
 	github.com/hokaccha/go-prettyjson v0.0.0-20190818114111-108c894c2c0e
 	github.com/jhump/protoreflect v1.15.6
@@ -28,6 +29,18 @@ require (
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.5.2 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.19.0 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.18.28 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.27 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.35 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.29 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.3.36 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.29 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.12.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.14.13 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.19.3 // indirect
+	github.com/aws/smithy-go v1.13.5 // indirect
 	github.com/bufbuild/protocompile v0.8.0 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
