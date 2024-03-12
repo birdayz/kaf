@@ -1,4 +1,4 @@
-package serde
+package encoding
 
 // Encoder reads a user-provided text string, and turns it into the wire formt.
 type Encoder interface {
