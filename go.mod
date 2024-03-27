@@ -3,7 +3,7 @@ module github.com/birdayz/kaf
 go 1.18
 
 require (
-	github.com/IBM/sarama v1.43.0
+	github.com/IBM/sarama v1.43.1
 	github.com/Landoop/schema-registry v0.0.0-20190327143759-50a5701c1891
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/aws/aws-msk-iam-sasl-signer-go v1.0.0
