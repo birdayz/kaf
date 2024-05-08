@@ -113,6 +113,7 @@ func (c *Config) Write() error {
 	if err != nil {
 		panic(err)
 	}
+	defer file.Close()
 
 	encoder := yaml.NewEncoder(file)
 	return encoder.Encode(&c)
@@ -126,6 +127,7 @@ func ReadConfig(cfgPath string) (c Config, err error) {
 		}
 		return Config{}, err
 	}
+	defer file.Close()
 	decoder := yaml.NewDecoder(file)
 	err = decoder.Decode(&c)
 	if err != nil {
