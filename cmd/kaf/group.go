@@ -20,6 +20,8 @@ import (
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 
+	"golang.org/x/exp/slices"
+
 	"strconv"
 
 	"time"
@@ -196,7 +198,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 						i, err := strconv.ParseInt(offset, 10, 64)
 						if err != nil {
 							// Try oldest/newest/..
-							if offset == "oldest" {
+							if offset == "oldest" || offset == "earliest" {
 								i = sarama.OffsetOldest
 							} else if offset == "newest" || offset == "latest" {
 								i = sarama.OffsetNewest
@@ -244,7 +246,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 			}
 			for _, detail := range groupDescs {
 				state := detail.State
-				if state != "Empty" {
+				if !slices.Contains([]string{"Empty", "Dead"}, state) {
 					errorExit("Consumer group %s has active consumers in it, cannot set offset\n", group)
 				}
 			}
