@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"unicode"
 
@@ -19,8 +20,6 @@ import (
 	"github.com/birdayz/kaf/pkg/streams"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
-
-	"golang.org/x/exp/slices"
 
 	"strconv"
 
