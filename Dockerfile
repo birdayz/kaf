@@ -20,4 +20,4 @@ COPY --from=BuildStage /kaf /bin/kaf
 USER 1001
 
 # Run
-CMD ["/bin/kaf"]
+ENTRYPOINT ["/bin/kaf"]
