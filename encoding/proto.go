@@ -8,7 +8,6 @@ import (
 
 	"strings"
 
-	"github.com/birdayz/kaf/pkg/serde"
 	"github.com/bufbuild/protocompile"
 	"github.com/bufbuild/protocompile/linker"
 	"github.com/jhump/protoreflect/desc"
@@ -21,8 +20,8 @@ import (
 )
 
 var (
-	_ = serde.Decoder(&ProtoEncoderDecoder{})
-	_ = serde.Encoder(&ProtoEncoderDecoder{})
+// _ = serde.Decoder(&ProtoEncoderDecoder{})
+// _ = serde.Encoder(&ProtoEncoderDecoder{})
 )
 
 // ProtoSerde is a SerDe that converts JSON to/from Protobuf.

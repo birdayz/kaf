@@ -1,16 +1,15 @@
-package proto_test
+package proto
 
 import (
 	"testing"
 
-	"github.com/birdayz/kaf/pkg/proto"
 	testv1 "github.com/birdayz/kaf/proto/gen/go"
 	"github.com/stretchr/testify/require"
 	googleProto "google.golang.org/protobuf/proto"
 )
 
 func TestEncode(t *testing.T) {
-	e, err := proto.NewProtoEncoder([]string{"./testdata"}, "test.v1.Test")
+	e, err := NewProtoEncoder([]string{"./testdata"}, "test.v1.Test")
 	require.NoError(t, err)
 	wireFormat, err := e.Encode([]byte(`{"some_field":"y"}`))
 	require.NoError(t, err)
@@ -28,6 +27,6 @@ func TestEncode(t *testing.T) {
 }
 
 func TestEncodeTypeNotFound(t *testing.T) {
-	_, err := proto.NewProtoEncoder([]string{"./testdata"}, "test.v1.DoesNotExist")
+	_, err := NewProtoEncoder([]string{"./testdata"}, "test.v1.DoesNotExist")
 	require.ErrorContains(t, err, "failed to lookup protobuf message type")
 }
