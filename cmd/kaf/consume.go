@@ -351,7 +351,7 @@ func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay 
 
 		}
 
-		if msg.Key != nil && len(msg.Key) > 0 {
+		if len(msg.Key) > 0 {
 			fmt.Fprintf(w, "Key:\t%v\n", string(keyToDisplay))
 		}
 		fmt.Fprintf(w, "Partition:\t%v\nOffset:\t%v\nTimestamp:\t%v\n", msg.Partition, msg.Offset, msg.Timestamp)
