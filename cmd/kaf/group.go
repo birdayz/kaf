@@ -145,7 +145,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 	var offsetMap string
 	var noconfirm bool
 	res := &cobra.Command{
-		Use:   "commit",
+		Use:   "commit GROUP",
 		Short: "Set offset for given consumer group",
 		Long:  "Set offset for a given consumer group, creates one if it does not exist. Offsets cannot be set on a consumer group with active consumers.",
 		Args:  cobra.ExactArgs(1),
