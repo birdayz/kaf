@@ -10,7 +10,7 @@ build:
 install:
 	go install -ldflags "-w -s" ./cmd/kaf
 release:
-	goreleaser --rm-dist
+	goreleaser
 run-kafka:
 	docker-compose up -d
 docker-build:
