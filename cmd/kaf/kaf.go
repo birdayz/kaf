@@ -6,7 +6,6 @@ import (
 
 	"crypto/tls"
 	"crypto/x509"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -49,7 +48,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 		}
 
 		if cluster.TLS.Cafile != "" {
-			caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
+			caCert, err := os.ReadFile(cluster.TLS.Cafile)
 			if err != nil {
 				errorExit("Unable to read Cafile :%v\n", err)
 			}
@@ -59,11 +58,11 @@ func getConfig() (saramaConfig *sarama.Config) {
 		}
 
 		if cluster.TLS.Clientfile != "" && cluster.TLS.Clientkeyfile != "" {
-			clientCert, err := ioutil.ReadFile(cluster.TLS.Clientfile)
+			clientCert, err := os.ReadFile(cluster.TLS.Clientfile)
 			if err != nil {
 				errorExit("Unable to read Clientfile :%v\n", err)
 			}
-			clientKey, err := ioutil.ReadFile(cluster.TLS.Clientkeyfile)
+			clientKey, err := os.ReadFile(cluster.TLS.Clientkeyfile)
 			if err != nil {
 				errorExit("Unable to read Clientkeyfile :%v\n", err)
 			}
@@ -86,7 +85,7 @@ func getConfig() (saramaConfig *sarama.Config) {
 				InsecureSkipVerify: cluster.TLS.Insecure,
 			}
 			if cluster.TLS.Cafile != "" {
-				caCert, err := ioutil.ReadFile(cluster.TLS.Cafile)
+				caCert, err := os.ReadFile(cluster.TLS.Cafile)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)

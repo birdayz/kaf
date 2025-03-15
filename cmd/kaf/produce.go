@@ -6,15 +6,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"text/template"
 
 	"time"
 
-	"github.com/Masterminds/sprig"
 	"github.com/IBM/sarama"
+	"github.com/Masterminds/sprig"
 	"github.com/birdayz/kaf/pkg/partitioner"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
@@ -79,7 +78,7 @@ func readLines(reader io.Reader, out chan []byte) {
 }
 
 func readFull(reader io.Reader, out chan []byte) {
-	data, err := ioutil.ReadAll(inReader)
+	data, err := io.ReadAll(inReader)
 	if err != nil {
 		errorExit("Unable to read data\n")
 	}

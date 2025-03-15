@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -54,7 +53,7 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 
 	require.NoError(t, rootCmd.ExecuteContext(ctx))
 
-	bs, err := ioutil.ReadAll(b)
+	bs, err := io.ReadAll(b)
 	require.NoError(t, err)
 
 	return string(bs)
