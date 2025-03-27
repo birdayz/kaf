@@ -303,7 +303,7 @@ var groupLsCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-
+		
 		groups, err := admin.ListConsumerGroups()
 		if err != nil {
 			errorExit("Unable to list consumer groups: %v\n", err)
@@ -320,21 +320,29 @@ var groupLsCmd = &cobra.Command{
 
 		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 
-		if !noHeaderFlag {
-			fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
-		}
-
 		groupDescs, err := admin.DescribeConsumerGroups(groupList)
 		if err != nil {
-			errorExit("Unable to describe consumer groups: %v\n", err)
+			// if we can retrieve list of consumer group, but unable to describe consumer groups
+			// fallback to only list group name without state
+			if !noHeaderFlag {
+				fmt.Fprintf(w, "NAME\n")
+			}
+	
+			for _, group := range groupList {
+				fmt.Fprintf(w, "%v\n", group)
+			}
+		} else {
+			// return consumer group information with state
+			if !noHeaderFlag {
+				fmt.Fprintf(w, "NAME\tSTATE\tCONSUMERS\t\n")
+			}
+	
+			for _, detail := range groupDescs {
+				state := detail.State
+				consumers := len(detail.Members)
+				fmt.Fprintf(w, "%v\t%v\t%v\t\n", detail.GroupId, state, consumers)
+			}
 		}
-
-		for _, detail := range groupDescs {
-			state := detail.State
-			consumers := len(detail.Members)
-			fmt.Fprintf(w, "%v\t%v\t%v\t\n", detail.GroupId, state, consumers)
-		}
-
 		w.Flush()
 	},
 }
