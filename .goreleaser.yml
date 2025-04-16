@@ -183,6 +183,8 @@ aurs:
     # That said, GoReleaser will enforce a `-bin` suffix if its not present.
     name: kaf-bin
 
+    homepage: https://github.com/birdayz/kaf
+
     # Your app's homepage.
     # Default is empty.
     #homepage: "https://example.com/"
