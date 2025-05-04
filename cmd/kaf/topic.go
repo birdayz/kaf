@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 	"text/tabwriter"
@@ -28,6 +29,7 @@ func init() {
 	topicCmd.AddCommand(lsTopicsCmd)
 	topicCmd.AddCommand(describeTopicCmd)
 	topicCmd.AddCommand(addConfigCmd)
+	topicCmd.AddCommand(removeConfigCmd)
 	topicCmd.AddCommand(topicSetConfig)
 	topicCmd.AddCommand(updateTopicCmd)
 	topicCmd.AddCommand(lagCmd)
@@ -315,6 +317,40 @@ var addConfigCmd = &cobra.Command{
 		} else {
 			fmt.Printf("Added config %v=%v to topic %v.\n", key, value, topic)
 		}
+	},
+}
+
+var removeConfigCmd = &cobra.Command{
+	Use:   "rm-config TOPIC ATTR1,ATTR2...",
+	Short: "Remove attributes from topic",
+	Args:  cobra.ExactArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		admin := getClusterAdmin()
+
+		topic := args[0]
+		attrsToRemove := strings.Split(args[1], ",")
+
+		updatedTopicConfigs := make(map[string]*string)
+
+		allTopicConfigs, err := admin.DescribeConfig(sarama.ConfigResource{
+			Type: sarama.TopicResource,
+			Name: topic,
+		})
+		if err != nil {
+			errorExit("failed to describe topic config: %v", err)
+		}
+
+		for _, v := range allTopicConfigs {
+			if !slices.Contains(attrsToRemove, v.Name) {
+				updatedTopicConfigs[v.Name] = &v.Value
+			}
+		}
+
+		err = admin.AlterConfig(sarama.TopicResource, topic, updatedTopicConfigs, false)
+		if err != nil {
+			errorExit("failed to remove attributes from topic config: %v", err)
+		}
+		fmt.Printf("Removed attributes %v from topic %v.\n", attrsToRemove, topic)
 	},
 }
 
