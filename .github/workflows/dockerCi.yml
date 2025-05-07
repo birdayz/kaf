@@ -51,6 +51,7 @@ jobs:
                 tar \
                 zip \
                 unzip \
+                sudo \
               && microdnf clean all
 
           # Install yq (Go-based binary from GitHub)
@@ -59,6 +60,8 @@ jobs:
 
           RUN useradd -m admin && \
               echo 'admin:admin' | chpasswd
+
+          RUN usermod -aG wheel admin
 
           ENV KAF_VERSION=${{ steps.vars.outputs.version }}
 
