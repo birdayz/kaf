@@ -58,13 +58,17 @@ jobs:
           RUN curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
               -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
 
+          # Create user and set password
           RUN useradd -m admin && \
-              echo 'admin:admin' | chpasswd
+              echo 'admin:admin' | chpasswd && \
+              usermod -aG wheel admin
 
-          RUN usermod -aG wheel admin
-
+          # Create the .kaf directory and assign ownership before switching to admin user
+          RUN mkdir -p /home/admin/.kaf && \
+              chown -R admin:admin /home/admin/.kaf
+          
+          # Install kaf
           ENV KAF_VERSION=${{ steps.vars.outputs.version }}
-
           RUN curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BINDIR=/usr/local/bin bash
 
           USER admin
