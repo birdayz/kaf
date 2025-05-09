@@ -57,11 +57,15 @@ jobs:
           # Install yq (Go-based binary from GitHub)
           RUN curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
               -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
-
-          # Create user and set password
+              
+          # Create user and give sudo without password
           RUN useradd -m admin && \
               echo 'admin:admin' | chpasswd && \
-              usermod -aG wheel admin
+              usermod -aG wheel admin && \
+              mkdir -p /home/admin/.kaf && \
+              chown -R admin:admin /home/admin/.kaf && \
+              echo 'admin ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/admin && \
+              chmod 0440 /etc/sudoers.d/admin
 
           # Create the .kaf directory and assign ownership before switching to admin user
           RUN mkdir -p /home/admin/.kaf && \
