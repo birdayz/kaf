@@ -84,6 +84,7 @@ var groupDeleteCmd = &cobra.Command{
 	ValidArgsFunction: validGroupArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 		var group string
 		if len(args) == 1 {
 			group = args[0]
@@ -151,6 +152,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			client := getClient()
+			admin := getClusterAdmin()
 
 			group := args[0]
 			partitionOffsets := make(map[int32]int64)
@@ -163,7 +165,6 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 				var partitions []int32
 				if allPartitions {
 					// Determine partitions
-					admin := getClusterAdmin()
 					topicDetails, err := admin.DescribeTopics([]string{topic})
 					if err != nil {
 						errorExit("Unable to determine partitions of topic: %v\n", err)
@@ -238,7 +239,6 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 			}
 
 			// Verify the Consumer Group is Empty
-			admin := getClusterAdmin()
 			groupDescs, err := admin.DescribeConsumerGroups([]string{args[0]})
 			if err != nil {
 				errorExit("Unable to describe consumer groups: %v\n", err)
@@ -303,6 +303,7 @@ var groupLsCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 		
 		groups, err := admin.ListConsumerGroups()
 		if err != nil {
@@ -354,6 +355,7 @@ var groupPeekCmd = &cobra.Command{
 	ValidArgsFunction: validGroupArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 
 		groups, err := admin.DescribeConsumerGroups([]string{args[0]})
 		if err != nil {
