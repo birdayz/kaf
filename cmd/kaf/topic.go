@@ -230,7 +230,7 @@ var describeTopicCmd = &cobra.Command{
 		for _, partition := range detail.Partitions {
 			partitions = append(partitions, partition.ID)
 		}
-		highWatermarks := getHighWatermarks(args[0], partitions)
+		highWatermarks := getHighWatermarks(admin, args[0], partitions)
 		highWatermarksSum := 0
 
 		for _, partition := range detail.Partitions {
@@ -392,7 +392,7 @@ var lagCmd = &cobra.Command{
 		for _, partition := range topicDetails[0].Partitions {
 			partitions = append(partitions, partition.ID)
 		}
-		highWatermarks := getHighWatermarks(topic, partitions)
+		highWatermarks := getHighWatermarks(admin, topic, partitions)
 
 		// List all consumer groups
 		consumerGroups, err := admin.ListConsumerGroups()

@@ -154,6 +154,7 @@ func main() {
 var cfg config.Config
 var currentCluster *config.Cluster
 
+
 var (
 	brokersFlag       []string
 	schemaRegistryURL string

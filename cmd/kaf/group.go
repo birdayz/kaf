@@ -504,6 +504,9 @@ var groupDescribeCmd = &cobra.Command{
 		}
 		sort.Strings(topics)
 
+		// Batch fetch all high watermarks at once - major performance optimization!
+		allHighWatermarks := getBatchHighWatermarks(admin, offsetAndMetadata.Blocks, flagDescribeTopics)
+
 		for _, topic := range topics {
 			partitions := offsetAndMetadata.Blocks[topic]
 			if len(flagDescribeTopics) > 0 {
@@ -532,7 +535,7 @@ var groupDescribeCmd = &cobra.Command{
 				return p[i] < p[j]
 			})
 
-			wms := getHighWatermarks(topic, p)
+			wms := allHighWatermarks[topic]
 
 			lagSum := 0
 			offsetSum := 0
@@ -606,7 +609,95 @@ var groupDescribeCmd = &cobra.Command{
 	},
 }
 
-func getHighWatermarks(topic string, partitions []int32) (watermarks map[int32]int64) {
+// getBatchHighWatermarks fetches high watermarks for all topics and partitions in a single batch operation
+func getBatchHighWatermarks(admin sarama.ClusterAdmin, offsetBlocks map[string]map[int32]*sarama.OffsetFetchResponseBlock, filterTopics []string) map[string]map[int32]int64 {
+	client := getClient()
+	defer client.Close()
+
+	// Organize all partition requests by broker leader
+	leaderPartitions := make(map[*sarama.Broker]map[string][]int32)
+	
+	for topic, partitions := range offsetBlocks {
+		// Skip topics not in filter if filter is specified
+		if len(filterTopics) > 0 {
+			found := false
+			for _, filterTopic := range filterTopics {
+				if topic == filterTopic {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		for partition := range partitions {
+			leader, err := client.Leader(topic, partition)
+			if err != nil {
+				errorExit("Unable to get leader for topic %s partition %d: %v", topic, partition, err)
+			}
+			
+			if leaderPartitions[leader] == nil {
+				leaderPartitions[leader] = make(map[string][]int32)
+			}
+			leaderPartitions[leader][topic] = append(leaderPartitions[leader][topic], partition)
+		}
+	}
+
+	// Fetch offsets from all brokers in parallel
+	wg := sync.WaitGroup{}
+	wg.Add(len(leaderPartitions))
+	results := make(chan map[string]map[int32]int64, len(leaderPartitions))
+
+	for leader, topicPartitions := range leaderPartitions {
+		go func(leader *sarama.Broker, topicPartitions map[string][]int32) {
+			defer wg.Done()
+			
+			req := &sarama.OffsetRequest{Version: int16(1)}
+			for topic, partitions := range topicPartitions {
+				for _, partition := range partitions {
+					req.AddBlock(topic, partition, int64(-1), int32(0))
+				}
+			}
+
+			resp, err := leader.GetAvailableOffsets(req)
+			if err != nil {
+				errorExit("Unable to get available offsets from broker: %v", err)
+			}
+
+			brokerResults := make(map[string]map[int32]int64)
+			for topic, blocks := range resp.Blocks {
+				brokerResults[topic] = make(map[int32]int64)
+				for partition, block := range blocks {
+					brokerResults[topic][partition] = block.Offset
+				}
+			}
+			
+			results <- brokerResults
+		}(leader, topicPartitions)
+	}
+
+	wg.Wait()
+	close(results)
+
+	// Combine results from all brokers
+	allWatermarks := make(map[string]map[int32]int64)
+	for brokerResults := range results {
+		for topic, partitionOffsets := range brokerResults {
+			if allWatermarks[topic] == nil {
+				allWatermarks[topic] = make(map[int32]int64)
+			}
+			for partition, offset := range partitionOffsets {
+				allWatermarks[topic][partition] = offset
+			}
+		}
+	}
+
+	return allWatermarks
+}
+
+func getHighWatermarks(admin sarama.ClusterAdmin, topic string, partitions []int32) (watermarks map[int32]int64) {
 	client := getClient()
 	leaders := make(map[*sarama.Broker][]int32)
 
