@@ -1,4 +1,4 @@
-FROM golang:1.24.2@sha256:3a060d683c28fbb21d7fe8966458e084a6d7ebfb1f3ef3fd901abd2083c43675 AS buildstage
+FROM golang:1.24.5@sha256:a9219eb99cd2951b042985dbec09d508b3ddc20c4da52a3a55b275b3779e4a05 AS buildstage
 
 # Set destination for COPY
 WORKDIR /app
