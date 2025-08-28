@@ -91,7 +91,7 @@ var produceCmd = &cobra.Command{
 	Short:             "Produce record. Reads data from stdin.",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: validTopicArgs,
-	PreRun:            setupProtoDescriptorRegistry,
+	PreRun:            producePreRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := getConfig()
 		switch partitionerFlag {
@@ -256,4 +256,17 @@ var produceCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+func producePreRun(cmd *cobra.Command, args []string) {
+	if protoType == "" {
+		for _, topic := range cfg.Topics {
+			if topic.Name == args[0] {
+				protoType = topic.ProtoType
+				protoFiles = topic.ProtoPaths
+				break
+			}
+		}
+	}
+	setupProtoDescriptorRegistry(cmd, args)
 }
