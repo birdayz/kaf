@@ -135,15 +135,7 @@ var consumeCmd = &cobra.Command{
 }
 
 func consumePreRun(cmd *cobra.Command, args []string) {
-	if protoType == "" {
-		for _, topic := range cfg.Topics {
-			if topic.Name == args[0] {
-				protoType = topic.ProtoType
-				protoFiles = topic.ProtoPaths
-				break
-			}
-		}
-	}
+	loadProtoPathsFromConfig(cmd, args)
 	setupProtoDescriptorRegistry(cmd, args)
 }
 

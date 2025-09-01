@@ -173,6 +173,19 @@ func init() {
 	cobra.OnInitialize(onInit)
 }
 
+var loadProtoPathsFromConfig = func(cmd *cobra.Command, args []string) {
+	if protoType != "" {
+		return
+	}
+	for _, topic := range cfg.Topics {
+		if topic.Name == args[0] {
+			protoType = topic.ProtoType
+			protoFiles = topic.ProtoPaths
+			break
+		}
+	}
+}
+
 var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
 	if protoType != "" {
 		r, err := proto.NewDescriptorRegistry(protoFiles, protoExclude)
