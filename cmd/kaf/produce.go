@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -32,6 +33,7 @@ var (
 	avroSchemaID    int
 	avroKeySchemaID int
 	templateFlag    bool
+	inputFormatFlag = InputFormatDefault
 )
 
 func init() {
@@ -55,10 +57,14 @@ func init() {
 	produceCmd.Flags().IntVarP(&avroKeySchemaID, "avro-key-schema-id", "", -1, "Key schema id for avro messsage encoding")
 
 	produceCmd.Flags().StringVarP(&inputModeFlag, "input-mode", "", "line", "Scanning input mode: [line|full]")
+	produceCmd.Flags().Var(&inputFormatFlag, "input", "Set input format messages: default, json-each-row (json-each-row is compatible with output of kaf consume --output json-each-row)")
 	produceCmd.Flags().IntVarP(&bufferSizeFlag, "line-length-limit", "", 0, "line length limit in line input mode")
 
 	produceCmd.Flags().BoolVar(&templateFlag, "template", false, "run data through go template engine")
 
+	if err := produceCmd.RegisterFlagCompletionFunc("input", completeInputFormat); err != nil {
+		errorExit("Failed to register flag completion: %v", err)
+	}
 }
 
 func readLines(reader io.Reader, out chan []byte) {
@@ -238,14 +244,41 @@ var produceCmd = &cobra.Command{
 
 				msg := &sarama.ProducerMessage{
 					Topic:     args[0],
-					Key:       key,
-					Headers:   headers,
 					Timestamp: ts,
-					Value:     sarama.ByteEncoder(marshaledInput),
 				}
+
+				if inputFormatFlag == InputFormatJSONEachRow {
+					jsonEachRowMsg := JSONEachRowMessage{}
+					if err = json.Unmarshal(marshaledInput, &jsonEachRowMsg); err == nil {
+						if keyFlag == "" {
+							// if key flag not set, use the key from stdin
+							key = sarama.StringEncoder(jsonEachRowMsg.Key)
+						}
+
+						for _, h := range jsonEachRowMsg.Headers {
+							msg.Headers = append(msg.Headers, sarama.RecordHeader{
+								Key:   []byte(h.Key),
+								Value: []byte(h.Value),
+							})
+						}
+
+						msg.Partition = jsonEachRowMsg.Partition
+						marshaledInput = []byte(jsonEachRowMsg.Payload)
+					}
+				}
+
+				msg.Key = key
+				msg.Value = sarama.ByteEncoder(marshaledInput)
+
+				if len(headers) > 0 {
+					// override headers if they were set
+					msg.Headers = headers
+				}
+
 				if partitionFlag != -1 {
 					msg.Partition = partitionFlag
 				}
+
 				partition, offset, err := producer.SendMessage(msg)
 				if err != nil {
 					fmt.Fprintf(outWriter, "Failed to send record: %v.", err)
@@ -256,4 +289,33 @@ var produceCmd = &cobra.Command{
 			}
 		}
 	},
+}
+
+type InputFormat string
+
+const (
+	InputFormatDefault     InputFormat = "default"
+	InputFormatJSONEachRow InputFormat = "json-each-row"
+)
+
+func (e *InputFormat) String() string {
+	return string(*e)
+}
+
+func (e *InputFormat) Set(v string) error {
+	switch v {
+	case "default", "json-each-row":
+		*e = InputFormat(v)
+		return nil
+	default:
+		return fmt.Errorf("must be one of: default, raw, json, json-each-row")
+	}
+}
+
+func (e *InputFormat) Type() string {
+	return "InputFormat"
+}
+
+func completeInputFormat(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return []string{"default", "json-each-row"}, cobra.ShellCompDirectiveNoFileComp
 }
