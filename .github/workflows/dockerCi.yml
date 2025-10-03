@@ -1,0 +1,104 @@
+name: Build and Push Docker Image
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:  # 👈 Allow manual execution
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repo (optional)
+        uses: actions/checkout@v3
+
+      - name: Set KAF version
+        id: vars
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            echo "version=${{ github.event.release.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            # fallback to latest release from upstream
+            latest=$(curl -s https://api.github.com/repos/birdayz/kaf/releases/latest | jq -r .tag_name)
+            echo "version=$latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate Dockerfile dynamically
+        run: |
+          cat <<EOF > Dockerfile
+          FROM registry.access.redhat.com/ubi8/ubi-minimal
+
+          # Install essential tools, including busybox, jq, yq, and other useful CLI packages
+          RUN microdnf install -y \
+                curl \
+                bash \
+                ca-certificates \
+                shadow-utils \
+                passwd \
+                findutils \
+                iproute \
+                iputils \
+                procps-ng \
+                jq \
+                tar \
+                zip \
+                unzip \
+                sudo \
+              && microdnf clean all
+
+          # Install yq (Go-based binary from GitHub)
+          RUN curl -sL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 \
+              -o /usr/local/bin/yq && chmod +x /usr/local/bin/yq
+              
+          # Create user and give sudo without password
+          RUN useradd -m admin && \
+              echo 'admin:admin' | chpasswd && \
+              usermod -aG wheel admin && \
+              mkdir -p /home/admin/.kaf && \
+              chown -R admin:admin /home/admin/.kaf && \
+              echo 'admin ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/admin && \
+              chmod 0440 /etc/sudoers.d/admin
+
+          # Create the .kaf directory and assign ownership before switching to admin user
+          RUN mkdir -p /home/admin/.kaf && \
+              chown -R admin:admin /home/admin/.kaf
+          
+          # Install kaf
+          ENV KAF_VERSION=${{ steps.vars.outputs.version }}
+          RUN curl https://raw.githubusercontent.com/birdayz/kaf/master/godownloader.sh | BINDIR=/usr/local/bin bash
+
+          USER admin
+          EOF
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.vars.outputs.version }}
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
