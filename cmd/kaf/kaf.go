@@ -174,13 +174,16 @@ func init() {
 }
 
 var loadProtoPathsFromConfig = func(cmd *cobra.Command, args []string) {
-	if protoType != "" {
-		return
-	}
+	protoFiles = cfg.GlobalProtoPaths
 	for _, topic := range cfg.Topics {
 		if topic.Name == args[0] {
-			protoType = topic.ProtoType
-			protoFiles = topic.ProtoPaths
+			if protoType == "" {
+				protoType = topic.ValueProtoType
+			}
+			if keyProtoType == "" {
+				keyProtoType = topic.KeyProtoType
+			}
+			protoFiles = append(protoFiles, topic.ProtoPaths...)
 			break
 		}
 	}

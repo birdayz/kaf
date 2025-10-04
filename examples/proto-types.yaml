@@ -2,16 +2,13 @@ clusters:
   - name: local
     brokers:
       - localhost:9092
-    SASL: null
-    TLS: null
-    security-protocol: ""
-    version: "1.0.0"
+global-proto-paths:
+  - /path_to_proto_files/global_proto_storage
 topics:
   - name: topic1
-    proto-type: local.ProtoType1
+    value-proto-type: local.ProtoType1
+    key-proto-type: local.KeyType1
     proto-paths:
-      - /path_to_proto_files/proto_storage
+      - /path_to_proto_files/local_proto_storage # appends to global-proto-paths
   - name: topic2
-    proto-type: local.ProtoType2
-    proto-paths:
-      - /path_to_proto_files/proto_storage
+    value-proto-type: local.ProtoType2

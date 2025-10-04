@@ -45,16 +45,18 @@ type Cluster struct {
 }
 
 type Topic struct {
-	Name       string   `yaml:"name"`
-	ProtoType  string   `yaml:"proto-type"`
-	ProtoPaths []string `yaml:"proto-paths"`
+	Name           string   `yaml:"name"`
+	ValueProtoType string   `yaml:"value-proto-type"`
+	KeyProtoType   string   `yaml:"key-proto-type"`
+	ProtoPaths     []string `yaml:"proto-paths"`
 }
 
 type Config struct {
-	CurrentCluster  string `yaml:"current-cluster"`
-	ClusterOverride string
-	Clusters        []*Cluster `yaml:"clusters"`
-	Topics          []Topic    `yaml:"topics"`
+	CurrentCluster   string `yaml:"current-cluster"`
+	ClusterOverride  string
+	Clusters         []*Cluster `yaml:"clusters"`
+	GlobalProtoPaths []string   `yaml:"global-proto-paths"`
+	Topics           []Topic    `yaml:"topics"`
 }
 
 func (c *Config) SetCurrentCluster(name string) error {
