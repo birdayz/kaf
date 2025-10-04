@@ -74,6 +74,28 @@ Write message into given topic from stdin
 
 `echo test | kaf produce mqtt.messages.incoming`
 
+```
+echo {"data":1} | kaf produce mqtt.messages.incoming --key 1 --header h1:hv1
+> Sent record to partition 0 at offset 0.
+
+kaf consume mqtt.messages.incoming --output json-each-row
+> {"topic":"mqtt.messages.incoming","partition":0,"offset":0,"timestamp":"2025-07-04T12:53:46.841+02:00","headers":[{"key":"h1","value":"hv1"}],"key":"1","payload":"{data:1}"}
+
+
+echo '{"topic":"mqtt.messages.incoming","partition":0,"offset":0,"timestamp":"2025-07-04T12:53:46.841+02:00","headers":[{"key":"h1","value":"hv1"}],"key":"1","payload":"{data:1}"}' | kaf produce mqtt.messages.incoming --input json-each-row
+
+kaf consume mqtt.messages.incoming --output json-each-row
+> {"topic":"mqtt.messages.incoming","partition":0,"offset":1,"timestamp":"2025-07-04T13:05:57.9+02:00","headers":[{"key":"h1","value":"hv1"}],"key":"1","payload":"{data:1}"}
+```
+
+Pipe from one topic to another
+`kaf consume topic-a --output json-each-row -f | kaf produce topic-b --input json-each-row`
+
+Important: kaf produce will overwrite key, partition and all the headers and of input messages if provided
+
+Consume messages with filtering by header
+`kaf consume mqtt.messages.incoming --header h1:hv1`
+
 ### Offset Reset
 
 Set offset for consumer group _dispatcher_ consuming from topic _mqtt.messages.incoming_ to latest for all partitions
@@ -122,4 +144,3 @@ Powershell
 - 10x lower P99 latencies, 6x faster transactions
 - Zero data loss by default
 ### [Zerodha](https://zerodha.tech)
-
