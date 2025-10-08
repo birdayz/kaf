@@ -1,6 +1,6 @@
 module github.com/birdayz/kaf
 
-go 1.22
+go 1.24.0
 
 require (
 	github.com/IBM/sarama v1.43.2
@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	github.com/xdg/scram v1.0.5
-	golang.org/x/oauth2 v0.18.0
+	golang.org/x/oauth2 v0.32.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -91,7 +91,6 @@ require (
 	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.33.1-0.20240408130810-98873a205002 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
