@@ -19,6 +19,7 @@ var (
 	replicasFlag             int16
 	noHeaderFlag             bool
 	compactFlag              bool
+	prettyJsonFlag           bool
 )
 
 func init() {
@@ -39,6 +40,8 @@ func init() {
 	createTopicCmd.Flags().BoolVar(&compactFlag, "compact", false, "Enable topic compaction")
 
 	lsTopicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
+	lsTopicsCmd.Flags().BoolVar(&prettyJsonFlag, "pretty-json", false, "pretty print json instead of table")
+
 	topicsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	updateTopicCmd.Flags().Int32VarP(&partitionsFlag, "partitions", "p", int32(-1), "Number of partitions")
 	updateTopicCmd.Flags().StringVar(&partitionAssignmentsFlag, "partition-assignments", "", "Partition Assignments. Optional. If set in combination with -p, an assignment must be provided for each new partition. Example: '[[1,2,3],[1,2,3]]' (JSON Array syntax) assigns two new partitions to brokers 1,2,3. If used by itself, a reassignment must be provided for all partitions.")
@@ -145,31 +148,42 @@ var lsTopicsCmd = &cobra.Command{
 
 		sortedTopics := make(
 			[]struct {
-				name string
+				Name string
 				sarama.TopicDetail
 			}, len(topics))
 
 		i := 0
 		for name, topic := range topics {
-			sortedTopics[i].name = name
+			sortedTopics[i].Name = name
 			sortedTopics[i].TopicDetail = topic
 			i++
 		}
 
 		sort.Slice(sortedTopics, func(i int, j int) bool {
-			return sortedTopics[i].name < sortedTopics[j].name
+			return sortedTopics[i].Name < sortedTopics[j].Name
 		})
+		if prettyJsonFlag {
+			jsonBytes, err := json.MarshalIndent(sortedTopics, "", "    ")
+			if err != nil {
+				cmd.PrintErrln(err)
+				return
+			}
+			fmt.Println(string(jsonBytes))
 
-		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
+		} else {
+			w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
 
-		if !noHeaderFlag {
-			fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\t\n")
+			if !noHeaderFlag {
+				fmt.Fprintf(w, "NAME\tPARTITIONS\tREPLICAS\t\n")
+			}
+
+			for _, topic := range sortedTopics {
+				fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.Name, topic.NumPartitions, topic.ReplicationFactor)
+			}
+			w.Flush()
+
 		}
 
-		for _, topic := range sortedTopics {
-			fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor)
-		}
-		w.Flush()
 	},
 }
 
