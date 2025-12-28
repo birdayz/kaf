@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"text/tabwriter"
 
@@ -39,6 +40,9 @@ var (
 	limitMessagesFlag int64
 
 	reg *proto.DescriptorRegistry
+
+	headerFilterFlag []string
+	headerFilter     = make(map[string]string)
 )
 
 func init() {
@@ -57,6 +61,7 @@ func init() {
 	consumeCmd.Flags().Int64VarP(&limitMessagesFlag, "limit-messages", "l", 0, "Limit messages per partition")
 	consumeCmd.Flags().StringVarP(&groupFlag, "group", "g", "", "Consumer Group to use for consume")
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
+	consumeCmd.Flags().StringSliceVar(&headerFilterFlag, "header", []string{}, "Filter messages by header. Format: key:value. Multiple filters can be specified")
 
 	if err := consumeCmd.RegisterFlagCompletionFunc("output", completeOutputFormat); err != nil {
 		errorExit("Failed to register flag completion: %v", err)
@@ -198,6 +203,15 @@ var consumeCmd = &cobra.Command{
 			ProtoExclude:    protoExclude,
 		}
 
+		// Parse header filters
+		for _, f := range headerFilterFlag {
+			parts := strings.SplitN(f, ":", 2)
+			if len(parts) != 2 {
+				errorExit("Invalid header filter format: %s. Expected format: key:value", f)
+			}
+			headerFilter[parts[0]] = parts[1]
+		}
+
 		err := ConsumeMessages(cmd.Context(), opts)
 		if err != nil {
 			errorExit("Consume failed: %v", err)
@@ -296,6 +310,10 @@ func consumeWithoutConsumerGroup(ctx context.Context, client *kgo.Client, topic 
 }
 
 func handleMessage(msg *kgo.Record, mu *sync.Mutex, outputFormat OutputFormat) {
+	if !checkHeaders(msg.Headers, headerFilter) {
+		return
+	}
+
 	var stderr bytes.Buffer
 
 	var dataToDisplay []byte
@@ -346,6 +364,22 @@ func handleMessage(msg *kgo.Record, mu *sync.Mutex, outputFormat OutputFormat) {
 	_, _ = colorableOut.Write(dataToDisplay)
 	fmt.Fprintln(outWriter)
 	mu.Unlock()
+}
+
+func checkHeaders(headers []kgo.RecordHeader, filter map[string]string) bool {
+	if len(filter) == 0 {
+		return true
+	}
+
+	matchCount := 0
+	for _, h := range headers {
+		hdrStr := parseHeader(h.Value)
+		if val, ok := filter[h.Key]; ok && hdrStr == val {
+			matchCount++
+		}
+	}
+
+	return len(headers) > 0 && matchCount >= len(filter)
 }
 
 func parseHeader(hdrBytes []byte) (hdrStr string) {
