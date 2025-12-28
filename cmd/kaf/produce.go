@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -14,10 +13,10 @@ import (
 
 	"time"
 
-	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/Masterminds/sprig"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 var (
@@ -278,7 +277,7 @@ var produceCmd = &cobra.Command{
 					rec.Partition = partitionFlag
 				}
 
-				ctx := context.Background()
+				ctx := cmd.Context()
 				results := cl.ProduceSync(ctx, rec)
 				if err := results.FirstErr(); err != nil {
 					fmt.Fprintf(outWriter, "Failed to send record: %v.", err)

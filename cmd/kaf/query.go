@@ -1,13 +1,12 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"sync"
 	"strings"
+	"sync"
 
-	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/spf13/cobra"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 var grepValue string
@@ -33,15 +32,15 @@ var queryCmd = &cobra.Command{
 	PreRun:            setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
 		topic := args[0]
-		ctx := context.Background()
-		
+		ctx := cmd.Context()
+
 		// Get topic partitions info
 		admin := getClusterAdmin()
 		topics, err := admin.ListTopics(ctx)
 		if err != nil {
 			errorExit("Unable to list topics: %v\n", err)
 		}
-		
+
 		topicDetail, exists := topics[topic]
 		if !exists {
 			errorExit("Topic %v not found.\n", topic)
@@ -54,14 +53,14 @@ var queryCmd = &cobra.Command{
 			wg.Add(1)
 			go func(partition int32) {
 				defer wg.Done()
-				
+
 				// Create consumer for this partition
 				opts := getKgoOpts()
 				partToOffsets := make(map[string]map[int32]kgo.Offset)
 				partToOffsets[topic] = make(map[int32]kgo.Offset)
 				partToOffsets[topic][partition] = kgo.NewOffset().AtStart()
 				opts = append(opts, kgo.ConsumePartitions(partToOffsets))
-				
+
 				cl, err := kgo.NewClient(opts...)
 				if err != nil {
 					errorExit("Unable to create consumer: %v\n", err)
@@ -83,7 +82,7 @@ var queryCmd = &cobra.Command{
 						if string(record.Key) == keyFlag {
 							var keyTextRaw string
 							var valueTextRaw string
-							
+
 							if protoType != "" {
 								d, err := protoDecode(reg, record.Value, protoType)
 								if err != nil {
@@ -118,7 +117,7 @@ var queryCmd = &cobra.Command{
 							}
 						}
 					}
-					
+
 					if fetches.IsClientClosed() {
 						return
 					}

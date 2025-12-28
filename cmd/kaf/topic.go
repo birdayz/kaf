@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,8 +9,8 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/spf13/cobra"
+	"github.com/twmb/franz-go/pkg/kadm"
 )
 
 var (
@@ -85,7 +84,7 @@ var topicSetConfig = &cobra.Command{
 			errorExit("No valid configs found")
 		}
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		// Use the simplified AlterTopicConfigs API - convert to the required format
 		alterConfigs := make([]kadm.AlterConfig, 0, len(configs))
 		for key, value := range configs {
@@ -122,14 +121,14 @@ var updateTopicCmd = &cobra.Command{
 		}
 
 		if partitionsFlag != int32(-1) {
-			ctx := context.Background()
+			ctx := cmd.Context()
 			_, err := admin.CreatePartitions(ctx, int(partitionsFlag), args[0])
 			if err != nil {
 				errorExit("Failed to create partitions: %v", err)
 			}
 		} else {
 			// Needs at least Kafka version 2.4.0.
-			ctx := context.Background()
+			ctx := cmd.Context()
 			// Create partition assignments map
 			partitionAssignments := make(map[string]map[int32][]int32)
 			topicAssignments := make(map[int32][]int32)
@@ -154,7 +153,7 @@ var lsTopicsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		topicsResp, err := admin.ListTopics(ctx)
 		if err != nil {
 			errorExit("Unable to list topics: %v\n", err)
@@ -206,7 +205,7 @@ var describeTopicCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		topicDetails, err := admin.ListTopics(ctx, args[0])
 		if err != nil {
 			errorExit("Unable to describe topics: %v\n", err)
@@ -309,7 +308,7 @@ var createTopicCmd = &cobra.Command{
 		if compactFlag {
 			compact = "compact"
 		}
-		ctx := context.Background()
+		ctx := cmd.Context()
 		_, err := admin.CreateTopics(ctx, partitionsFlag, replicasFlag, map[string]*string{
 			"cleanup.policy": &compact,
 		}, topicName)
@@ -338,7 +337,7 @@ var addConfigCmd = &cobra.Command{
 		key := args[1]
 		value := args[2]
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		_, err := admin.AlterTopicConfigs(ctx, []kadm.AlterConfig{{
 			Name:  key,
 			Value: &value,
@@ -363,7 +362,7 @@ var removeConfigCmd = &cobra.Command{
 
 		updatedTopicConfigs := make(map[string]*string)
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		allTopicConfigs, err := admin.DescribeTopicConfigs(ctx, topic)
 		if err != nil {
 			errorExit("failed to describe topic config: %v", err)
@@ -402,7 +401,7 @@ var deleteTopicCmd = &cobra.Command{
 		admin := getClusterAdmin()
 
 		topicName := args[0]
-		ctx := context.Background()
+		ctx := cmd.Context()
 		_, err := admin.DeleteTopics(ctx, topicName)
 		if err != nil {
 			errorExit("Could not delete topic %v: %v\n", topicName, err.Error())
@@ -421,13 +420,13 @@ var lagCmd = &cobra.Command{
 		admin := getClusterAdmin()
 		defer admin.Close()
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		// Describe the topic
 		topicDetails, err := admin.ListTopics(ctx, topic)
 		if err != nil {
 			errorExit("Unable to describe topics: %v\n", err)
 		}
-		
+
 		topicDetail, exists := topicDetails[topic]
 		if !exists {
 			errorExit("Topic %v not found.\n", topic)
