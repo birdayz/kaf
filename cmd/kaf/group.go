@@ -86,7 +86,7 @@ var groupDeleteCmd = &cobra.Command{
 		if err != nil {
 			errorExit("Could not delete consumer group %v: %v\n", group, err.Error())
 		} else {
-			fmt.Printf("Deleted consumer group %v.\n", group)
+			fmt.Fprintf(cmd.OutOrStdout(), "Deleted consumer group %v.\n", group)
 		}
 
 	},
