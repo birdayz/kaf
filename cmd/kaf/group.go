@@ -81,7 +81,7 @@ var groupDeleteCmd = &cobra.Command{
 		if len(args) == 1 {
 			group = args[0]
 		}
-		ctx := cmd.Context()
+		ctx := context.Background()
 		_, err := admin.DeleteGroups(ctx, group)
 		if err != nil {
 			errorExit("Could not delete consumer group %v: %v\n", group, err.Error())
@@ -113,7 +113,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 			// Verify topic exists for all cases
 			admin := getClusterAdmin()
-			ctx := cmd.Context()
+			ctx := context.Background()
 			topics, err := admin.ListTopics(ctx, topic)
 			if err != nil {
 				return fmt.Errorf("unable to list topics: %w", err)
@@ -198,7 +198,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 							// Use kadm to get offset for timestamp
 							admin := getClusterAdmin()
-							ctx := cmd.Context()
+							ctx := context.Background()
 							timestampOffsets, err := admin.ListOffsetsAfterMilli(ctx, i, topic)
 							if err != nil {
 								fmt.Fprintf(cmd.OutOrStderr(), "Failed to determine offset for timestamp: %v\n", err)
@@ -299,8 +299,8 @@ var groupLsCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-
-		ctx := cmd.Context()
+		
+		ctx := context.Background()
 		groups, err := admin.ListGroups(ctx)
 		if err != nil {
 			errorExit("Unable to list consumer groups: %v\n", err)
@@ -352,7 +352,7 @@ var groupPeekCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		ctx := cmd.Context()
+		ctx := context.Background()
 		groups, err := admin.DescribeGroups(ctx, args[0])
 		if err != nil {
 			errorExit("Unable to describe consumer groups: %v\n", err)
@@ -419,7 +419,7 @@ var groupDescribeCmd = &cobra.Command{
 		// same goes probably for topics
 		admin := getClusterAdmin()
 
-		ctx := cmd.Context()
+		ctx := context.Background()
 		groups, err := admin.DescribeGroups(ctx, args[0])
 		if err != nil {
 			errorExit("Unable to describe consumer groups: %v\n", err)

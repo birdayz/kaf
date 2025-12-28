@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"text/tabwriter"
 
@@ -34,7 +35,7 @@ var nodeLsCommand = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		ctx := cmd.Context()
+		ctx := context.Background()
 		brokers, err := admin.ListBrokers(ctx)
 		if err != nil {
 			errorExit("Unable to describe cluster: %v\n", err)
