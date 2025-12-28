@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"github.com/spf13/cobra"
 )
 
@@ -15,12 +16,14 @@ func validConfigArgs(cmd *cobra.Command, args []string, toComplete string) ([]st
 func validGroupArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	admin := getClusterAdmin()
 
-	groups, err := admin.ListConsumerGroups()
+	ctx := context.Background()
+	groups, err := admin.ListGroups(ctx)
 	if err != nil {
 		errorExit("Unable to list consumer groups: %v\n", err)
 	}
-	groupList := make([]string, 0, len(groups))
-	for grp := range groups {
+	groupNames := groups.Groups()
+	groupList := make([]string, 0, len(groupNames))
+	for _, grp := range groupNames {
 		groupList = append(groupList, grp)
 	}
 	return groupList, cobra.ShellCompDirectiveNoFileComp
@@ -29,12 +32,14 @@ func validGroupArgs(cmd *cobra.Command, args []string, toComplete string) ([]str
 func validTopicArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	admin := getClusterAdmin()
 
-	topics, err := admin.ListTopics()
+	ctx := context.Background()
+	topics, err := admin.ListTopics(ctx)
 	if err != nil {
 		errorExit("Unable to list topics: %v\n", err)
 	}
-	topicList := make([]string, 0, len(topics))
-	for topic := range topics {
+	topicNames := topics.Names()
+	topicList := make([]string, 0, len(topicNames))
+	for _, topic := range topicNames {
 		topicList = append(topicList, topic)
 	}
 	return topicList, cobra.ShellCompDirectiveNoFileComp

@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/IBM/sarama"
 	aws_signer "github.com/aws/aws-msk-iam-sasl-signer-go/signer"
 	aws_config "github.com/aws/aws-sdk-go-v2/config"
 	"golang.org/x/oauth2"
@@ -20,7 +19,7 @@ var (
 	tokenFetchTimeout time.Duration = time.Second * 10
 )
 
-var _ sarama.AccessTokenProvider = &tokenProvider{}
+// tokenProvider implements OAuth token provisioning for franz-go
 
 type tokenProvider struct {
 	// refreshMutex is used to ensure that tokens are not refreshed concurrently.
@@ -96,20 +95,15 @@ func newTokenProvider() *tokenProvider {
 	return tokenProv
 }
 
-func (tp *tokenProvider) Token() (*sarama.AccessToken, error) {
-
+func (tp *tokenProvider) Token() (string, error) {
 	if !tp.staticToken {
 		if time.Now().After(tp.replaceAt) {
 			if err := tp.refreshToken(); err != nil {
-				return nil, err
+				return "", err
 			}
-
 		}
 	}
-	return &sarama.AccessToken{
-		Token:      tp.currentToken,
-		Extensions: nil,
-	}, nil
+	return tp.currentToken, nil
 }
 
 func (tp *tokenProvider) refreshToken() error {

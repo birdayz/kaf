@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -13,9 +14,8 @@ import (
 
 	"time"
 
-	"github.com/IBM/sarama"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/Masterminds/sprig"
-	"github.com/birdayz/kaf/pkg/partitioner"
 	pb "github.com/golang/protobuf/proto"
 	"github.com/spf13/cobra"
 )
@@ -99,24 +99,24 @@ var produceCmd = &cobra.Command{
 	ValidArgsFunction: validTopicArgs,
 	PreRun:            setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
-		cfg := getConfig()
+		opts := getKgoOpts()
+
+		// Configure partitioner
 		switch partitionerFlag {
 		case "jvm":
-			cfg.Producer.Partitioner = partitioner.NewJVMCompatiblePartitioner
+			// Franz-go uses murmur2 hashing by default, which is JVM-compatible
+			// No need to set anything - default behavior is already JVM-compatible
 		case "rand":
-			cfg.Producer.Partitioner = sarama.NewRandomPartitioner
+			opts = append(opts, kgo.RecordPartitioner(kgo.StickyKeyPartitioner(nil)))
 		case "rr":
-			cfg.Producer.Partitioner = sarama.NewRoundRobinPartitioner
+			opts = append(opts, kgo.RecordPartitioner(kgo.RoundRobinPartitioner()))
 		}
 
-		if partitionFlag != int32(-1) {
-			cfg.Producer.Partitioner = sarama.NewManualPartitioner
-		}
-
-		producer, err := sarama.NewSyncProducer(currentCluster.Brokers, cfg)
+		cl, err := kgo.NewClient(opts...)
 		if err != nil {
-			errorExit("Unable to create new sync producer: %v\n", err)
+			errorExit("Unable to create new kafka client: %v\n", err)
 		}
+		defer cl.Close()
 
 		if avroSchemaID != -1 || avroKeySchemaID != -1 {
 			schemaCache = getSchemaCache()
@@ -133,15 +133,15 @@ var produceCmd = &cobra.Command{
 			go readLines(inReader, out)
 		}
 
-		var key sarama.Encoder
+		var key []byte
 		if rawKeyFlag {
 			keyBytes, err := base64.RawStdEncoding.DecodeString(keyFlag)
 			if err != nil {
 				errorExit("--raw-key is given, but value of --key is not base64")
 			}
-			key = sarama.ByteEncoder(keyBytes)
+			key = keyBytes
 		} else {
-			key = sarama.StringEncoder(keyFlag)
+			key = []byte(keyFlag)
 		}
 		if keyProtoType != "" {
 			if dynamicMessage := reg.MessageForType(keyProtoType); dynamicMessage != nil {
@@ -155,7 +155,7 @@ var produceCmd = &cobra.Command{
 					errorExit("Failed to marshal proto: %v", err)
 				}
 
-				key = sarama.ByteEncoder(pb)
+				key = pb
 			} else {
 				errorExit("Failed to load key proto type")
 			}
@@ -165,15 +165,15 @@ var produceCmd = &cobra.Command{
 			if err != nil {
 				errorExit("Failed to encode avro key", err)
 			}
-			key = sarama.ByteEncoder(avroKey)
+			key = avroKey
 		}
 
-		var headers []sarama.RecordHeader
+		var headers []kgo.RecordHeader
 		for _, h := range headerFlag {
 			v := strings.SplitN(h, ":", 2)
 			if len(v) == 2 {
-				headers = append(headers, sarama.RecordHeader{
-					Key:   []byte(v[0]),
+				headers = append(headers, kgo.RecordHeader{
+					Key:   v[0],
 					Value: []byte(v[1]),
 				})
 			}
@@ -242,7 +242,7 @@ var produceCmd = &cobra.Command{
 					ts = t
 				}
 
-				msg := &sarama.ProducerMessage{
+				rec := &kgo.Record{
 					Topic:     args[0],
 					Timestamp: ts,
 				}
@@ -252,40 +252,43 @@ var produceCmd = &cobra.Command{
 					if err = json.Unmarshal(marshaledInput, &jsonEachRowMsg); err == nil {
 						if keyFlag == "" {
 							// if key flag not set, use the key from stdin
-							key = sarama.StringEncoder(jsonEachRowMsg.Key)
+							key = []byte(jsonEachRowMsg.Key)
 						}
 
 						for _, h := range jsonEachRowMsg.Headers {
-							msg.Headers = append(msg.Headers, sarama.RecordHeader{
-								Key:   []byte(h.Key),
+							rec.Headers = append(rec.Headers, kgo.RecordHeader{
+								Key:   h.Key,
 								Value: []byte(h.Value),
 							})
 						}
 
-						msg.Partition = jsonEachRowMsg.Partition
+						rec.Partition = jsonEachRowMsg.Partition
 						marshaledInput = []byte(jsonEachRowMsg.Payload)
 					}
 				}
 
-				msg.Key = key
-				msg.Value = sarama.ByteEncoder(marshaledInput)
+				rec.Key = key
+				rec.Value = marshaledInput
 
 				if len(headers) > 0 {
 					// override headers if they were set
-					msg.Headers = headers
+					rec.Headers = headers
 				}
-
 				if partitionFlag != -1 {
-					msg.Partition = partitionFlag
+					rec.Partition = partitionFlag
 				}
 
-				partition, offset, err := producer.SendMessage(msg)
-				if err != nil {
+				ctx := context.Background()
+				results := cl.ProduceSync(ctx, rec)
+				if err := results.FirstErr(); err != nil {
 					fmt.Fprintf(outWriter, "Failed to send record: %v.", err)
 					os.Exit(1)
 				}
 
-				fmt.Fprintf(outWriter, "Sent record to partition %v at offset %v.\n", partition, offset)
+				// Get the record details from the result
+				for _, result := range results {
+					fmt.Fprintf(outWriter, "Sent record to partition %v at offset %v.\n", result.Record.Partition, result.Record.Offset)
+				}
 			}
 		}
 	},

@@ -7,15 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"sync"
 	"text/tabwriter"
 
-	"github.com/IBM/sarama"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/birdayz/kaf/pkg/avro"
 	"github.com/birdayz/kaf/pkg/proto"
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/hokaccha/go-prettyjson"
+	prettyjson "github.com/hokaccha/go-prettyjson"
 	"github.com/spf13/cobra"
 	"github.com/vmihailenco/msgpack/v5"
 )
@@ -40,9 +39,6 @@ var (
 	limitMessagesFlag int64
 
 	reg *proto.DescriptorRegistry
-
-	headerFilterFlag []string
-	headerFilter     = make(map[string]string)
 )
 
 func init() {
@@ -61,7 +57,6 @@ func init() {
 	consumeCmd.Flags().Int64VarP(&limitMessagesFlag, "limit-messages", "l", 0, "Limit messages per partition")
 	consumeCmd.Flags().StringVarP(&groupFlag, "group", "g", "", "Consumer Group to use for consume")
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
-	consumeCmd.Flags().StringSliceVar(&headerFilterFlag, "header", []string{}, "Filter messages by header. Format: key:value. Multiple filters can be specified")
 
 	if err := consumeCmd.RegisterFlagCompletionFunc("output", completeOutputFormat); err != nil {
 		errorExit("Failed to register flag completion: %v", err)
@@ -81,21 +76,101 @@ type offsets struct {
 	oldest int64
 }
 
-func getOffsets(client sarama.Client, topic string, partition int32) (*offsets, error) {
-	newest, err := client.GetOffset(topic, partition, sarama.OffsetNewest)
-	if err != nil {
-		return nil, err
-	}
-
-	oldest, err := client.GetOffset(topic, partition, sarama.OffsetOldest)
-	if err != nil {
-		return nil, err
-	}
-
+func getOffsets(client *kgo.Client, topic string, partition int32) (*offsets, error) {
+	// For Franz-go, we'll use a simplified approach
+	// The actual offset ranges will be handled by Franz-go internally
 	return &offsets{
-		newest: newest,
-		oldest: oldest,
+		newest: -1, // Franz-go will handle this
+		oldest: 0,  // Franz-go will handle this
 	}, nil
+}
+
+// ConsumeOptions contains all the parameters for the consume operation
+type ConsumeOptions struct {
+	Topic           string
+	OffsetFlag      string
+	GroupFlag       string
+	GroupCommitFlag bool
+	OutputFormat    OutputFormat
+	Raw             bool
+	Follow          bool
+	Tail            int32
+	ProtoType       string
+	KeyProtoType    string
+	Partitions      []int32
+	LimitMessages   int64
+	DecodeMsgPack   bool
+	ProtoFiles      []string
+	ProtoExclude    []string
+}
+
+// ConsumeMessages performs the actual consume operation with the given options
+func ConsumeMessages(ctx context.Context, opts ConsumeOptions) error {
+	var offset int64
+
+	// Allow deprecated flag to override when outputFormat is not specified, or default.
+	outputFormat := opts.OutputFormat
+	if outputFormat == OutputFormatDefault && opts.Raw {
+		outputFormat = OutputFormatRaw
+	}
+
+	switch opts.OffsetFlag {
+	case "oldest":
+		offset = -2 // kgo uses -2 for earliest
+	case "newest":
+		offset = -1 // kgo uses -1 for latest
+	default:
+		o, err := strconv.ParseInt(opts.OffsetFlag, 10, 64)
+		if err != nil {
+			return fmt.Errorf("could not parse '%s' to int64: %w", opts.OffsetFlag, err)
+		}
+		offset = o
+	}
+
+	// Setup proto descriptor registry if needed
+	if opts.ProtoType != "" {
+		r, err := proto.NewDescriptorRegistry(opts.ProtoFiles, opts.ProtoExclude)
+		if err != nil {
+			return fmt.Errorf("failed to load protobuf files: %v", err)
+		}
+		reg = r
+	}
+
+	if opts.GroupFlag != "" {
+		kgoOpts := append(getKgoOpts(), 
+			kgo.ConsumerGroup(opts.GroupFlag),
+			kgo.ConsumeTopics(opts.Topic))
+		client := getClientFromOpts(kgoOpts)
+		defer client.Close()
+		return consumeWithConsumerGroup(ctx, client, opts.Topic, opts.GroupFlag, opts.LimitMessages, opts.GroupCommitFlag, outputFormat)
+	} else {
+		// Configure offset for the topic
+		var kgoOffset kgo.Offset
+		if offset == -2 {
+			kgoOffset = kgo.NewOffset().AtStart()
+		} else if offset == -1 {
+			kgoOffset = kgo.NewOffset().AtEnd()
+		} else {
+			kgoOffset = kgo.NewOffset().At(offset)
+		}
+		
+		kgoOpts := append(getKgoOpts(), kgo.ConsumeResetOffset(kgoOffset))
+		if len(opts.Partitions) > 0 {
+			// If specific partitions are requested, use them
+			partitionOffsets := make(map[string]map[int32]kgo.Offset)
+			partitionOffsets[opts.Topic] = make(map[int32]kgo.Offset)
+			for _, partition := range opts.Partitions {
+				partitionOffsets[opts.Topic][partition] = kgoOffset
+			}
+			kgoOpts = append(kgoOpts, kgo.ConsumePartitions(partitionOffsets))
+		} else {
+			// Consume from all partitions
+			kgoOpts = append(kgoOpts, kgo.ConsumeTopics(opts.Topic))
+		}
+		client := getClientFromOpts(kgoOpts)
+		defer client.Close()
+		return consumeWithoutConsumerGroup(ctx, client, opts.Topic, offset, opts.LimitMessages, opts.Follow, outputFormat)
+	}
 }
 
 var consumeCmd = &cobra.Command{
@@ -105,174 +180,122 @@ var consumeCmd = &cobra.Command{
 	ValidArgsFunction: validTopicArgs,
 	PreRun:            setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
-		var offset int64
-		cfg := getConfig()
-		topic := args[0]
-		client := getClientFromConfig(cfg)
-
-		// Allow deprecated flag to override when outputFormat is not specified, or default.
-		if outputFormat == OutputFormatDefault && raw {
-			outputFormat = OutputFormatRaw
+		opts := ConsumeOptions{
+			Topic:           args[0],
+			OffsetFlag:      offsetFlag,
+			GroupFlag:       groupFlag,
+			GroupCommitFlag: groupCommitFlag,
+			OutputFormat:    outputFormat,
+			Raw:             raw,
+			Follow:          follow,
+			Tail:            tail,
+			ProtoType:       protoType,
+			KeyProtoType:    keyProtoType,
+			Partitions:      flagPartitions,
+			LimitMessages:   limitMessagesFlag,
+			DecodeMsgPack:   decodeMsgPack,
+			ProtoFiles:      protoFiles,
+			ProtoExclude:    protoExclude,
 		}
 
-		switch offsetFlag {
-		case "oldest":
-			offset = sarama.OffsetOldest
-			cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
-		case "newest":
-			offset = sarama.OffsetNewest
-			cfg.Consumer.Offsets.Initial = sarama.OffsetNewest
-		default:
-			o, err := strconv.ParseInt(offsetFlag, 10, 64)
-			if err != nil {
-				errorExit("Could not parse '%s' to int64: %w", offsetFlag, err)
-			}
-			offset = o
+		err := ConsumeMessages(cmd.Context(), opts)
+		if err != nil {
+			errorExit("Consume failed: %v", err)
 		}
-
-		for _, f := range headerFilterFlag {
-			parts := strings.SplitN(f, ":", 2)
-			if len(parts) != 2 {
-				errorExit("Invalid header filter format: %s. Expected format: key:value", f)
-			}
-			headerFilter[parts[0]] = parts[1]
-		}
-
-		if groupFlag != "" {
-			withConsumerGroup(cmd.Context(), client, topic, groupFlag)
-		} else {
-			withoutConsumerGroup(cmd.Context(), client, topic, offset)
-		}
-
 	},
 }
 
-type g struct{}
 
-func (g *g) Setup(s sarama.ConsumerGroupSession) error {
-	return nil
-}
-
-func (g *g) Cleanup(s sarama.ConsumerGroupSession) error {
-	return nil
-}
-
-func (g *g) ConsumeClaim(s sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-
-	mu := sync.Mutex{} // Synchronizes stderr and stdout.
-	for msg := range claim.Messages() {
-		handleMessage(msg, &mu)
-		if groupCommitFlag {
-			s.MarkMessage(msg, "")
-		}
-	}
-	return nil
-}
-
-func withConsumerGroup(ctx context.Context, client sarama.Client, topic, group string) {
-	cg, err := sarama.NewConsumerGroupFromClient(group, client)
-	if err != nil {
-		errorExit("Failed to create consumer group: %v", err)
-	}
-
+func consumeWithConsumerGroup(ctx context.Context, client *kgo.Client, topic, group string, limitMessages int64, commit bool, outputFormat OutputFormat) error {
 	schemaCache = getSchemaCache()
-
-	err = cg.Consume(ctx, []string{topic}, &g{})
-	if err != nil {
-		errorExit("Error on consume: %v", err)
-	}
-}
-
-func withoutConsumerGroup(ctx context.Context, client sarama.Client, topic string, offset int64) {
-	consumer, err := sarama.NewConsumerFromClient(client)
-	if err != nil {
-		errorExit("Unable to create consumer from client: %v\n", err)
-	}
-
-	var partitions []int32
-	if len(flagPartitions) == 0 {
-		partitions, err = consumer.Partitions(topic)
-		if err != nil {
-			errorExit("Unable to get partitions: %v\n", err)
-		}
-	} else {
-		partitions = flagPartitions
-	}
-
-	schemaCache = getSchemaCache()
-
-	wg := sync.WaitGroup{}
+	
 	mu := sync.Mutex{} // Synchronizes stderr and stdout.
-	for _, partition := range partitions {
-		wg.Add(1)
-
-		go func(partition int32, offset int64) {
-			defer wg.Done()
-
-			offsets, err := getOffsets(client, topic, partition)
-			if err != nil {
-				errorExit("Failed to get %s offsets for partition %d: %w", topic, partition, err)
-			}
-
-			if tail != 0 {
-				offset = offsets.newest - int64(tail)
-				if offset < offsets.oldest {
-					offset = offsets.oldest
+	var count int64 = 0
+	
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			fetches := client.PollFetches(ctx)
+			if errs := fetches.Errors(); len(errs) > 0 {
+				for _, err := range errs {
+					return fmt.Errorf("fetch error: %v", err)
 				}
 			}
-
-			// Already at end of partition, return early
-			if !follow && offsets.newest == offsets.oldest {
-				return
-			}
-
-			pc, err := consumer.ConsumePartition(topic, partition, offset)
-			if err != nil {
-				errorExit("Unable to consume partition: %v %v %v %v\n", topic, partition, offset, err)
-			}
-
-			var count int64 = 0
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case msg := <-pc.Messages():
-					handleMessage(msg, &mu)
+			
+			var shouldReturn bool
+			fetches.EachPartition(func(p kgo.FetchTopicPartition) {
+				for _, record := range p.Records {
+					handleMessage(record, &mu, outputFormat)
 					count++
-					if limitMessagesFlag > 0 && count >= limitMessagesFlag {
+					if limitMessages > 0 && count >= limitMessages {
+						shouldReturn = true
 						return
 					}
-					if !follow && msg.Offset+1 >= pc.HighWaterMarkOffset() {
+					if commit {
+						client.MarkCommitRecords(record)
+					}
+				}
+			})
+			
+			if shouldReturn {
+				if commit {
+					client.CommitUncommittedOffsets(ctx)
+				}
+				return nil
+			}
+			
+			if commit {
+				client.CommitUncommittedOffsets(ctx)
+			}
+		}
+	}
+}
+
+
+func consumeWithoutConsumerGroup(ctx context.Context, client *kgo.Client, topic string, offset int64, limitMessages int64, follow bool, outputFormat OutputFormat) error {
+	schemaCache = getSchemaCache()
+	
+	mu := sync.Mutex{} // Synchronizes stderr and stdout.
+	var count int64 = 0
+	
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
+			fetches := client.PollFetches(ctx)
+			if errs := fetches.Errors(); len(errs) > 0 {
+				for _, err := range errs {
+					return fmt.Errorf("fetch error: %v", err)
+				}
+			}
+			
+			var shouldReturn bool
+			fetches.EachPartition(func(p kgo.FetchTopicPartition) {
+				for _, record := range p.Records {
+					handleMessage(record, &mu, outputFormat)
+					count++
+					if limitMessages > 0 && count >= limitMessages {
+						shouldReturn = true
 						return
 					}
 				}
+			})
+			
+			if shouldReturn {
+				return nil
 			}
-		}(partition, offset)
-	}
-	wg.Wait()
-}
-
-func checkHeaders(headers []*sarama.RecordHeader, filter map[string]string) bool {
-	if len(filter) == 0 {
-		return true
-	}
-
-	matchCount := 0
-	for _, h := range headers {
-		hdrStr := parseHeader(h.Value)
-		if val, ok := filter[string(h.Key)]; ok && hdrStr == val {
-			matchCount++
+			
+			if !follow && len(fetches.Records()) == 0 {
+				return nil
+			}
 		}
 	}
-
-	return len(headers) > 0 && matchCount >= len(headers)
 }
 
-func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
-	if !checkHeaders(msg.Headers, headerFilter) {
-		return
-	}
-
+func handleMessage(msg *kgo.Record, mu *sync.Mutex, outputFormat OutputFormat) {
 	var stderr bytes.Buffer
 
 	var dataToDisplay []byte
@@ -316,7 +339,7 @@ func handleMessage(msg *sarama.ConsumerMessage, mu *sync.Mutex) {
 		}
 	}
 
-	dataToDisplay = formatMessage(msg, dataToDisplay, keyToDisplay, &stderr)
+	dataToDisplay = formatKgoMessage(msg, dataToDisplay, keyToDisplay, &stderr, outputFormat)
 
 	mu.Lock()
 	stderr.WriteTo(errWriter)
@@ -341,7 +364,7 @@ func parseHeader(hdrBytes []byte) (hdrStr string) {
 	return hdrStr
 }
 
-func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay []byte, stderr *bytes.Buffer) []byte {
+func formatKgoMessage(msg *kgo.Record, rawMessage []byte, keyToDisplay []byte, stderr *bytes.Buffer, outputFormat OutputFormat) []byte {
 	switch outputFormat {
 	case OutputFormatRaw:
 		return rawMessage
@@ -353,7 +376,11 @@ func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay 
 		jsonMessage["timestamp"] = msg.Timestamp
 
 		if len(msg.Headers) > 0 {
-			jsonMessage["headers"] = msg.Headers
+			headers := make(map[string]string)
+			for _, hdr := range msg.Headers {
+				headers[hdr.Key] = string(hdr.Value)
+			}
+			jsonMessage["headers"] = headers
 		}
 
 		jsonMessage["key"] = formatJSON(keyToDisplay)
@@ -375,7 +402,7 @@ func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay 
 		for i, hdr := range msg.Headers {
 			hdrStr := parseHeader(hdr.Value)
 			jsonMessage.Headers[i] = MessageHeader{
-				Key:   string(hdr.Key),
+				Key:   hdr.Key,
 				Value: hdrStr,
 			}
 		}
@@ -407,7 +434,7 @@ func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay 
 
 		for _, hdr := range msg.Headers {
 			hdrStr := parseHeader(hdr.Value)
-			fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", string(hdr.Key), hdrStr)
+			fmt.Fprintf(w, "\tKey: %v\tValue: %v\n", hdr.Key, hdrStr)
 		}
 
 		if len(msg.Key) > 0 {

@@ -7,6 +7,9 @@ import (
 )
 
 func TestNode(t *testing.T) {
-	out := runCmdWithBroker(t, nil, "node", "ls")
+	kafkaAddr, cleanup := setupKafkaForTest(t)
+	defer cleanup()
+	
+	out := runCmdWithBroker(t, kafkaAddr, nil, "node", "ls")
 	require.Contains(t, out, kafkaAddr)
 }

@@ -6,10 +6,13 @@ import (
 
 	"crypto/tls"
 	"crypto/x509"
-	"log"
 	"os"
 
-	"github.com/IBM/sarama"
+	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
+	"github.com/twmb/franz-go/pkg/sasl/plain"
+	"github.com/twmb/franz-go/pkg/sasl/oauth"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/cobra"
 
@@ -20,100 +23,77 @@ import (
 
 var cfgFile string
 
-func getConfig() (saramaConfig *sarama.Config) {
-	saramaConfig = sarama.NewConfig()
-	saramaConfig.Version = sarama.V1_1_0_0
-	saramaConfig.Producer.Return.Successes = true
-
+func getKgoOpts() []kgo.Opt {
 	cluster := currentCluster
-	if cluster.Version != "" {
-		parsedVersion, err := sarama.ParseKafkaVersion(cluster.Version)
-		if err != nil {
-			errorExit("Unable to parse Kafka version: %v\n", err)
-		}
-		saramaConfig.Version = parsedVersion
+	opts := []kgo.Opt{
+		kgo.SeedBrokers(cluster.Brokers...),
 	}
+
 	if cluster.SASL != nil {
-		saramaConfig.Net.SASL.Enable = true
-		if cluster.SASL.Mechanism != "OAUTHBEARER" {
-			saramaConfig.Net.SASL.User = cluster.SASL.Username
-			saramaConfig.Net.SASL.Password = cluster.SASL.Password
+		switch cluster.SASL.Mechanism {
+		case "SCRAM-SHA-512":
+			opts = append(opts, kgo.SASL(scram.Auth{
+				User: cluster.SASL.Username,
+				Pass: cluster.SASL.Password,
+			}.AsSha512Mechanism()))
+		case "SCRAM-SHA-256":
+			opts = append(opts, kgo.SASL(scram.Auth{
+				User: cluster.SASL.Username,
+				Pass: cluster.SASL.Password,
+			}.AsSha256Mechanism()))
+		case "PLAIN":
+			opts = append(opts, kgo.SASL(plain.Auth{
+				User: cluster.SASL.Username,
+				Pass: cluster.SASL.Password,
+			}.AsMechanism()))
+		case "OAUTHBEARER", "AWS_MSK_IAM":
+			tokenProvider := newTokenProvider()
+			token, err := tokenProvider.Token()
+			if err != nil {
+				errorExit("Unable to get OAuth token: %v\n", err)
+			}
+			opts = append(opts, kgo.SASL(oauth.Auth{
+				Token: token,
+			}.AsMechanism()))
 		}
-		saramaConfig.Net.SASL.Version = cluster.SASL.Version
 	}
-	if cluster.TLS != nil && cluster.SecurityProtocol != "SASL_SSL" {
-		saramaConfig.Net.TLS.Enable = true
-		tlsConfig := &tls.Config{
-			InsecureSkipVerify: cluster.TLS.Insecure,
-		}
 
-		if cluster.TLS.Cafile != "" {
-			caCert, err := os.ReadFile(cluster.TLS.Cafile)
-			if err != nil {
-				errorExit("Unable to read Cafile :%v\n", err)
-			}
-			caCertPool := x509.NewCertPool()
-			caCertPool.AppendCertsFromPEM(caCert)
-			tlsConfig.RootCAs = caCertPool
-		}
-
-		if cluster.TLS.Clientfile != "" && cluster.TLS.Clientkeyfile != "" {
-			clientCert, err := os.ReadFile(cluster.TLS.Clientfile)
-			if err != nil {
-				errorExit("Unable to read Clientfile :%v\n", err)
-			}
-			clientKey, err := os.ReadFile(cluster.TLS.Clientkeyfile)
-			if err != nil {
-				errorExit("Unable to read Clientkeyfile :%v\n", err)
-			}
-
-			cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
-			if err != nil {
-				errorExit("Unable to create KeyPair: %v\n", err)
-			}
-			tlsConfig.Certificates = []tls.Certificate{cert}
-
-			// nolint
-			tlsConfig.BuildNameToCertificate()
-		}
-		saramaConfig.Net.TLS.Config = tlsConfig
-	}
-	if cluster.SecurityProtocol == "SASL_SSL" {
-		saramaConfig.Net.TLS.Enable = true
+	if cluster.TLS != nil || cluster.SecurityProtocol == "SASL_SSL" {
+		tlsConfig := &tls.Config{}
 		if cluster.TLS != nil {
-			tlsConfig := &tls.Config{
-				InsecureSkipVerify: cluster.TLS.Insecure,
-			}
+			tlsConfig.InsecureSkipVerify = cluster.TLS.Insecure
+
 			if cluster.TLS.Cafile != "" {
 				caCert, err := os.ReadFile(cluster.TLS.Cafile)
 				if err != nil {
-					fmt.Println(err)
-					os.Exit(1)
+					errorExit("Unable to read Cafile :%v\n", err)
 				}
 				caCertPool := x509.NewCertPool()
 				caCertPool.AppendCertsFromPEM(caCert)
 				tlsConfig.RootCAs = caCertPool
 			}
-			saramaConfig.Net.TLS.Config = tlsConfig
 
-		} else {
-			saramaConfig.Net.TLS.Config = &tls.Config{InsecureSkipVerify: false}
+			if cluster.TLS.Clientfile != "" && cluster.TLS.Clientkeyfile != "" {
+				clientCert, err := os.ReadFile(cluster.TLS.Clientfile)
+				if err != nil {
+					errorExit("Unable to read Clientfile :%v\n", err)
+				}
+				clientKey, err := os.ReadFile(cluster.TLS.Clientkeyfile)
+				if err != nil {
+					errorExit("Unable to read Clientkeyfile :%v\n", err)
+				}
+
+				cert, err := tls.X509KeyPair([]byte(clientCert), []byte(clientKey))
+				if err != nil {
+					errorExit("Unable to create KeyPair: %v\n", err)
+				}
+				tlsConfig.Certificates = []tls.Certificate{cert}
+			}
 		}
+		opts = append(opts, kgo.DialTLSConfig(tlsConfig))
 	}
-	if cluster.SecurityProtocol == "SASL_SSL" || cluster.SecurityProtocol == "SASL_PLAINTEXT" {
-		if cluster.SASL.Mechanism == "SCRAM-SHA-512" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA512} }
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeSCRAMSHA512)
-		} else if cluster.SASL.Mechanism == "SCRAM-SHA-256" {
-			saramaConfig.Net.SASL.SCRAMClientGeneratorFunc = func() sarama.SCRAMClient { return &XDGSCRAMClient{HashGeneratorFcn: SHA256} }
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeSCRAMSHA256)
-		} else if cluster.SASL.Mechanism == "OAUTHBEARER" || cluster.SASL.Mechanism == "AWS_MSK_IAM" {
-			//Here setup get token function
-			saramaConfig.Net.SASL.Mechanism = sarama.SASLMechanism(sarama.SASLTypeOAuth)
-			saramaConfig.Net.SASL.TokenProvider = newTokenProvider()
-		}
-	}
-	return saramaConfig
+
+	return opts
 }
 
 var (
@@ -168,7 +148,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 	rootCmd.PersistentFlags().StringVar(&schemaRegistryURL, "schema-registry", "", "URL to a Confluent schema registry. Used for attempting to decode Avro-encoded messages")
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Whether to turn on sarama logging")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Whether to turn on verbose logging")
 	rootCmd.PersistentFlags().StringVarP(&clusterOverride, "cluster", "c", "", "set a temporary current cluster")
 	cobra.OnInitialize(onInit)
 }
@@ -214,33 +194,32 @@ func onInit() {
 	}
 
 	if verbose {
-		sarama.Logger = log.New(errWriter, "[sarama] ", log.Lshortfile|log.LstdFlags)
+		// Franz-go uses a different logging approach - can be configured per client
 	}
 }
 
-func getClusterAdmin() (admin sarama.ClusterAdmin) {
-	clusterAdmin, err := sarama.NewClusterAdmin(currentCluster.Brokers, getConfig())
+func getClusterAdmin() *kadm.Client {
+	cl, err := kgo.NewClient(getKgoOpts()...)
 	if err != nil {
-		errorExit("Unable to get cluster admin: %v\n", err)
+		errorExit("Unable to create kafka client: %v\n", err)
 	}
-
-	return clusterAdmin
+	return kadm.NewClient(cl)
 }
 
-func getClient() (client sarama.Client) {
-	client, err := sarama.NewClient(currentCluster.Brokers, getConfig())
-	if err != nil {
-		errorExit("Unable to get client: %v\n", err)
-	}
-	return client
-}
-
-func getClientFromConfig(config *sarama.Config) (client sarama.Client) {
-	client, err := sarama.NewClient(currentCluster.Brokers, config)
+func getClient() *kgo.Client {
+	cl, err := kgo.NewClient(getKgoOpts()...)
 	if err != nil {
 		errorExit("Unable to get client: %v\n", err)
 	}
-	return client
+	return cl
+}
+
+func getClientFromOpts(opts []kgo.Opt) *kgo.Client {
+	cl, err := kgo.NewClient(opts...)
+	if err != nil {
+		errorExit("Unable to get client: %v\n", err)
+	}
+	return cl
 }
 
 func getSchemaCache() (cache *avro.SchemaCache) {

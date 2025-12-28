@@ -7,7 +7,6 @@ import (
 
 	"regexp"
 
-	"github.com/IBM/sarama"
 	"github.com/birdayz/kaf/pkg/config"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
@@ -31,7 +30,7 @@ func init() {
 
 	configLsCmd.Flags().BoolVar(&noHeaderFlag, "no-headers", false, "Hide table headers")
 	configAddEventhub.Flags().StringVar(&flagEhConnString, "eh-connstring", "", "EventHub ConnectionString")
-	configAddClusterCmd.Flags().StringVar(&flagBrokerVersion, "broker-version", "", fmt.Sprintf("Broker Version. Available Versions: %v", sarama.SupportedVersions))
+	configAddClusterCmd.Flags().StringVar(&flagBrokerVersion, "broker-version", "", "Broker Version (deprecated - franz-go handles version negotiation automatically)")
 }
 
 var configCmd = &cobra.Command{

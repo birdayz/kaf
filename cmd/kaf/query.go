@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
-
 	"strings"
 
-	"github.com/IBM/sarama"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/spf13/cobra"
 )
 
@@ -33,82 +33,97 @@ var queryCmd = &cobra.Command{
 	PreRun:            setupProtoDescriptorRegistry,
 	Run: func(cmd *cobra.Command, args []string) {
 		topic := args[0]
-		client := getClient()
-
-		consumer, err := sarama.NewConsumerFromClient(client)
+		ctx := context.Background()
+		
+		// Get topic partitions info
+		admin := getClusterAdmin()
+		topics, err := admin.ListTopics(ctx)
 		if err != nil {
-			errorExit("Unable to create consumer from client: %v\n", err)
+			errorExit("Unable to list topics: %v\n", err)
 		}
-
-		partitions, err := consumer.Partitions(topic)
-		if err != nil {
-			errorExit("Unable to get partitions: %v\n", err)
+		
+		topicDetail, exists := topics[topic]
+		if !exists {
+			errorExit("Topic %v not found.\n", topic)
 		}
 
 		schemaCache = getSchemaCache()
-
 		wg := sync.WaitGroup{}
 
-		for _, partition := range partitions {
+		for i := int32(0); i < int32(len(topicDetail.Partitions)); i++ {
 			wg.Add(1)
 			go func(partition int32) {
 				defer wg.Done()
-				highWatermark, err := client.GetOffset(topic, partition, sarama.OffsetNewest)
+				
+				// Create consumer for this partition
+				opts := getKgoOpts()
+				partToOffsets := make(map[string]map[int32]kgo.Offset)
+				partToOffsets[topic] = make(map[int32]kgo.Offset)
+				partToOffsets[topic][partition] = kgo.NewOffset().AtStart()
+				opts = append(opts, kgo.ConsumePartitions(partToOffsets))
+				
+				cl, err := kgo.NewClient(opts...)
 				if err != nil {
-					errorExit("Failed to get high watermark: %w", err)
+					errorExit("Unable to create consumer: %v\n", err)
 				}
+				defer cl.Close()
 
-				if highWatermark == 0 {
-					return
-				}
+				for {
+					fetches := cl.PollFetches(ctx)
+					if errs := fetches.Errors(); len(errs) > 0 {
+						for _, err := range errs {
+							fmt.Printf("Error polling: %v\n", err)
+						}
+						return
+					}
 
-				pc, err := consumer.ConsumePartition(topic, partition, sarama.OffsetOldest)
-				if err != nil {
-					errorExit("Unable to consume partition: %v\n", err)
-				}
-
-				for msg := range pc.Messages() {
-					if string(msg.Key) == keyFlag {
-						var keyTextRaw string
-						var valueTextRaw string
-						if protoType != "" {
-							d, err := protoDecode(reg, msg.Value, protoType)
-							if err != nil {
-								fmt.Println("Failed proto decode")
+					iter := fetches.RecordIter()
+					for !iter.Done() {
+						record := iter.Next()
+						if string(record.Key) == keyFlag {
+							var keyTextRaw string
+							var valueTextRaw string
+							
+							if protoType != "" {
+								d, err := protoDecode(reg, record.Value, protoType)
+								if err != nil {
+									fmt.Println("Failed proto decode")
+								}
+								valueTextRaw = string(d)
+							} else {
+								valueTextRaw = string(record.Value)
 							}
-							valueTextRaw = string(d)
-						} else {
-							valueTextRaw = string(msg.Value)
-						}
 
-						if keyProtoType != "" {
-							d, err := protoDecode(reg, msg.Key, keyProtoType)
-							if err != nil {
-								fmt.Println("Failed proto decode")
+							if keyProtoType != "" {
+								d, err := protoDecode(reg, record.Key, keyProtoType)
+								if err != nil {
+									fmt.Println("Failed proto decode")
+								}
+								keyTextRaw = string(d)
+							} else {
+								keyTextRaw = string(record.Key)
 							}
-							keyTextRaw = string(d)
-						} else {
-							keyTextRaw = string(msg.Key)
-						}
 
-						match := true
-						if grepValue != "" {
-							if !strings.Contains(valueTextRaw, grepValue) {
-								match = false
+							match := true
+							if grepValue != "" {
+								if !strings.Contains(valueTextRaw, grepValue) {
+									match = false
+								}
 							}
-						}
 
-						if match {
-							fmt.Printf("Key: %v\n", keyTextRaw)
-							fmt.Printf("Value: %v\n", valueTextRaw)
-						}
-
-						if msg.Offset == pc.HighWaterMarkOffset()-1 {
-							break
+							if match {
+								fmt.Printf("Key: %v\n", keyTextRaw)
+								fmt.Printf("Value: %v\n", valueTextRaw)
+								return
+							}
 						}
 					}
+					
+					if fetches.IsClientClosed() {
+						return
+					}
 				}
-			}(partition)
+			}(i)
 		}
 
 		wg.Wait()

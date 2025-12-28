@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,7 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
-	"github.com/IBM/sarama"
+	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +67,7 @@ var topicSetConfig = &cobra.Command{
 		topic := args[0]
 
 		splt := strings.Split(args[1], ",")
-		configs := make(map[string]sarama.IncrementalAlterConfigsEntry)
+		configs := make(map[string]*string)
 
 		for _, kv := range splt {
 			s := strings.Split(kv, "=")
@@ -77,17 +78,23 @@ var topicSetConfig = &cobra.Command{
 
 			key := s[0]
 			value := s[1]
-			configs[key] = sarama.IncrementalAlterConfigsEntry{
-				Operation: sarama.IncrementalAlterConfigsOperationSet,
-				Value:     &value,
-			}
+			configs[key] = &value
 		}
 
 		if len(configs) < 1 {
 			errorExit("No valid configs found")
 		}
 
-		err := admin.IncrementalAlterConfig(sarama.TopicResource, topic, configs, false)
+		ctx := context.Background()
+		// Use the simplified AlterTopicConfigs API - convert to the required format
+		alterConfigs := make([]kadm.AlterConfig, 0, len(configs))
+		for key, value := range configs {
+			alterConfigs = append(alterConfigs, kadm.AlterConfig{
+				Name:  key,
+				Value: value,
+			})
+		}
+		_, err := admin.AlterTopicConfigs(ctx, alterConfigs, topic)
 		if err != nil {
 			errorExit("Unable to alter topic config: %v\n", err)
 		}
@@ -115,15 +122,24 @@ var updateTopicCmd = &cobra.Command{
 		}
 
 		if partitionsFlag != int32(-1) {
-			err := admin.CreatePartitions(args[0], partitionsFlag, assignments, false)
+			ctx := context.Background()
+			_, err := admin.CreatePartitions(ctx, int(partitionsFlag), args[0])
 			if err != nil {
 				errorExit("Failed to create partitions: %v", err)
 			}
 		} else {
 			// Needs at least Kafka version 2.4.0.
-			err := admin.AlterPartitionReassignments(args[0], assignments)
+			ctx := context.Background()
+			// Create partition assignments map
+			partitionAssignments := make(map[string]map[int32][]int32)
+			topicAssignments := make(map[int32][]int32)
+			for i, brokers := range assignments {
+				topicAssignments[int32(i)] = brokers
+			}
+			partitionAssignments[args[0]] = topicAssignments
+			_, err := admin.AlterPartitionAssignments(ctx, partitionAssignments)
 			if err != nil {
-				errorExit("Failed to reassign the partition assigments: %v", err)
+				errorExit("Failed to reassign the partition assignments: %v", err)
 			}
 		}
 		fmt.Printf("\xE2\x9C\x85 Updated topic!\n")
@@ -138,21 +154,29 @@ var lsTopicsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		topics, err := admin.ListTopics()
+		ctx := context.Background()
+		topicsResp, err := admin.ListTopics(ctx)
 		if err != nil {
 			errorExit("Unable to list topics: %v\n", err)
 		}
 
 		sortedTopics := make(
 			[]struct {
-				name string
-				sarama.TopicDetail
-			}, len(topics))
+				name       string
+				partitions int32
+				replicas   int16
+			}, len(topicsResp))
 
 		i := 0
-		for name, topic := range topics {
+		for name, topic := range topicsResp {
 			sortedTopics[i].name = name
-			sortedTopics[i].TopicDetail = topic
+			sortedTopics[i].partitions = int32(len(topic.Partitions))
+			// Calculate replication factor from first partition (if exists)
+			if len(topic.Partitions) > 0 {
+				sortedTopics[i].replicas = int16(len(topic.Partitions[0].Replicas))
+			} else {
+				sortedTopics[i].replicas = 0
+			}
 			i++
 		}
 
@@ -167,7 +191,7 @@ var lsTopicsCmd = &cobra.Command{
 		}
 
 		for _, topic := range sortedTopics {
-			fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.name, topic.NumPartitions, topic.ReplicationFactor)
+			fmt.Fprintf(w, "%v\t%v\t%v\t\n", topic.name, topic.partitions, topic.replicas)
 		}
 		w.Flush()
 	},
@@ -182,40 +206,48 @@ var describeTopicCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
 
-		topicDetails, err := admin.DescribeTopics([]string{args[0]})
+		ctx := context.Background()
+		topicDetails, err := admin.ListTopics(ctx, args[0])
 		if err != nil {
 			errorExit("Unable to describe topics: %v\n", err)
 		}
 
-		if topicDetails[0].Err == sarama.ErrUnknownTopicOrPartition {
+		detail, exists := topicDetails[args[0]]
+		if !exists {
 			fmt.Printf("Topic %v not found.\n", args[0])
 			return
 		}
 
-		cfg, err := admin.DescribeConfig(sarama.ConfigResource{
-			Type: sarama.TopicResource,
-			Name: args[0],
-		})
+		cfgResp, err := admin.DescribeTopicConfigs(ctx, args[0])
 		if err != nil {
 			errorExit("Unable to describe config: %v\n", err)
 		}
 
 		var compacted bool
-		for _, e := range cfg {
-			if e.Name == "cleanup.policy" {
-				for _, setting := range strings.Split(e.Value, ",") {
-					if setting == "compact" {
-						compacted = true
+		for _, resourceConfig := range cfgResp {
+			for _, config := range resourceConfig.Configs {
+				if config.Key == "cleanup.policy" {
+					if config.Value != nil {
+						for _, setting := range strings.Split(*config.Value, ",") {
+							if setting == "compact" {
+								compacted = true
+							}
+						}
 					}
 				}
 			}
 		}
 
-		detail := topicDetails[0]
-		sort.Slice(detail.Partitions, func(i, j int) bool { return detail.Partitions[i].ID < detail.Partitions[j].ID })
+		// detail is already assigned above
+		// Convert map to slice for sorting
+		partitionSlice := make([]kadm.PartitionDetail, 0, len(detail.Partitions))
+		for _, partition := range detail.Partitions {
+			partitionSlice = append(partitionSlice, partition)
+		}
+		sort.Slice(partitionSlice, func(i, j int) bool { return partitionSlice[i].Partition < partitionSlice[j].Partition })
 
 		w := tabwriter.NewWriter(outWriter, tabwriterMinWidth, tabwriterWidth, tabwriterPadding, tabwriterPadChar, tabwriterFlags)
-		fmt.Fprintf(w, "Name:\t%v\t\n", detail.Name)
+		fmt.Fprintf(w, "Name:\t%v\t\n", args[0])
 		fmt.Fprintf(w, "Internal:\t%v\t\n", detail.IsInternal)
 		fmt.Fprintf(w, "Compacted:\t%v\t\n", compacted)
 		fmt.Fprintf(w, "Partitions:\n")
@@ -226,23 +258,23 @@ var describeTopicCmd = &cobra.Command{
 		fmt.Fprintf(w, "\tPartition\tHigh Watermark\tLeader\tReplicas\tISR\t\n")
 		fmt.Fprintf(w, "\t---------\t--------------\t------\t--------\t---\t\n")
 
-		partitions := make([]int32, 0, len(detail.Partitions))
-		for _, partition := range detail.Partitions {
-			partitions = append(partitions, partition.ID)
+		partitions := make([]int32, 0, len(partitionSlice))
+		for _, partition := range partitionSlice {
+			partitions = append(partitions, partition.Partition)
 		}
-		highWatermarks := getHighWatermarks(args[0], partitions)
+		highWatermarks := getKgoHighWatermarks(args[0], partitions)
 		highWatermarksSum := 0
 
-		for _, partition := range detail.Partitions {
+		for _, partition := range partitionSlice {
 			sortedReplicas := partition.Replicas
 			sort.Slice(sortedReplicas, func(i, j int) bool { return sortedReplicas[i] < sortedReplicas[j] })
 
-			sortedISR := partition.Isr
+			sortedISR := partition.ISR
 			sort.Slice(sortedISR, func(i, j int) bool { return sortedISR[i] < sortedISR[j] })
 
-			highWatermarksSum += int(highWatermarks[partition.ID])
+			highWatermarksSum += int(highWatermarks[partition.Partition])
 
-			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.ID, highWatermarks[partition.ID], partition.Leader, sortedReplicas, sortedISR)
+			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t%v\t\n", partition.Partition, highWatermarks[partition.Partition], partition.Leader, sortedReplicas, sortedISR)
 		}
 
 		w.Flush()
@@ -251,14 +283,14 @@ var describeTopicCmd = &cobra.Command{
 		w.Flush()
 
 		fmt.Fprintf(w, "Config:\n")
-		fmt.Fprintf(w, "\tName\tValue\tReadOnly\tSensitive\t\n")
-		fmt.Fprintf(w, "\t----\t-----\t--------\t---------\t\n")
+		fmt.Fprintf(w, "\tName\tValue\t\n")
+		fmt.Fprintf(w, "\t----\t-----\t\n")
 
-		for _, entry := range cfg {
-			if entry.Default {
-				continue
+		for _, resourceConfig := range cfgResp {
+			for _, config := range resourceConfig.Configs {
+				// Show all configs for now
+				fmt.Fprintf(w, "\t%v\t%v\t\n", config.Key, *config.Value)
 			}
-			fmt.Fprintf(w, "\t%v\t%v\t%v\t%v\t\n", entry.Name, entry.Value, entry.ReadOnly, entry.Sensitive)
 		}
 
 		w.Flush()
@@ -277,13 +309,10 @@ var createTopicCmd = &cobra.Command{
 		if compactFlag {
 			compact = "compact"
 		}
-		err := admin.CreateTopic(topicName, &sarama.TopicDetail{
-			NumPartitions:     partitionsFlag,
-			ReplicationFactor: replicasFlag,
-			ConfigEntries: map[string]*string{
-				"cleanup.policy": &compact,
-			},
-		}, false)
+		ctx := context.Background()
+		_, err := admin.CreateTopics(ctx, partitionsFlag, replicasFlag, map[string]*string{
+			"cleanup.policy": &compact,
+		}, topicName)
 		if err != nil {
 			errorExit("Could not create topic %v: %v\n", topicName, err.Error())
 		} else {
@@ -309,9 +338,11 @@ var addConfigCmd = &cobra.Command{
 		key := args[1]
 		value := args[2]
 
-		err := admin.AlterConfig(sarama.TopicResource, topic, map[string]*string{
-			key: &value,
-		}, false)
+		ctx := context.Background()
+		_, err := admin.AlterTopicConfigs(ctx, []kadm.AlterConfig{{
+			Name:  key,
+			Value: &value,
+		}}, topic)
 		if err != nil {
 			errorExit("failed to update topic config: %v", err)
 		} else {
@@ -332,21 +363,29 @@ var removeConfigCmd = &cobra.Command{
 
 		updatedTopicConfigs := make(map[string]*string)
 
-		allTopicConfigs, err := admin.DescribeConfig(sarama.ConfigResource{
-			Type: sarama.TopicResource,
-			Name: topic,
-		})
+		ctx := context.Background()
+		allTopicConfigs, err := admin.DescribeTopicConfigs(ctx, topic)
 		if err != nil {
 			errorExit("failed to describe topic config: %v", err)
 		}
 
-		for _, v := range allTopicConfigs {
-			if !slices.Contains(attrsToRemove, v.Name) {
-				updatedTopicConfigs[v.Name] = &v.Value
+		if len(allTopicConfigs) > 0 {
+			for _, config := range allTopicConfigs[0].Configs {
+				if !slices.Contains(attrsToRemove, config.Key) {
+					updatedTopicConfigs[config.Key] = config.Value
+				}
 			}
 		}
 
-		err = admin.AlterConfig(sarama.TopicResource, topic, updatedTopicConfigs, false)
+		// Convert to the expected format
+		alterConfigs := make([]kadm.AlterConfig, 0, len(updatedTopicConfigs))
+		for key, value := range updatedTopicConfigs {
+			alterConfigs = append(alterConfigs, kadm.AlterConfig{
+				Name:  key,
+				Value: value,
+			})
+		}
+		_, err = admin.AlterTopicConfigs(ctx, alterConfigs, topic)
 		if err != nil {
 			errorExit("failed to remove attributes from topic config: %v", err)
 		}
@@ -363,7 +402,8 @@ var deleteTopicCmd = &cobra.Command{
 		admin := getClusterAdmin()
 
 		topicName := args[0]
-		err := admin.DeleteTopic(topicName)
+		ctx := context.Background()
+		_, err := admin.DeleteTopics(ctx, topicName)
 		if err != nil {
 			errorExit("Could not delete topic %v: %v\n", topicName, err.Error())
 		} else {
@@ -381,32 +421,35 @@ var lagCmd = &cobra.Command{
 		admin := getClusterAdmin()
 		defer admin.Close()
 
+		ctx := context.Background()
 		// Describe the topic
-		topicDetails, err := admin.DescribeTopics([]string{topic})
-		if err != nil || len(topicDetails) == 0 {
+		topicDetails, err := admin.ListTopics(ctx, topic)
+		if err != nil {
 			errorExit("Unable to describe topics: %v\n", err)
+		}
+		
+		topicDetail, exists := topicDetails[topic]
+		if !exists {
+			errorExit("Topic %v not found.\n", topic)
 		}
 
 		// Get the list of partitions for the topic
-		partitions := make([]int32, 0, len(topicDetails[0].Partitions))
-		for _, partition := range topicDetails[0].Partitions {
-			partitions = append(partitions, partition.ID)
+		partitions := make([]int32, 0, len(topicDetail.Partitions))
+		for _, partition := range topicDetail.Partitions {
+			partitions = append(partitions, partition.Partition)
 		}
-		highWatermarks := getHighWatermarks(topic, partitions)
+		highWatermarks := getKgoHighWatermarks(topic, partitions)
 
 		// List all consumer groups
-		consumerGroups, err := admin.ListConsumerGroups()
+		consumerGroups, err := admin.ListGroups(ctx)
 		if err != nil {
 			errorExit("Unable to list consumer groups: %v\n", err)
 		}
 
-		var groups []string
-		for group := range consumerGroups {
-			groups = append(groups, group)
-		}
+		groups := consumerGroups.Groups()
 
 		// Describe all consumer groups
-		groupsInfo, err := admin.DescribeConsumerGroups(groups)
+		groupsInfo, err := admin.DescribeGroups(ctx, groups...)
 		if err != nil {
 			errorExit("Unable to describe consumer groups: %v\n", err)
 		}
@@ -417,44 +460,31 @@ var lagCmd = &cobra.Command{
 		for _, group := range groupsInfo {
 			var sum int64
 			show := false
-			for _, member := range group.Members {
-				assignment, err := member.GetMemberAssignment()
-				if err != nil || assignment == nil {
-					continue
-				}
+			// Try to get offsets for this group and topic
+			resp, err := admin.FetchOffsets(ctx, group.Group)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error fetching offsets for group %s: %v\n", group.Group, err)
+				continue
+			}
 
-				metadata, err := member.GetMemberMetadata()
-				if err != nil || metadata == nil {
-					continue
-				}
-
-				if topicPartitions, exist := assignment.Topics[topic]; exist {
-					show = true
-					resp, err := admin.ListConsumerGroupOffsets(group.GroupId, map[string][]int32{topic: topicPartitions})
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error fetching offsets for group %s: %v\n", group.GroupId, err)
-						continue
-					}
-
-					if blocks, ok := resp.Blocks[topic]; ok {
-						for pid, block := range blocks {
-							if hwm, ok := highWatermarks[pid]; ok {
-								if block.Offset > hwm {
-									fmt.Fprintf(os.Stderr, "Warning: Consumer offset (%d) is greater than high watermark (%d) for partition %d in group %s\n", block.Offset, hwm, pid, group.GroupId)
-								} else if block.Offset < 0 {
-									// Skip partitions with negative offsets
-								} else {
-									sum += hwm - block.Offset
-								}
-							}
+			if offsets, ok := resp[topic]; ok {
+				show = true
+				for pid, offset := range offsets {
+					if hwm, ok := highWatermarks[pid]; ok {
+						if offset.At > hwm {
+							fmt.Fprintf(os.Stderr, "Warning: Consumer offset (%d) is greater than high watermark (%d) for partition %d in group %s\n", offset.At, hwm, pid, group.Group)
+						} else if offset.At < 0 {
+							// Skip partitions with negative offsets
+						} else {
+							sum += hwm - offset.At
 						}
 					}
 				}
 			}
 
 			if show && sum >= 0 {
-				lagInfo[group.GroupId] = sum
-				groupStates[group.GroupId] = group.State // Store the state of the group
+				lagInfo[group.Group] = sum
+				groupStates[group.Group] = group.State // Store the state of the group
 			}
 		}
 
