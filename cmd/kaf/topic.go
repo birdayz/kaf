@@ -63,7 +63,7 @@ var topicSetConfig = &cobra.Command{
 	Args:    cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		topic := args[0]
 
@@ -110,7 +110,7 @@ var updateTopicCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		if partitionsFlag == -1 && partitionAssignmentsFlag == "" {
 			errorExit("Number of partitions and/or partition assigments must be given")
@@ -155,7 +155,7 @@ var lsTopicsCmd = &cobra.Command{
 	Args:    cobra.ExactArgs(0),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		ctx := context.Background()
 		topicsResp, err := admin.ListTopics(ctx)
@@ -208,7 +208,7 @@ var describeTopicCmd = &cobra.Command{
 	ValidArgsFunction: validTopicArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		ctx := context.Background()
 		topicDetails, err := admin.ListTopics(ctx, args[0])
@@ -307,7 +307,7 @@ var createTopicCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		topicName := args[0]
 		compact := "delete"
@@ -338,7 +338,7 @@ var addConfigCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(3), // TODO how to unset ? support empty VALUE ?
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		topic := args[0]
 		key := args[1]
@@ -363,7 +363,7 @@ var removeConfigCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		topic := args[0]
 		attrsToRemove := strings.Split(args[1], ",")
@@ -407,7 +407,7 @@ var deleteTopicCmd = &cobra.Command{
 	ValidArgsFunction: validTopicArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-	defer admin.Close()
+		defer admin.Close()
 
 		topicName := args[0]
 		ctx := context.Background()
@@ -427,7 +427,6 @@ var lagCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		topic := args[0]
 		admin := getClusterAdmin()
-	defer admin.Close()
 		defer admin.Close()
 
 		ctx := context.Background()

@@ -114,7 +114,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 			// Verify topic exists for all cases
 			admin := getClusterAdmin()
-		defer admin.Close()
+			defer admin.Close()
 			ctx := context.Background()
 			topics, err := admin.ListTopics(ctx, topic)
 			if err != nil {
@@ -200,7 +200,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 							// Use kadm to get offset for timestamp
 							admin := getClusterAdmin()
-		defer admin.Close()
+							defer admin.Close()
 							ctx := context.Background()
 							timestampOffsets, err := admin.ListOffsetsAfterMilli(ctx, i, topic)
 							if err != nil {
