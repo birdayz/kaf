@@ -140,38 +140,12 @@ var rootCmd = &cobra.Command{
 		if outWriter != os.Stdout {
 			colorableOut = outWriter
 		}
-
-		// Initialize global kafka client once at startup
-		// Only create if currentCluster is set (skips for help/version commands)
-		// Recreate if broker list has changed (e.g., in tests with different testcontainers)
-		if currentCluster != nil {
-			needsRecreate := globalClient == nil || brokersChanged(globalClientBrokers, currentCluster.Brokers)
-
-			if needsRecreate {
-				// Close existing client if present
-				if globalClient != nil {
-					globalClient.Close()
-				}
-
-				currentOpts := getKgoOpts()
-				var err error
-				globalClient, err = kgo.NewClient(currentOpts...)
-				if err != nil {
-					errorExit("Unable to create kafka client: %v\n", err)
-				}
-				globalAdmin = kadm.NewClient(globalClient)
-				// Copy broker list to track what we created the client with
-				globalClientBrokers = make([]string, len(currentCluster.Brokers))
-				copy(globalClientBrokers, currentCluster.Brokers)
-			}
-		}
 	},
-	PersistentPostRun: func(cmd *cobra.Command, args []string) {
-		// Close global kafka client on exit
-		if globalClient != nil {
-			globalClient.Close()
-		}
-	},
+	// Note: We don't close the client in PersistentPostRun because:
+	// 1. In normal CLI usage, the process exits immediately after the command, and OS cleans up resources
+	// 2. In tests, we want to reuse the client across multiple command invocations (with same broker)
+	// 3. We only close and recreate when brokers change (handled lazily in getClient/getClusterAdmin)
+	// This prevents connection accumulation from rapid create/close cycles in tests
 }
 
 func main() {
@@ -249,7 +223,31 @@ func onInit() {
 }
 
 func getClusterAdmin() *kadm.Client {
-	// Return global admin client (initialized in PersistentPreRun)
+	// Lazily create global client if needed or recreate if brokers changed
+	if currentCluster != nil {
+		needsRecreate := globalClient == nil || brokersChanged(globalClientBrokers, currentCluster.Brokers)
+
+		if needsRecreate {
+			// Close existing client if present
+			if globalClient != nil {
+				globalClient.Close()
+				globalClient = nil
+				globalAdmin = nil
+			}
+
+			currentOpts := getKgoOpts()
+			var err error
+			globalClient, err = kgo.NewClient(currentOpts...)
+			if err != nil {
+				errorExit("Unable to create kafka client: %v\n", err)
+			}
+			globalAdmin = kadm.NewClient(globalClient)
+			// Copy broker list to track what we created the client with
+			globalClientBrokers = make([]string, len(currentCluster.Brokers))
+			copy(globalClientBrokers, currentCluster.Brokers)
+		}
+	}
+
 	if globalAdmin == nil {
 		errorExit("Kafka admin client not initialized\n")
 	}
@@ -257,7 +255,31 @@ func getClusterAdmin() *kadm.Client {
 }
 
 func getClient() *kgo.Client {
-	// Return global client (initialized in PersistentPreRun)
+	// Lazily create global client if needed or recreate if brokers changed
+	if currentCluster != nil {
+		needsRecreate := globalClient == nil || brokersChanged(globalClientBrokers, currentCluster.Brokers)
+
+		if needsRecreate {
+			// Close existing client if present
+			if globalClient != nil {
+				globalClient.Close()
+				globalClient = nil
+				globalAdmin = nil
+			}
+
+			currentOpts := getKgoOpts()
+			var err error
+			globalClient, err = kgo.NewClient(currentOpts...)
+			if err != nil {
+				errorExit("Unable to create kafka client: %v\n", err)
+			}
+			globalAdmin = kadm.NewClient(globalClient)
+			// Copy broker list to track what we created the client with
+			globalClientBrokers = make([]string, len(currentCluster.Brokers))
+			copy(globalClientBrokers, currentCluster.Brokers)
+		}
+	}
+
 	if globalClient == nil {
 		errorExit("Kafka client not initialized\n")
 	}
