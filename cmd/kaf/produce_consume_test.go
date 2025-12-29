@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -13,9 +15,9 @@ func TestProduceConsume(t *testing.T) {
 	}
 
 	kafkaAddr := getSharedKafka(t)
-	
+
 	msg := "this is a test"
-	topicName := "test-produce-consume"
+	topicName := fmt.Sprintf("test-produce-consume-%d", time.Now().UnixNano())
 
 	// Create the topic first to ensure it exists
 	messages := []struct {
@@ -23,7 +25,7 @@ func TestProduceConsume(t *testing.T) {
 		value   string
 		headers map[string]string
 	}{
-		{key: "", value: msg},  // We'll produce our own message, this is just to create the topic
+		{key: "", value: msg}, // We'll produce our own message, this is just to create the topic
 	}
 	setupConsumeTestTopic(t, kafkaAddr, topicName, messages)
 

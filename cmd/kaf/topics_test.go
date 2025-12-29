@@ -8,7 +8,7 @@ import (
 
 func TestTopics(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
-	
+
 	out := runCmdWithBroker(t, kafkaAddr, nil, "topics")
 	// Just check that it runs without error - no specific topics expected
 	require.NotEmpty(t, out)

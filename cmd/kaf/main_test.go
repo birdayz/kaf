@@ -17,6 +17,9 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 	// Cobra StringSlice flags append, so we must clear the underlying slice
 	brokersFlag = nil
 
+	// Reset commands instance to ensure clean state
+	resetCommands()
+
 	// Reset all flags to avoid contamination between test runs
 	// This is needed because cobra commands are reused across multiple Execute() calls in tests
 	rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
@@ -31,6 +34,11 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 	rootCmd.SetOut(b)
 	rootCmd.SetErr(b)
 	rootCmd.SetIn(in)
+
+	// Parse flags and run onInit BEFORE Execute to register commands
+	// with the correct broker configuration
+	rootCmd.ParseFlags(args)
+	onInit() // Manually trigger onInit to register commands
 
 	err := rootCmd.Execute()
 	if err != nil {
@@ -48,12 +56,12 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 
 func resetCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		// For slice flags, we need to replace the value, not just Set()
-		// because Set() appends to slices
+		// For slice flags, setting to "[]" doesn't work - it adds an empty string
+		// Instead, we rely on resetting the global variables directly (done in runCmd)
+		// For other flags, reset to default value
 		switch flag.Value.Type() {
 		case "stringSlice", "stringArray":
-			// Clear the slice by setting it to empty
-			flag.Value.Set("[]")
+			// Skip - handled by resetting global variables
 		default:
 			flag.Value.Set(flag.DefValue)
 		}
@@ -77,6 +85,9 @@ func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error)
 	// CRITICAL: Reset global broker slice to prevent accumulation
 	brokersFlag = nil
 
+	// Reset commands instance to ensure clean state
+	resetCommands()
+
 	// Reset all flags to avoid contamination between test runs
 	rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
 		flag.Value.Set(flag.DefValue)
@@ -90,6 +101,11 @@ func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error)
 	rootCmd.SetOut(b)
 	rootCmd.SetErr(b)
 	rootCmd.SetIn(in)
+
+	// Parse flags and run onInit BEFORE Execute to register commands
+	// with the correct broker configuration
+	rootCmd.ParseFlags(args)
+	onInit() // Manually trigger onInit to register commands
 
 	err := rootCmd.Execute()
 	bs, _ := io.ReadAll(b)

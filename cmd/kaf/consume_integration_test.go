@@ -115,7 +115,7 @@ func TestConsumeFromBeginning(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-from-beginning"
+	topicName := fmt.Sprintf("test-consume-from-beginning-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -151,7 +151,7 @@ func TestConsumeRawFormat(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-raw-format"
+	topicName := fmt.Sprintf("test-consume-raw-format-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -191,7 +191,7 @@ func TestConsumeJSONFormat(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-json-format"
+	topicName := fmt.Sprintf("test-consume-json-format-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -224,7 +224,7 @@ func TestConsumeWithHeaders(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-with-headers"
+	topicName := fmt.Sprintf("test-consume-with-headers-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -262,7 +262,7 @@ func TestConsumeWithKeyDisplay(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-with-key-display"
+	topicName := fmt.Sprintf("test-consume-with-key-display-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -292,7 +292,7 @@ func TestConsumeSpecificPartitions(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-specific-partitions"
+	topicName := fmt.Sprintf("test-consume-specific-partitions-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -322,7 +322,7 @@ func TestConsumeMultiplePartitions(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-multiple-partitions"
+	topicName := fmt.Sprintf("test-consume-multiple-partitions-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -353,8 +353,8 @@ func TestConsumeWithCommit(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-with-commit"
-	groupName := "test-consume-commit-group"
+	topicName := fmt.Sprintf("test-consume-with-commit-%d", time.Now().UnixNano())
+	groupName := fmt.Sprintf("test-consume-commit-group-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string
@@ -402,7 +402,7 @@ func TestConsumeWithInvalidOffset(t *testing.T) {
 
 	kafkaAddr := getSharedKafka(t)
 
-	topicName := "test-consume-invalid-offset"
+	topicName := fmt.Sprintf("test-consume-invalid-offset-%d", time.Now().UnixNano())
 
 	messages := []struct {
 		key     string

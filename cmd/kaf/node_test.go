@@ -8,7 +8,7 @@ import (
 
 func TestNode(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
-	
+
 	out := runCmdWithBroker(t, kafkaAddr, nil, "node", "ls")
 	require.Contains(t, out, kafkaAddr)
 }

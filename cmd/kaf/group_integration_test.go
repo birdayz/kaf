@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -20,8 +21,9 @@ func TestGroupCommands(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
-	testTopicName := "test-group-commands"
-	testGroupName := "test-group-commands-group"
+	// Use unique names to avoid collisions with shared Kafka container
+	testTopicName := fmt.Sprintf("test-group-commands-%d", time.Now().UnixNano())
+	testGroupName := fmt.Sprintf("test-group-commands-group-%d", time.Now().UnixNano())
 
 	// Setup
 	client, err := kgo.NewClient(kgo.SeedBrokers(kafkaAddr))
@@ -53,11 +55,11 @@ func TestGroupCommands(t *testing.T) {
 
 	t.Run("GroupsList", func(t *testing.T) {
 		// List consumer groups
-		output := runCmdWithBroker(t, kafkaAddr, nil, "groups", "ls")
-		
+		output := runCmdWithBroker(t, kafkaAddr, nil, "groups")
+
 		// Should run without error
 		assert.NotNil(t, output)
-		
+
 		// May be empty initially, but should contain headers if not using --no-headers
 		if !strings.Contains(output, "no-headers") && strings.TrimSpace(output) != "" {
 			assert.Contains(t, output, "NAME")
@@ -66,22 +68,22 @@ func TestGroupCommands(t *testing.T) {
 
 	t.Run("GroupCommitOffsets", func(t *testing.T) {
 		// Commit offsets for a group
-		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "commit", testGroupName, 
-			"--topic", testTopicName, 
-			"--partition", "0", 
-			"--offset", "1", 
+		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "commit", testGroupName,
+			"--topic", testTopicName,
+			"--partition", "0",
+			"--offset", "1",
 			"--noconfirm")
-		
+
 		// Should indicate success
 		assert.Contains(t, output, "Successfully committed offsets")
-		
+
 		// Verify the offset was committed
 		offsets, err := admin.FetchOffsets(ctx, testGroupName)
 		require.NoError(t, err)
-		
+
 		topicOffsets, exists := offsets[testTopicName]
 		require.True(t, exists)
-		
+
 		partitionOffset, exists := topicOffsets[0]
 		require.True(t, exists)
 		assert.Equal(t, int64(1), partitionOffset.At)
@@ -94,7 +96,7 @@ func TestGroupCommands(t *testing.T) {
 			"--all-partitions",
 			"--offset", "newest",
 			"--noconfirm")
-		
+
 		// Should indicate success
 		assert.Contains(t, output, "Successfully committed offsets")
 	})
@@ -106,25 +108,28 @@ func TestGroupCommands(t *testing.T) {
 			"--topic", testTopicName,
 			"--offset-map", offsetMap,
 			"--noconfirm")
-		
+
 		// Should indicate success
 		assert.Contains(t, output, "Successfully committed offsets")
-		
+
 		// Verify offsets
 		offsets, err := admin.FetchOffsets(ctx, testGroupName)
 		require.NoError(t, err)
-		
+
 		topicOffsets, exists := offsets[testTopicName]
 		require.True(t, exists)
-		
+
 		assert.Equal(t, int64(1), topicOffsets[0].At)
 		assert.Equal(t, int64(1), topicOffsets[1].At)
 	})
 
 	t.Run("GroupDescribe", func(t *testing.T) {
+		// Wait for offsets from previous tests to propagate
+		time.Sleep(500 * time.Millisecond)
+
 		// Describe the group
 		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "describe", testGroupName)
-		
+
 		// Should contain group information
 		assert.Contains(t, output, "Group ID:")
 		assert.Contains(t, output, testGroupName)
@@ -137,7 +142,7 @@ func TestGroupCommands(t *testing.T) {
 	t.Run("GroupDescribeWithTopicFilter", func(t *testing.T) {
 		// Describe group with topic filter
 		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "describe", testGroupName, "--topic", testTopicName)
-		
+
 		// Should contain filtered topic information
 		assert.Contains(t, output, testTopicName)
 	})
@@ -145,7 +150,7 @@ func TestGroupCommands(t *testing.T) {
 	t.Run("GroupPeek", func(t *testing.T) {
 		// Peek messages from group offset
 		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "peek", testGroupName, "--topics", testTopicName, "--after", "1")
-		
+
 		// Should run without error (may have no output if no messages to peek)
 		assert.NotNil(t, output)
 	})
@@ -153,7 +158,7 @@ func TestGroupCommands(t *testing.T) {
 	t.Run("GroupDelete", func(t *testing.T) {
 		// Delete the group
 		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "delete", testGroupName)
-		
+
 		// Should indicate success
 		assert.Contains(t, output, "Deleted consumer group")
 	})
@@ -170,8 +175,9 @@ func TestGroupWithActiveConsumer(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
-	testTopicName := "test-active-consumer"
-	testGroupName := "test-active-consumer-group"
+	// Use unique names to avoid collisions with shared Kafka container
+	testTopicName := fmt.Sprintf("test-active-consumer-%d", time.Now().UnixNano())
+	testGroupName := fmt.Sprintf("test-active-consumer-group-%d", time.Now().UnixNano())
 
 	// Setup
 	setupClient, err := kgo.NewClient(kgo.SeedBrokers(kafkaAddr))
@@ -193,7 +199,7 @@ func TestGroupWithActiveConsumer(t *testing.T) {
 		kgo.ConsumeTopics(testTopicName),
 	)
 	require.NoError(t, err)
-	
+
 	// Poll once to join the group
 	go func() {
 		for i := 0; i < 3; i++ {
@@ -201,14 +207,14 @@ func TestGroupWithActiveConsumer(t *testing.T) {
 			time.Sleep(1 * time.Second)
 		}
 	}()
-	
+
 	// Wait for consumer to join
 	time.Sleep(3 * time.Second)
 
 	t.Run("DescribeActiveGroup", func(t *testing.T) {
 		// Describe group with active consumer
 		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "describe", testGroupName)
-		
+
 		// Should show group is active
 		assert.Contains(t, output, testGroupName)
 		assert.Contains(t, output, "State:")
@@ -225,13 +231,14 @@ func TestGroupWithActiveConsumer(t *testing.T) {
 
 	t.Run("CommitOffsetsWithActiveConsumer", func(t *testing.T) {
 		// Try to commit offsets while group has active consumers
-		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "commit", testGroupName,
+		output, err := runCmdWithBrokerAllowFail(t, kafkaAddr, nil, "group", "commit", testGroupName,
 			"--topic", testTopicName,
 			"--partition", "0",
 			"--offset", "0",
 			"--noconfirm")
-		
-		// Should fail or warn about active consumers
+
+		// Should fail with error about active consumers
+		require.Error(t, err)
 		assert.Contains(t, output, "active consumers")
 	})
 

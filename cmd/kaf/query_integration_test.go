@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -20,7 +21,7 @@ func TestQueryCommand(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
-	testTopicName := "test-query-command"
+	testTopicName := fmt.Sprintf("test-query-command-%d", time.Now().UnixNano())
 
 	// Setup
 	client, err := kgo.NewClient(kgo.SeedBrokers(kafkaAddr))
@@ -64,7 +65,7 @@ func TestQueryCommand(t *testing.T) {
 	t.Run("QueryByExistingKey", func(t *testing.T) {
 		// Query for a specific key that exists
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--key", "user:123")
-		
+
 		// Should contain messages with the specified key
 		assert.Contains(t, output, "user:123")
 		assert.Contains(t, output, "User data for 123")
@@ -82,7 +83,7 @@ func TestQueryCommand(t *testing.T) {
 	t.Run("QueryByNonExistentKey", func(t *testing.T) {
 		// Query for a key that doesn't exist
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--key", "nonexistent:999")
-		
+
 		// Should return no results or empty output
 		trimmedOutput := strings.TrimSpace(output)
 		// Should either be empty or contain a "no results" type message
@@ -96,7 +97,7 @@ func TestQueryCommand(t *testing.T) {
 	t.Run("QueryWithGrepFilter", func(t *testing.T) {
 		// Query with grep filter for value content
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--grep", "Order")
-		
+
 		// Should contain messages matching the grep pattern
 		if strings.TrimSpace(output) != "" {
 			assert.Contains(t, output, "Order data")
@@ -107,7 +108,7 @@ func TestQueryCommand(t *testing.T) {
 	t.Run("QueryWithKeyAndGrep", func(t *testing.T) {
 		// Query with both key and grep filters
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--key", "user:123", "--grep", "Updated")
-		
+
 		// Should contain only messages matching both key and grep
 		if strings.TrimSpace(output) != "" {
 			assert.Contains(t, output, "user:123")
@@ -119,7 +120,7 @@ func TestQueryCommand(t *testing.T) {
 	t.Run("QueryNonExistentTopic", func(t *testing.T) {
 		// Query a topic that doesn't exist
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", "non-existent-topic-12345", "--key", "test")
-		
+
 		// Should contain error message about topic not found
 		assert.Contains(t, output, "not found")
 	})
@@ -127,7 +128,7 @@ func TestQueryCommand(t *testing.T) {
 	t.Run("QueryHelp", func(t *testing.T) {
 		// Test query command help
 		output := runCmd(t, nil, "query", "--help")
-		
+
 		// Should contain help information
 		assert.Contains(t, output, "Query topic by key")
 		assert.Contains(t, output, "TOPIC")
@@ -147,7 +148,7 @@ func TestQueryAdvancedScenarios(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
-	testTopicName := "test-query-advanced"
+	testTopicName := fmt.Sprintf("test-query-advanced-%d", time.Now().UnixNano())
 
 	// Setup
 	client, err := kgo.NewClient(kgo.SeedBrokers(kafkaAddr))
@@ -191,7 +192,7 @@ func TestQueryAdvancedScenarios(t *testing.T) {
 	t.Run("QueryJSONContent", func(t *testing.T) {
 		// Query for JSON content using grep
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--grep", "Alice")
-		
+
 		if strings.TrimSpace(output) != "" {
 			assert.Contains(t, output, "json:1")
 			assert.Contains(t, output, "Alice")
@@ -201,7 +202,7 @@ func TestQueryAdvancedScenarios(t *testing.T) {
 	t.Run("QuerySpecialCharacters", func(t *testing.T) {
 		// Query with special characters in key
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--key", "special:chars")
-		
+
 		if strings.TrimSpace(output) != "" {
 			assert.Contains(t, output, "special:chars")
 			assert.Contains(t, output, "@#$%")
@@ -211,7 +212,7 @@ func TestQueryAdvancedScenarios(t *testing.T) {
 	t.Run("QueryUnicodeContent", func(t *testing.T) {
 		// Query for unicode content
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--grep", "你好")
-		
+
 		if strings.TrimSpace(output) != "" {
 			assert.Contains(t, output, "unicode:test")
 			assert.Contains(t, output, "你好世界")
@@ -221,7 +222,7 @@ func TestQueryAdvancedScenarios(t *testing.T) {
 	t.Run("QueryCaseInsensitiveGrep", func(t *testing.T) {
 		// Test grep pattern matching
 		output := runCmdWithBroker(t, kafkaAddr, nil, "query", testTopicName, "--grep", "world")
-		
+
 		// Should find both "Hello World!" and "Goodbye World!" (case insensitive)
 		if strings.TrimSpace(output) != "" {
 			// Count occurrences of "World" in output

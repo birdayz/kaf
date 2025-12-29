@@ -17,7 +17,7 @@ func TestConfigCommands(t *testing.T) {
 	t.Run("ConfigHelp", func(t *testing.T) {
 		// Test config command help - this is always safe to run
 		output := runCmd(t, nil, "config", "--help")
-		
+
 		// Should contain help information
 		assert.Contains(t, output, "Handle kaf configuration")
 		assert.Contains(t, output, "Available Commands:")
@@ -37,7 +37,7 @@ func TestConfigCommandsReadOnly(t *testing.T) {
 	t.Run("ConfigHelp", func(t *testing.T) {
 		// Test config command help
 		output := runCmd(t, nil, "config", "--help")
-		
+
 		// Should contain help information
 		assert.Contains(t, output, "Handle kaf configuration")
 		assert.Contains(t, output, "Available Commands:")
@@ -48,18 +48,18 @@ func TestConfigCommandsReadOnly(t *testing.T) {
 	t.Run("ConfigSubcommandHelp", func(t *testing.T) {
 		// Test individual subcommand help
 		testCases := []struct {
-			name     string
-			subcommand string
+			name         string
+			subcommand   string
 			expectedText string
 		}{
 			{
-				name:     "CurrentContextHelp",
-				subcommand: "current-context",
+				name:         "CurrentContextHelp",
+				subcommand:   "current-context",
 				expectedText: "Displays the current context",
 			},
 			{
-				name:     "SelectClusterHelp", 
-				subcommand: "select-cluster",
+				name:         "SelectClusterHelp",
+				subcommand:   "select-cluster",
 				expectedText: "Interactively select a cluster",
 			},
 		}

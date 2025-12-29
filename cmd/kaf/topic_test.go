@@ -10,7 +10,7 @@ import (
 
 func TestTopic(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
-	
+
 	newTopic := fmt.Sprintf("new-topic-%d", time.Now().Unix())
 
 	t.Run("ls before new topic", func(t *testing.T) {

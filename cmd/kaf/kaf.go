@@ -17,6 +17,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/birdayz/kaf/pkg/avro"
+	"github.com/birdayz/kaf/pkg/commands"
 	"github.com/birdayz/kaf/pkg/config"
 	"github.com/birdayz/kaf/pkg/proto"
 )
@@ -128,11 +129,22 @@ var (
 var commit string = "HEAD"
 var version string = "latest"
 
+// commandsInstance will hold the Commands struct created after clients are initialized
+var commandsInstance *commands.Commands
+
 var rootCmd = &cobra.Command{
 	Use:     "kaf",
 	Short:   "Kafka Command Line utility for cluster management",
 	Version: fmt.Sprintf("%s (%s)", version, commit),
-	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+	// Note: We don't close the client in PersistentPostRun because:
+	// 1. In normal CLI usage, the process exits immediately after the command, and OS cleans up resources
+	// 2. In tests, we want to reuse the client across multiple command invocations (with same broker)
+	// 3. We only close and recreate when brokers change (handled lazily in getClient/getClusterAdmin)
+	// This prevents connection accumulation from rapid create/close cycles in tests
+}
+
+func setupRootCmd() {
+	rootCmd.PersistentPreRun = func(cmd *cobra.Command, args []string) {
 		outWriter = cmd.OutOrStdout()
 		errWriter = cmd.ErrOrStderr()
 		inReader = cmd.InOrStdin()
@@ -140,12 +152,12 @@ var rootCmd = &cobra.Command{
 		if outWriter != os.Stdout {
 			colorableOut = outWriter
 		}
-	},
-	// Note: We don't close the client in PersistentPostRun because:
-	// 1. In normal CLI usage, the process exits immediately after the command, and OS cleans up resources
-	// 2. In tests, we want to reuse the client across multiple command invocations (with same broker)
-	// 3. We only close and recreate when brokers change (handled lazily in getClient/getClusterAdmin)
-	// This prevents connection accumulation from rapid create/close cycles in tests
+
+		// Update IO for this command execution
+		if commandsInstance != nil {
+			commandsInstance.SetIO(outWriter, errWriter, inReader)
+		}
+	}
 }
 
 func main() {
@@ -168,13 +180,41 @@ var (
 	clusterOverride   string
 )
 
+var commandsRegistered bool
+
 func init() {
+	setupRootCmd()
+
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kaf/config)")
 	rootCmd.PersistentFlags().StringSliceVarP(&brokersFlag, "brokers", "b", nil, "Comma separated list of broker ip:port pairs")
 	rootCmd.PersistentFlags().StringVar(&schemaRegistryURL, "schema-registry", "", "URL to a Confluent schema registry. Used for attempting to decode Avro-encoded messages")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Whether to turn on verbose logging")
 	rootCmd.PersistentFlags().StringVarP(&clusterOverride, "cluster", "c", "", "set a temporary current cluster")
+
+	// onInit runs before command execution via cobra.OnInitialize
 	cobra.OnInitialize(onInit)
+}
+
+
+// registerCommands registers commands from the Commands instance
+// This should be called after the Commands instance is created
+func registerCommands() {
+	if commandsRegistered {
+		return
+	}
+	commandsRegistered = true
+
+	cmds := getOrCreateCommands()
+	groupCmd := cmds.GetGroupCmd()
+	groupsCmd := cmds.GetGroupsCmd()
+
+	if groupCmd == nil || groupsCmd == nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Failed to get commands from Commands instance\n")
+		return
+	}
+
+	rootCmd.AddCommand(groupCmd)
+	rootCmd.AddCommand(groupsCmd)
 }
 
 var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
@@ -222,6 +262,9 @@ func onInit() {
 	if verbose {
 		// Franz-go uses a different logging approach - can be configured per client
 	}
+
+	// Register commands after config is set and currentCluster is updated
+	registerCommands()
 }
 
 func getClusterAdmin() *kadm.Client {
@@ -315,4 +358,46 @@ func getSchemaCache() (cache *avro.SchemaCache) {
 func errorExit(format string, a ...interface{}) {
 	fmt.Fprintf(errWriter, format+"\n", a...)
 	os.Exit(1)
+}
+
+// getOrCreateCommands returns the commands instance, creating it if needed
+// This is useful for tests that need direct access to commands
+func getOrCreateCommands() *commands.Commands {
+	// Recreate if cluster changed or instance doesn't exist
+	needsRecreate := commandsInstance == nil ||
+		(commandsInstance.Cluster != nil && currentCluster != nil &&
+			brokersChanged(commandsInstance.Cluster.Brokers, currentCluster.Brokers))
+
+	if needsRecreate {
+		client := getClient()
+		admin := getClusterAdmin()
+		schemaCache := getSchemaCache()
+
+		commandsInstance = commands.NewCommands(client, admin, currentCluster, schemaCache)
+		commandsInstance.SetIO(outWriter, errWriter, inReader)
+	} else if commandsInstance != nil {
+		// Update cluster reference in case it changed
+		commandsInstance.Cluster = currentCluster
+		// Also update clients in case they were recreated
+		commandsInstance.Client = getClient()
+		commandsInstance.Admin = getClusterAdmin()
+	}
+	return commandsInstance
+}
+
+// resetCommands resets the commands instance - used in tests
+func resetCommands() {
+	// First, remove the commands
+	for _, cmd := range rootCmd.Commands() {
+		if cmd.Use == "group" || cmd.Use == "groups" {
+			rootCmd.RemoveCommand(cmd)
+		}
+	}
+
+	// Reset state
+	commandsInstance = nil
+	commandsRegistered = false
+
+	// Don't re-register yet - let onInit() handle it via cobra.OnInitialize
+	// This ensures currentCluster is set with the correct brokers first
 }

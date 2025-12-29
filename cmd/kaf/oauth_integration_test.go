@@ -236,14 +236,14 @@ func TestOAuthIntegration(t *testing.T) {
 		}
 
 		assert.NotNil(t, validOpts, "Valid OAuth options should be created")
-		
+
 		// Test 3: Verify different token responses for valid vs invalid OAuth configs
 		// We'll test the OAuth client credentials flow directly rather than the singleton
 
 		// Test with invalid credentials (should fail)
 		invalidConfig := &clientcredentials.Config{
 			ClientID:     "invalid-client",
-			ClientSecret: "invalid-secret", 
+			ClientSecret: "invalid-secret",
 			TokenURL:     tokenURL, // Valid URL but invalid credentials
 		}
 
@@ -276,7 +276,7 @@ func TestOAuthIntegration(t *testing.T) {
 // 3. Start OAuth-enabled Kafka with JWKS endpoint pointing to Keycloak
 // 4. Set environment variables:
 //    export OAUTH_KAFKA_BROKER="localhost:9093"
-//    export OAUTH_CLIENT_ID="kafka-client"  
+//    export OAUTH_CLIENT_ID="kafka-client"
 //    export OAUTH_CLIENT_SECRET="kafka-secret"
 //    export OAUTH_TOKEN_URL="http://localhost:8080/realms/kafka/protocol/openid-connect/token"
 // 5. Run: go test -v -run TestOAuthWithRealKafka

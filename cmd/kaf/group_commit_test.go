@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -20,8 +21,9 @@ func TestGroupCommit(t *testing.T) {
 	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
-	topicName := "test-group-commit-topic"
-	groupName := "test-group-commit-group"
+	// Use unique names to avoid collisions with shared Kafka container
+	topicName := fmt.Sprintf("test-group-commit-topic-%d", time.Now().UnixNano())
+	groupName := fmt.Sprintf("test-group-commit-group-%d", time.Now().UnixNano())
 
 	// Create Kafka client for setup
 	client, err := kgo.NewClient(
@@ -135,7 +137,13 @@ func TestGroupCommit(t *testing.T) {
 	t.Run("VerifyGroupDescribeShowsLag", func(t *testing.T) {
 		// First commit some offsets that create lag
 		offsetMap := `{"0": 0, "1": 0, "2": 0}`
-		runCmdWithBroker(t, kafkaAddr, nil, "group", "commit", groupName, "--topic", topicName, "--offset-map", offsetMap, "--noconfirm")
+		commitOutput := runCmdWithBroker(t, kafkaAddr, nil, "group", "commit", groupName, "--topic", topicName, "--offset-map", offsetMap, "--noconfirm")
+
+		// Verify commit succeeded
+		assert.Contains(t, commitOutput, "Successfully committed offsets")
+
+		// Wait for Kafka to propagate the committed offsets
+		time.Sleep(500 * time.Millisecond)
 
 		// Describe the group to see lag information
 		output := runCmdWithBroker(t, kafkaAddr, nil, "group", "describe", groupName)
