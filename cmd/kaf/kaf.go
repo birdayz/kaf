@@ -224,8 +224,6 @@ func onInit() {
 	}
 }
 
-var clientCreationCount int // DEBUG: track how many clients we create
-
 func getClusterAdmin() *kadm.Client {
 	// Lazily create global client if needed or recreate if brokers changed
 	if currentCluster != nil {
@@ -238,9 +236,6 @@ func getClusterAdmin() *kadm.Client {
 			}
 			globalClient = nil
 			globalAdmin = nil
-
-			clientCreationCount++
-			fmt.Fprintf(errWriter, "[DEBUG] Creating client #%d for brokers: %v\n", clientCreationCount, currentCluster.Brokers)
 
 			currentOpts := getKgoOpts()
 			var err error
@@ -273,9 +268,6 @@ func getClient() *kgo.Client {
 			}
 			globalClient = nil
 			globalAdmin = nil
-
-			clientCreationCount++
-			fmt.Fprintf(errWriter, "[DEBUG] Creating client #%d for brokers: %v\n", clientCreationCount, currentCluster.Brokers)
 
 			currentOpts := getKgoOpts()
 			var err error
