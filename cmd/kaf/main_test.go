@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -51,9 +50,6 @@ func testMain(m *testing.M) (code int) {
 }
 
 func runCmd(t *testing.T, in io.Reader, args ...string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*90) // 90 second timeout to get goroutine dump before CI timeout
-	defer cancel()
-
 	b := bytes.NewBufferString("")
 
 	rootCmd.SetArgs(args)
@@ -61,7 +57,7 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 	rootCmd.SetErr(b)
 	rootCmd.SetIn(in)
 
-	err := rootCmd.ExecuteContext(ctx)
+	err := rootCmd.Execute()
 	if err != nil {
 		// Get the output to see what went wrong
 		bs, _ := io.ReadAll(b)
@@ -83,9 +79,6 @@ func runCmdWithBroker(t *testing.T, kafkaAddr string, in io.Reader, args ...stri
 
 // runCmdAllowFail runs a kaf command and allows it to fail, returning the output and error
 func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*90) // 90 second timeout to get goroutine dump before CI timeout
-	defer cancel()
-
 	b := bytes.NewBufferString("")
 
 	rootCmd.SetArgs(args)
@@ -93,7 +86,7 @@ func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error)
 	rootCmd.SetErr(b)
 	rootCmd.SetIn(in)
 
-	err := rootCmd.ExecuteContext(ctx)
+	err := rootCmd.Execute()
 	bs, _ := io.ReadAll(b)
 
 	return string(bs), err
