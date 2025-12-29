@@ -169,13 +169,6 @@ func TestGroupCommit(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		// Ensure consumer is closed and give Kafka time to process the leave
-		defer func() {
-			consumerClient.Close()
-			// Wait for Kafka to fully process consumer leaving the group
-			time.Sleep(2 * time.Second)
-		}()
-
 		// Poll multiple times to ensure the consumer fully joins the group
 		// and triggers partition assignment
 		for i := 0; i < 5; i++ {
@@ -225,6 +218,36 @@ func TestGroupCommit(t *testing.T) {
 		// Should fail with error about active consumers
 		require.Error(t, err, "Command should fail when group has active consumers")
 		assert.Contains(t, output, "active consumers")
+
+		// Now close the consumer and wait for it to actually leave
+		consumerClient.Close()
+
+		// Wait for group to become empty (no members)
+		groupEmpty := false
+		for attempt := 0; attempt < 20; attempt++ {
+			describeCtx, describeCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			groupDescs, describeErr := admin.DescribeGroups(describeCtx, groupName)
+			describeCancel()
+
+			if describeErr == nil && len(groupDescs) > 0 {
+				for _, desc := range groupDescs {
+					memberCount := len(desc.Members)
+					t.Logf("Cleanup attempt %d: Group state=%s, members=%d", attempt+1, desc.State, memberCount)
+					if memberCount == 0 {
+						groupEmpty = true
+						goto GroupCleanedUp
+					}
+				}
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+
+	GroupCleanedUp:
+		if !groupEmpty {
+			t.Logf("Warning: Group still has members after cleanup attempts")
+		} else {
+			t.Logf("Group successfully cleaned up - no members remaining")
+		}
 	})
 
 	// Cleanup: Delete the test topic
