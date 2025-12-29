@@ -6,6 +6,6 @@ import (
 
 // Completion command is special - it's registered directly in init() since it needs rootCmd
 func init() {
-	completionCmd := commands.GetCompletionCmd(rootCmd, outWriter, errWriter)
+	completionCmd := commands.GetCompletionCmd(rootCmd)
 	rootCmd.AddCommand(completionCmd)
 }
