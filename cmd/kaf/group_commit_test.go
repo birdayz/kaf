@@ -168,7 +168,13 @@ func TestGroupCommit(t *testing.T) {
 			kgo.ConsumeTopics(topicName),
 		)
 		require.NoError(t, err)
-		defer consumerClient.Close()
+
+		// Ensure consumer is closed and give Kafka time to process the leave
+		defer func() {
+			consumerClient.Close()
+			// Wait for Kafka to fully process consumer leaving the group
+			time.Sleep(2 * time.Second)
+		}()
 
 		// Poll multiple times to ensure the consumer fully joins the group
 		// and triggers partition assignment

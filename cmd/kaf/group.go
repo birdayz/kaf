@@ -299,8 +299,11 @@ var groupLsCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
-		
-		ctx := context.Background()
+
+		ctx := cmd.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
 		groups, err := admin.ListGroups(ctx)
 		if err != nil {
 			errorExit("Unable to list consumer groups: %v\n", err)

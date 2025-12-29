@@ -56,15 +56,12 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 
 	b := bytes.NewBufferString("")
 
-	// Reset command state before each execution
-	rootCmd.SetContext(ctx)
 	rootCmd.SetArgs(args)
 	rootCmd.SetOut(b)
 	rootCmd.SetErr(b)
 	rootCmd.SetIn(in)
 
-	// Use Execute() instead of ExecuteContext() since we already set the context
-	err := rootCmd.Execute()
+	err := rootCmd.ExecuteContext(ctx)
 	if err != nil {
 		// Get the output to see what went wrong
 		bs, _ := io.ReadAll(b)
@@ -91,15 +88,12 @@ func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error)
 
 	b := bytes.NewBufferString("")
 
-	// Reset command state before each execution
-	rootCmd.SetContext(ctx)
 	rootCmd.SetArgs(args)
 	rootCmd.SetOut(b)
 	rootCmd.SetErr(b)
 	rootCmd.SetIn(in)
 
-	// Use Execute() instead of ExecuteContext() since we already set the context
-	err := rootCmd.Execute()
+	err := rootCmd.ExecuteContext(ctx)
 	bs, _ := io.ReadAll(b)
 
 	return string(bs), err
