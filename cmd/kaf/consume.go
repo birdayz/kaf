@@ -26,6 +26,18 @@ func ConsumeMessages(ctx context.Context, opts ConsumeOptions) error {
 	// Create a minimal Commands instance for testing
 	// The integration tests will set currentCluster before calling this
 	cmds := getOrCreateCommands()
+
+	// Set IO if not already set in opts
+	if opts.OutWriter == nil {
+		opts.OutWriter = outWriter
+	}
+	if opts.ErrWriter == nil {
+		opts.ErrWriter = errWriter
+	}
+	if opts.SchemaCache == nil {
+		opts.SchemaCache = cmds.SchemaCache
+	}
+
 	return cmds.ConsumeMessages(ctx, opts, make(map[string]string))
 }
 
