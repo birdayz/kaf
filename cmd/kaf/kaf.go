@@ -23,6 +23,20 @@ import (
 
 var cfgFile string
 
+// brokersChanged checks if broker list has changed
+// This is needed for tests where each test uses a different testcontainer
+func brokersChanged(oldBrokers, newBrokers []string) bool {
+	if len(oldBrokers) != len(newBrokers) {
+		return true
+	}
+	for i := range oldBrokers {
+		if oldBrokers[i] != newBrokers[i] {
+			return true
+		}
+	}
+	return false
+}
+
 func getKgoOpts() []kgo.Opt {
 	cluster := currentCluster
 	opts := []kgo.Opt{
@@ -104,8 +118,9 @@ var (
 	colorableOut io.Writer = colorable.NewColorableStdout()
 
 	// Global kafka client - created once at startup, reused throughout lifecycle
-	globalClient *kgo.Client
-	globalAdmin  *kadm.Client
+	globalClient       *kgo.Client
+	globalAdmin        *kadm.Client
+	globalClientBrokers []string // Track brokers used to create global client
 )
 
 // Will be replaced by GitHub action and by goreleaser
@@ -128,13 +143,27 @@ var rootCmd = &cobra.Command{
 
 		// Initialize global kafka client once at startup
 		// Only create if currentCluster is set (skips for help/version commands)
-		if currentCluster != nil && globalClient == nil {
-			var err error
-			globalClient, err = kgo.NewClient(getKgoOpts()...)
-			if err != nil {
-				errorExit("Unable to create kafka client: %v\n", err)
+		// Recreate if broker list has changed (e.g., in tests with different testcontainers)
+		if currentCluster != nil {
+			needsRecreate := globalClient == nil || brokersChanged(globalClientBrokers, currentCluster.Brokers)
+
+			if needsRecreate {
+				// Close existing client if present
+				if globalClient != nil {
+					globalClient.Close()
+				}
+
+				currentOpts := getKgoOpts()
+				var err error
+				globalClient, err = kgo.NewClient(currentOpts...)
+				if err != nil {
+					errorExit("Unable to create kafka client: %v\n", err)
+				}
+				globalAdmin = kadm.NewClient(globalClient)
+				// Copy broker list to track what we created the client with
+				globalClientBrokers = make([]string, len(currentCluster.Brokers))
+				copy(globalClientBrokers, currentCluster.Brokers)
 			}
-			globalAdmin = kadm.NewClient(globalClient)
 		}
 	},
 	PersistentPostRun: func(cmd *cobra.Command, args []string) {
