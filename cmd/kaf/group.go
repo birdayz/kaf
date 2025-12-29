@@ -77,6 +77,7 @@ var groupDeleteCmd = &cobra.Command{
 	ValidArgsFunction: validGroupArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 		var group string
 		if len(args) == 1 {
 			group = args[0]
@@ -113,6 +114,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 			// Verify topic exists for all cases
 			admin := getClusterAdmin()
+		defer admin.Close()
 			ctx := context.Background()
 			topics, err := admin.ListTopics(ctx, topic)
 			if err != nil {
@@ -198,6 +200,7 @@ func createGroupCommitOffsetCmd() *cobra.Command {
 
 							// Use kadm to get offset for timestamp
 							admin := getClusterAdmin()
+		defer admin.Close()
 							ctx := context.Background()
 							timestampOffsets, err := admin.ListOffsetsAfterMilli(ctx, i, topic)
 							if err != nil {
@@ -299,6 +302,7 @@ var groupLsCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 
 		ctx := cmd.Context()
 		if ctx == nil {
@@ -354,6 +358,7 @@ var groupPeekCmd = &cobra.Command{
 	ValidArgsFunction: validGroupArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 
 		ctx := context.Background()
 		groups, err := admin.DescribeGroups(ctx, args[0])
@@ -421,6 +426,7 @@ var groupDescribeCmd = &cobra.Command{
 		// TODO List: This API can be used to find the current groups managed by a broker. To get a list of all groups in the cluster, you must send ListGroup to all brokers.
 		// same goes probably for topics
 		admin := getClusterAdmin()
+		defer admin.Close()
 
 		ctx := context.Background()
 		groups, err := admin.DescribeGroups(ctx, args[0])

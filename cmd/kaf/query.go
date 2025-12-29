@@ -37,6 +37,7 @@ var queryCmd = &cobra.Command{
 		
 		// Get topic partitions info
 		admin := getClusterAdmin()
+	defer admin.Close()
 		topics, err := admin.ListTopics(ctx)
 		if err != nil {
 			errorExit("Unable to list topics: %v\n", err)

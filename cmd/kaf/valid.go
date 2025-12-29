@@ -15,6 +15,7 @@ func validConfigArgs(cmd *cobra.Command, args []string, toComplete string) ([]st
 
 func validGroupArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	admin := getClusterAdmin()
+	defer admin.Close()
 
 	ctx := context.Background()
 	groups, err := admin.ListGroups(ctx)
@@ -31,6 +32,7 @@ func validGroupArgs(cmd *cobra.Command, args []string, toComplete string) ([]str
 
 func validTopicArgs(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	admin := getClusterAdmin()
+	defer admin.Close()
 
 	ctx := context.Background()
 	topics, err := admin.ListTopics(ctx)
