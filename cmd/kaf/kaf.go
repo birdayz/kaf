@@ -219,8 +219,10 @@ func registerCommands() {
 	consumeCmd := cmds.GetConsumeCmd()
 	topicCmd := cmds.GetTopicCmd()
 	topicsCmd := cmds.GetTopicsCmd()
+	nodeCmd := cmds.GetNodeCmd()
+	nodesCmd := cmds.GetNodesCmd()
 
-	if groupCmd == nil || groupsCmd == nil || consumeCmd == nil || topicCmd == nil || topicsCmd == nil {
+	if groupCmd == nil || groupsCmd == nil || consumeCmd == nil || topicCmd == nil || topicsCmd == nil || nodeCmd == nil || nodesCmd == nil {
 		fmt.Fprintf(os.Stderr, "[ERROR] Failed to get commands from Commands instance\n")
 		return
 	}
@@ -230,6 +232,8 @@ func registerCommands() {
 	rootCmd.AddCommand(consumeCmd)
 	rootCmd.AddCommand(topicCmd)
 	rootCmd.AddCommand(topicsCmd)
+	rootCmd.AddCommand(nodeCmd)
+	rootCmd.AddCommand(nodesCmd)
 }
 
 var setupProtoDescriptorRegistry = func(cmd *cobra.Command, args []string) {
@@ -404,7 +408,7 @@ func getOrCreateCommands() *commands.Commands {
 func resetCommands() {
 	// First, remove the commands
 	for _, cmd := range rootCmd.Commands() {
-		if cmd.Use == "group" || cmd.Use == "groups" || cmd.Use == "consume TOPIC" || cmd.Use == "topic" || cmd.Use == "topics" {
+		if cmd.Use == "group" || cmd.Use == "groups" || cmd.Use == "consume TOPIC" || cmd.Use == "topic" || cmd.Use == "topics" || cmd.Use == "node" || cmd.Use == "nodes" {
 			rootCmd.RemoveCommand(cmd)
 		}
 	}
