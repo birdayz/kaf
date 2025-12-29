@@ -13,6 +13,10 @@ import (
 func runCmd(t *testing.T, in io.Reader, args ...string) string {
 	b := bytes.NewBufferString("")
 
+	// CRITICAL: Reset global broker slice to prevent accumulation
+	// Cobra StringSlice flags append, so we must clear the underlying slice
+	brokersFlag = nil
+
 	// Reset all flags to avoid contamination between test runs
 	// This is needed because cobra commands are reused across multiple Execute() calls in tests
 	rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
@@ -44,7 +48,15 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 
 func resetCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
-		flag.Value.Set(flag.DefValue)
+		// For slice flags, we need to replace the value, not just Set()
+		// because Set() appends to slices
+		switch flag.Value.Type() {
+		case "stringSlice", "stringArray":
+			// Clear the slice by setting it to empty
+			flag.Value.Set("[]")
+		default:
+			flag.Value.Set(flag.DefValue)
+		}
 		flag.Changed = false
 	})
 	for _, subCmd := range cmd.Commands() {
@@ -61,6 +73,9 @@ func runCmdWithBroker(t *testing.T, kafkaAddr string, in io.Reader, args ...stri
 // runCmdAllowFail runs a kaf command and allows it to fail, returning the output and error
 func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error) {
 	b := bytes.NewBufferString("")
+
+	// CRITICAL: Reset global broker slice to prevent accumulation
+	brokersFlag = nil
 
 	// Reset all flags to avoid contamination between test runs
 	rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {

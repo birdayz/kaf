@@ -213,14 +213,18 @@ func onInit() {
 		currentCluster.SchemaRegistryCredentials = nil
 	}
 
-	if brokersFlag != nil {
-		currentCluster.Brokers = brokersFlag
+	if brokersFlag != nil && len(brokersFlag) > 0 {
+		// Make a copy to avoid slice aliasing issues with cobra flags
+		currentCluster.Brokers = make([]string, len(brokersFlag))
+		copy(currentCluster.Brokers, brokersFlag)
 	}
 
 	if verbose {
 		// Franz-go uses a different logging approach - can be configured per client
 	}
 }
+
+var clientCreationCount int // DEBUG: track how many clients we create
 
 func getClusterAdmin() *kadm.Client {
 	// Lazily create global client if needed or recreate if brokers changed
@@ -234,6 +238,9 @@ func getClusterAdmin() *kadm.Client {
 			}
 			globalClient = nil
 			globalAdmin = nil
+
+			clientCreationCount++
+			fmt.Fprintf(errWriter, "[DEBUG] Creating client #%d for brokers: %v\n", clientCreationCount, currentCluster.Brokers)
 
 			currentOpts := getKgoOpts()
 			var err error
@@ -266,6 +273,9 @@ func getClient() *kgo.Client {
 			}
 			globalClient = nil
 			globalAdmin = nil
+
+			clientCreationCount++
+			fmt.Fprintf(errWriter, "[DEBUG] Creating client #%d for brokers: %v\n", clientCreationCount, currentCluster.Brokers)
 
 			currentOpts := getKgoOpts()
 			var err error
