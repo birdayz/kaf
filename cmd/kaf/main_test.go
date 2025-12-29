@@ -51,7 +51,7 @@ func testMain(m *testing.M) (code int) {
 }
 
 func runCmd(t *testing.T, in io.Reader, args ...string) string {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5) // 5 minute timeout for each command in integration tests
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*90) // 90 second timeout to get goroutine dump before CI timeout
 	defer cancel()
 
 	b := bytes.NewBufferString("")
@@ -83,7 +83,7 @@ func runCmdWithBroker(t *testing.T, kafkaAddr string, in io.Reader, args ...stri
 
 // runCmdAllowFail runs a kaf command and allows it to fail, returning the output and error
 func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*5) // 5 minute timeout for each command in integration tests
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*90) // 90 second timeout to get goroutine dump before CI timeout
 	defer cancel()
 
 	b := bytes.NewBufferString("")
