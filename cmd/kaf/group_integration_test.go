@@ -17,8 +17,7 @@ func TestGroupCommands(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
 	testTopicName := "test-group-commands"
@@ -168,8 +167,7 @@ func TestGroupWithActiveConsumer(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
 	testTopicName := "test-active-consumer"

@@ -12,8 +12,7 @@ func TestNodeCommands(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	t.Run("NodeList", func(t *testing.T) {
 		// List nodes/brokers

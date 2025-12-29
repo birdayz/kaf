@@ -12,8 +12,7 @@ func TestProduceConsume(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 	
 	msg := "this is a test"
 	topicName := "test-produce-consume"

@@ -7,8 +7,7 @@ import (
 )
 
 func TestNodes(t *testing.T) {
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 	
 	out := runCmdWithBroker(t, kafkaAddr, nil, "nodes")
 	require.Contains(t, out, kafkaAddr)

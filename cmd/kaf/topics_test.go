@@ -7,8 +7,7 @@ import (
 )
 
 func TestTopics(t *testing.T) {
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 	
 	out := runCmdWithBroker(t, kafkaAddr, nil, "topics")
 	// Just check that it runs without error - no specific topics expected

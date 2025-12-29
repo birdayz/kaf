@@ -17,8 +17,7 @@ func TestProduceCommand(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
 	testTopicName := "test-produce-command"
@@ -201,8 +200,7 @@ func TestProducePerformance(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
 	testTopicName := "test-produce-performance"

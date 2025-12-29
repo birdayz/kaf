@@ -17,8 +17,7 @@ func TestGroupCommit(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	ctx := context.Background()
 	topicName := "test-group-commit-topic"
@@ -260,8 +259,7 @@ func TestGroupCommitEdgeCases(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	// Test with non-existent topic
 	t.Run("NonExistentTopic", func(t *testing.T) {

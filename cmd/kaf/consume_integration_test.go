@@ -113,8 +113,7 @@ func TestConsumeFromBeginning(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-from-beginning"
 
@@ -150,8 +149,7 @@ func TestConsumeRawFormat(t *testing.T) {
 	// Add delay to prevent Docker conflicts
 	time.Sleep(3 * time.Second)
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-raw-format"
 
@@ -191,8 +189,7 @@ func TestConsumeJSONFormat(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-json-format"
 
@@ -225,8 +222,7 @@ func TestConsumeWithHeaders(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-with-headers"
 
@@ -264,8 +260,7 @@ func TestConsumeWithKeyDisplay(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-with-key-display"
 
@@ -295,8 +290,7 @@ func TestConsumeSpecificPartitions(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-specific-partitions"
 
@@ -326,8 +320,7 @@ func TestConsumeMultiplePartitions(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-multiple-partitions"
 
@@ -358,8 +351,7 @@ func TestConsumeWithCommit(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-with-commit"
 	groupName := "test-consume-commit-group"
@@ -391,8 +383,7 @@ func TestConsumeFromNonExistentTopic(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	output := runConsumeDirectly(t, kafkaAddr, ConsumeOptions{
 		Topic:         "non-existent-topic-12345",
@@ -409,8 +400,7 @@ func TestConsumeWithInvalidOffset(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 
 	topicName := "test-consume-invalid-offset"
 

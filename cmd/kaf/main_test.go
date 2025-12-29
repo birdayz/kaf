@@ -2,55 +2,26 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"io"
-	"os"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/kafka"
 )
-
-var kafkaAddr string
-
-func TestMain(m *testing.M) {
-	os.Exit(testMain(m))
-}
-
-func testMain(m *testing.M) (code int) {
-	ctx := context.Background()
-
-	kafkaContainer, err := kafka.RunContainer(ctx,
-		testcontainers.WithImage("confluentinc/cp-kafka:7.4.0"),
-		kafka.WithClusterID("test-cluster"),
-	)
-	if err != nil {
-		return 1
-	}
-
-	defer func() {
-		if stopErr := kafkaContainer.Terminate(ctx); stopErr != nil {
-			code = 1
-		}
-	}()
-
-	brokers, err := kafkaContainer.Brokers(ctx)
-	if err != nil {
-		return 1
-	}
-
-	if len(brokers) == 0 {
-		return 1
-	}
-
-	kafkaAddr = brokers[0]
-
-	return m.Run()
-}
 
 func runCmd(t *testing.T, in io.Reader, args ...string) string {
 	b := bytes.NewBufferString("")
+
+	// Reset all flags to avoid contamination between test runs
+	// This is needed because cobra commands are reused across multiple Execute() calls in tests
+	rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		flag.Value.Set(flag.DefValue)
+		flag.Changed = false
+	})
+	for _, cmd := range rootCmd.Commands() {
+		resetCommandFlags(cmd)
+	}
 
 	rootCmd.SetArgs(args)
 	rootCmd.SetOut(b)
@@ -71,6 +42,16 @@ func runCmd(t *testing.T, in io.Reader, args ...string) string {
 	return string(bs)
 }
 
+func resetCommandFlags(cmd *cobra.Command) {
+	cmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		flag.Value.Set(flag.DefValue)
+		flag.Changed = false
+	})
+	for _, subCmd := range cmd.Commands() {
+		resetCommandFlags(subCmd)
+	}
+}
+
 // runCmdWithBroker runs a kaf command with the specified broker address
 func runCmdWithBroker(t *testing.T, kafkaAddr string, in io.Reader, args ...string) string {
 	args = append([]string{"-b", kafkaAddr}, args...)
@@ -80,6 +61,15 @@ func runCmdWithBroker(t *testing.T, kafkaAddr string, in io.Reader, args ...stri
 // runCmdAllowFail runs a kaf command and allows it to fail, returning the output and error
 func runCmdAllowFail(t *testing.T, in io.Reader, args ...string) (string, error) {
 	b := bytes.NewBufferString("")
+
+	// Reset all flags to avoid contamination between test runs
+	rootCmd.Flags().VisitAll(func(flag *pflag.Flag) {
+		flag.Value.Set(flag.DefValue)
+		flag.Changed = false
+	})
+	for _, cmd := range rootCmd.Commands() {
+		resetCommandFlags(cmd)
+	}
 
 	rootCmd.SetArgs(args)
 	rootCmd.SetOut(b)

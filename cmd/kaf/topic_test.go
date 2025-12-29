@@ -9,8 +9,7 @@ import (
 )
 
 func TestTopic(t *testing.T) {
-	kafkaAddr, cleanup := setupKafkaForTest(t)
-	defer cleanup()
+	kafkaAddr := getSharedKafka(t)
 	
 	newTopic := fmt.Sprintf("new-topic-%d", time.Now().Unix())
 
