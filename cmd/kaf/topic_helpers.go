@@ -7,9 +7,10 @@ import (
 
 func getKgoHighWatermarks(topic string, partitions []int32) map[int32]int64 {
 	cl := getClient()
+	defer cl.Close()
 	ctx := context.Background()
 	admin := kadm.NewClient(cl)
-	
+
 	offsets, err := admin.ListEndOffsets(ctx, topic)
 	if err != nil {
 		errorExit("Unable to get available offsets: %v\n", err)
