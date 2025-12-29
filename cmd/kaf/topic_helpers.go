@@ -2,14 +2,11 @@ package main
 
 import (
 	"context"
-	"github.com/twmb/franz-go/pkg/kadm"
 )
 
 func getKgoHighWatermarks(topic string, partitions []int32) map[int32]int64 {
-	cl := getClient()
-	defer cl.Close()
+	admin := getClusterAdmin()
 	ctx := context.Background()
-	admin := kadm.NewClient(cl)
 
 	offsets, err := admin.ListEndOffsets(ctx, topic)
 	if err != nil {

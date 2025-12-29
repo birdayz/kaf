@@ -102,6 +102,10 @@ var (
 	inReader  io.Reader = os.Stdin
 
 	colorableOut io.Writer = colorable.NewColorableStdout()
+
+	// Global kafka client - created once at startup, reused throughout lifecycle
+	globalClient *kgo.Client
+	globalAdmin  *kadm.Client
 )
 
 // Will be replaced by GitHub action and by goreleaser
@@ -120,6 +124,23 @@ var rootCmd = &cobra.Command{
 
 		if outWriter != os.Stdout {
 			colorableOut = outWriter
+		}
+
+		// Initialize global kafka client once at startup
+		// Only create if currentCluster is set (skips for help/version commands)
+		if currentCluster != nil && globalClient == nil {
+			var err error
+			globalClient, err = kgo.NewClient(getKgoOpts()...)
+			if err != nil {
+				errorExit("Unable to create kafka client: %v\n", err)
+			}
+			globalAdmin = kadm.NewClient(globalClient)
+		}
+	},
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
+		// Close global kafka client on exit
+		if globalClient != nil {
+			globalClient.Close()
 		}
 	},
 }
@@ -199,19 +220,19 @@ func onInit() {
 }
 
 func getClusterAdmin() *kadm.Client {
-	cl, err := kgo.NewClient(getKgoOpts()...)
-	if err != nil {
-		errorExit("Unable to create kafka client: %v\n", err)
+	// Return global admin client (initialized in PersistentPreRun)
+	if globalAdmin == nil {
+		errorExit("Kafka admin client not initialized\n")
 	}
-	return kadm.NewClient(cl)
+	return globalAdmin
 }
 
 func getClient() *kgo.Client {
-	cl, err := kgo.NewClient(getKgoOpts()...)
-	if err != nil {
-		errorExit("Unable to get client: %v\n", err)
+	// Return global client (initialized in PersistentPreRun)
+	if globalClient == nil {
+		errorExit("Kafka client not initialized\n")
 	}
-	return cl
+	return globalClient
 }
 
 func getClientFromOpts(opts []kgo.Opt) *kgo.Client {
