@@ -228,12 +228,12 @@ func getClusterAdmin() *kadm.Client {
 		needsRecreate := globalClient == nil || brokersChanged(globalClientBrokers, currentCluster.Brokers)
 
 		if needsRecreate {
-			// Close existing client if present
+			// Close existing client if present (but don't wait/block)
 			if globalClient != nil {
 				globalClient.Close()
-				globalClient = nil
-				globalAdmin = nil
 			}
+			globalClient = nil
+			globalAdmin = nil
 
 			currentOpts := getKgoOpts()
 			var err error
@@ -260,12 +260,12 @@ func getClient() *kgo.Client {
 		needsRecreate := globalClient == nil || brokersChanged(globalClientBrokers, currentCluster.Brokers)
 
 		if needsRecreate {
-			// Close existing client if present
+			// Close existing client if present (but don't wait/block)
 			if globalClient != nil {
 				globalClient.Close()
-				globalClient = nil
-				globalAdmin = nil
 			}
+			globalClient = nil
+			globalAdmin = nil
 
 			currentOpts := getKgoOpts()
 			var err error
