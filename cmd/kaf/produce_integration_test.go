@@ -140,7 +140,8 @@ func TestProduceCommand(t *testing.T) {
 
 	t.Run("ProduceWithRawKey", func(t *testing.T) {
 		message := "Message with raw key"
-		rawKey := "raw:key:data"
+		// Use base64-encoded key for --raw-key flag
+		rawKey := "cmF3OmtleTpkYXRh" // base64 encoding of "raw:key:data"
 
 		output := runCmdWithBroker(t, kafkaAddr, strings.NewReader(message),
 			"produce", testTopicName,

@@ -420,6 +420,11 @@ func TestAWSMSKTokenGeneration(t *testing.T) {
 		t.Skip("Skipping AWS MSK token test in short mode")
 	}
 
+	// Skip test if AWS_PROFILE is not configured
+	if os.Getenv("AWS_PROFILE") == "" {
+		t.Skip("Skipping test - environment variable AWS_PROFILE not set")
+	}
+
 	t.Run("AWSMSKIAMConfiguration", func(t *testing.T) {
 		// Test AWS MSK IAM configuration without actual AWS credentials
 		originalCluster := currentCluster

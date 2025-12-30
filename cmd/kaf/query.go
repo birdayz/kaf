@@ -10,12 +10,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var grepValue string
+var (
+	grepValue string
+	queryKeyFlag string
+)
 
 func init() {
 	rootCmd.AddCommand(queryCmd)
 
-	queryCmd.Flags().StringVarP(&keyFlag, "key", "k", "", "Key to search for")
+	queryCmd.Flags().StringVarP(&queryKeyFlag, "key", "k", "", "Key to search for")
 	queryCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
 	queryCmd.Flags().StringSliceVar(&protoExclude, "proto-exclude", []string{}, "Proto exclusions (path prefixes)")
 	queryCmd.Flags().StringVar(&protoType, "proto-type", "", "Fully qualified name of the proto message type. Example: com.test.SampleMessage")
@@ -80,7 +83,7 @@ var queryCmd = &cobra.Command{
 					iter := fetches.RecordIter()
 					for !iter.Done() {
 						record := iter.Next()
-						if string(record.Key) == keyFlag {
+						if string(record.Key) == queryKeyFlag {
 							var keyTextRaw string
 							var valueTextRaw string
 							
