@@ -119,10 +119,15 @@ func TestQueryCommand(t *testing.T) {
 
 	t.Run("QueryNonExistentTopic", func(t *testing.T) {
 		// Query a topic that doesn't exist
-		output := runCmdWithBroker(t, kafkaAddr, nil, "query", "non-existent-topic-12345", "--key", "test")
+		args := append([]string{"-b", kafkaAddr}, "query", "non-existent-topic-12345", "--key", "test")
+		output, err := runCmdAllowFail(t, nil, args...)
 
-		// Should contain error message about topic not found
-		assert.Contains(t, output, "not found")
+		// Should return an error
+		require.Error(t, err)
+		// Error message should contain "not found"
+		assert.Contains(t, err.Error(), "not found")
+		// Output may also contain the error
+		_ = output
 	})
 
 	t.Run("QueryHelp", func(t *testing.T) {
