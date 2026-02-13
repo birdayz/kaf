@@ -34,6 +34,12 @@ var (
 
 	flagNoMembers      bool
 	flagDescribeTopics []string
+
+	flagDeleteOffsetsTopic         string
+	flagDeleteOffsetsPartition     int32
+	flagDeleteOffsetsAllPartitions bool
+	flagDeleteOffsetsMap           string
+	flagDeleteOffsetsNoconfirm     bool
 )
 
 func init() {
@@ -42,6 +48,7 @@ func init() {
 	groupCmd.AddCommand(groupDescribeCmd)
 	groupCmd.AddCommand(groupLsCmd)
 	groupCmd.AddCommand(groupDeleteCmd)
+	groupCmd.AddCommand(groupDeleteOffsetsCmd)
 	groupCmd.AddCommand(groupPeekCmd)
 	groupCmd.AddCommand(createGroupCommitOffsetCmd())
 
@@ -55,6 +62,13 @@ func init() {
 
 	groupDescribeCmd.Flags().BoolVar(&flagNoMembers, "no-members", false, "Hide members section of the output")
 	groupDescribeCmd.Flags().StringSliceVarP(&flagDescribeTopics, "topic", "t", []string{}, "topics to display for the group. defaults to all topics.")
+
+	groupDeleteOffsetsCmd.Flags().StringVarP(&flagDeleteOffsetsTopic, "topic", "t", "", "topic")
+	groupDeleteOffsetsCmd.Flags().Int32VarP(&flagDeleteOffsetsPartition, "partition", "p", -1, "partition")
+	groupDeleteOffsetsCmd.Flags().BoolVar(&flagDeleteOffsetsAllPartitions, "all-partitions", false, "delete offsets for all partitions")
+	groupDeleteOffsetsCmd.Flags().StringVar(&flagDeleteOffsetsMap, "offset-map", "", "delete offsets for specific partitions in JSON format, e.g. [\"0\", \"1\", \"2\"] or {\"0\":null, \"1\":null}")
+	groupDeleteOffsetsCmd.Flags().BoolVar(&flagDeleteOffsetsNoconfirm, "noconfirm", false, "Do not prompt for confirmation")
+	groupDeleteOffsetsCmd.MarkFlagRequired("topic")
 }
 
 const (
@@ -95,6 +109,147 @@ var groupDeleteCmd = &cobra.Command{
 			fmt.Printf("Deleted consumer group %v.\n", group)
 		}
 
+	},
+}
+
+var groupDeleteOffsetsCmd = &cobra.Command{
+	Use:               "delete-offsets GROUP",
+	Short:             "Delete consumer group offsets",
+	Long:              "Delete consumer group offsets for a topic. The consumer group must not have active consumers.",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: validGroupArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		admin := getClusterAdmin()
+		group := args[0]
+		topic := flagDeleteOffsetsTopic
+
+		if topic == "" {
+			errorExit("Topic flag is required\n")
+		}
+
+		// Determine target partitions
+		var partitions []int32
+
+		if flagDeleteOffsetsMap != "" {
+			// Try parsing as array first: ["0", "1", "2"]
+			var partitionStrings []string
+			err := json.Unmarshal([]byte(flagDeleteOffsetsMap), &partitionStrings)
+			if err != nil {
+				// Try parsing as map: {"0":null, "1":null}
+				var partitionMap map[string]interface{}
+				err2 := json.Unmarshal([]byte(flagDeleteOffsetsMap), &partitionMap)
+				if err2 != nil {
+					errorExit("Invalid --offset-map format. Use JSON array like [\"0\", \"1\"] or map like {\"0\":null}\n")
+				}
+				// Extract keys from map
+				for key := range partitionMap {
+					partitionStrings = append(partitionStrings, key)
+				}
+			}
+
+			// Convert string partition IDs to int32
+			for _, pStr := range partitionStrings {
+				p, err := strconv.ParseInt(pStr, 10, 32)
+				if err != nil {
+					errorExit("Invalid partition ID in offset-map: %v\n", pStr)
+				}
+				partitions = append(partitions, int32(p))
+			}
+		} else if flagDeleteOffsetsAllPartitions {
+			// Get all partitions from topic
+			topicDetails, err := admin.DescribeTopics([]string{topic})
+			if err != nil {
+				errorExit("Unable to determine partitions of topic: %v\n", err)
+			}
+
+			if len(topicDetails) == 0 {
+				errorExit("Topic %v not found\n", topic)
+			}
+
+			detail := topicDetails[0]
+			if detail.Err != sarama.ErrNoError {
+				errorExit("Error describing topic %v: %v\n", topic, detail.Err)
+			}
+
+			for _, p := range detail.Partitions {
+				partitions = append(partitions, p.ID)
+			}
+		} else if flagDeleteOffsetsPartition != -1 {
+			partitions = []int32{flagDeleteOffsetsPartition}
+		} else {
+			errorExit("Either --partition, --all-partitions or --offset-map flag must be provided\n")
+		}
+
+		// Sort partitions for consistent output
+		sort.Slice(partitions, func(i, j int) bool { return partitions[i] < partitions[j] })
+
+		if len(partitions) == 0 {
+			errorExit("No partitions to delete offsets for\n")
+		}
+
+		// Validate consumer group state
+		groupDescs, err := admin.DescribeConsumerGroups([]string{group})
+		if err != nil {
+			errorExit("Unable to describe consumer groups: %v\n", err)
+		}
+
+		if len(groupDescs) == 0 {
+			errorExit("Consumer group %v not found\n", group)
+		}
+
+		groupDesc := groupDescs[0]
+		state := groupDesc.State
+		if !slices.Contains([]string{"Empty", "Dead"}, state) {
+			errorExit("Consumer group %s has active consumers in it, cannot delete offsets\n", group)
+		}
+
+		// Display deletion plan
+		fmt.Printf("Will delete offsets for group '%s' on topic '%s' for partitions: %v\n", group, topic, partitions)
+
+		// Confirmation prompt (unless --noconfirm)
+		if !flagDeleteOffsetsNoconfirm {
+			prompt := promptui.Prompt{
+				Label:     "Delete offsets as described",
+				IsConfirm: true,
+			}
+
+			_, err := prompt.Run()
+			if err != nil {
+				errorExit("Aborted, exiting.\n")
+			}
+		}
+
+		// Execute deletions with error tracking
+		var succeeded []int32
+		var failed []struct {
+			partition int32
+			err       error
+		}
+
+		for _, partition := range partitions {
+			err := admin.DeleteConsumerGroupOffset(group, topic, partition)
+			if err != nil {
+				failed = append(failed, struct {
+					partition int32
+					err       error
+				}{partition, err})
+			} else {
+				succeeded = append(succeeded, partition)
+			}
+		}
+
+		// Report results
+		if len(succeeded) > 0 {
+			fmt.Printf("Successfully deleted offsets for partitions: %v\n", succeeded)
+		}
+
+		if len(failed) > 0 {
+			fmt.Printf("Failed to delete offsets for the following partitions:\n")
+			for _, f := range failed {
+				fmt.Printf("  Partition %d: %v\n", f.partition, f.err)
+			}
+			errorExit("")
+		}
 	},
 }
 
