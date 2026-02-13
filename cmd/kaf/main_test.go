@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -25,6 +26,7 @@ func testMain(m *testing.M) (code int) {
 		gnomock.WithContainerName("kaf-kafka"),
 	)
 	if err != nil {
+		log.Println(err)
 		return 1
 	}
 

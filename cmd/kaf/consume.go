@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -49,7 +50,7 @@ func init() {
 	rootCmd.AddCommand(consumeCmd)
 	consumeCmd.Flags().StringVar(&offsetFlag, "offset", "oldest", "Offset to start consuming. Possible values: oldest, newest, or integer.")
 	consumeCmd.Flags().BoolVar(&raw, "raw", false, "Print raw output of messages, without key or prettified JSON")
-	consumeCmd.Flags().Var(&outputFormat, "output", "Set output format messages: default, raw (without key or prettified JSON), json, json-each-row")
+	consumeCmd.Flags().Var(&outputFormat, "output", "Set output format messages: default, raw (without key or prettified JSON), hex (without key or prettified JSON), json, json-each-row")
 	consumeCmd.Flags().BoolVarP(&follow, "follow", "f", false, "Continue to consume messages until program execution is interrupted/terminated")
 	consumeCmd.Flags().Int32VarP(&tail, "tail", "n", 0, "Print last n messages per partition")
 	consumeCmd.Flags().StringSliceVar(&protoFiles, "proto-include", []string{}, "Path to proto files")
@@ -388,6 +389,8 @@ func formatMessage(msg *sarama.ConsumerMessage, rawMessage []byte, keyToDisplay 
 		}
 
 		return jsonToDisplay
+	case OutputFormatHex:
+		return []byte(hex.EncodeToString(rawMessage))
 	case OutputFormatDefault:
 		fallthrough
 	default:
@@ -489,6 +492,7 @@ const (
 	OutputFormatRaw         OutputFormat = "raw"
 	OutputFormatJSON        OutputFormat = "json"
 	OutputFormatJSONEachRow OutputFormat = "json-each-row"
+	OutputFormatHex         OutputFormat = "hex"
 )
 
 func (e *OutputFormat) String() string {
@@ -497,11 +501,11 @@ func (e *OutputFormat) String() string {
 
 func (e *OutputFormat) Set(v string) error {
 	switch v {
-	case "default", "raw", "json", "json-each-row":
+	case "default", "raw", "json", "json-each-row", "hex":
 		*e = OutputFormat(v)
 		return nil
 	default:
-		return fmt.Errorf("must be one of: default, raw, json, json-each-row")
+		return fmt.Errorf("must be one of: default, raw, json, json-each-row, hex")
 	}
 }
 
@@ -510,5 +514,5 @@ func (e *OutputFormat) Type() string {
 }
 
 func completeOutputFormat(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return []string{"default", "raw", "json", "json-each-row"}, cobra.ShellCompDirectiveNoFileComp
+	return []string{"default", "raw", "json", "json-each-row", "hex"}, cobra.ShellCompDirectiveNoFileComp
 }

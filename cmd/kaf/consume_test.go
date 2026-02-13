@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/IBM/sarama"
@@ -87,6 +88,37 @@ func TestCheckHeaders(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := checkHeaders(tt.headers, tt.headerFilter); got != tt.want {
 				t.Errorf("checkHeaders() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatMessage(t *testing.T) {
+	tests := []struct {
+		outputFormat OutputFormat
+		name         string
+		kafkaMsg     sarama.ConsumerMessage
+		rawMessage   []byte
+		keyToDisplay []byte
+		stderr       bytes.Buffer
+		want         []byte
+	}{
+		{
+			outputFormat: OutputFormatHex,
+			name:         "hex format string",
+			kafkaMsg:     sarama.ConsumerMessage{Topic: "test"},
+			rawMessage:   []byte("hello world"),
+			keyToDisplay: []byte("key1"),
+			want:         []byte("68656c6c6f20776f726c64"),
+		},
+	}
+
+	for _, tt := range tests {
+		// NOTE: this test mutates global state (outputFormat), must not run in parallel.
+		t.Run(tt.name, func(t *testing.T) {
+			outputFormat = tt.outputFormat
+			if got := formatMessage(&tt.kafkaMsg, tt.rawMessage, tt.keyToDisplay, &tt.stderr); !bytes.Equal(got, tt.want) {
+				t.Errorf("formatMessage() = %v, want %v", got, tt.want)
 			}
 		})
 	}
