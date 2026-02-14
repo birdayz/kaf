@@ -3,10 +3,14 @@ package avro
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
-	schemaregistry "github.com/Landoop/schema-registry"
 	"github.com/linkedin/goavro/v2"
 )
 
@@ -19,47 +23,87 @@ type cachedCodec struct {
 // SchemaCache connects to the Confluent schema registry and maintains
 // a cached versions of Avro schemas and codecs.
 type SchemaCache struct {
-	client *schemaregistry.Client
+	baseURL    string
+	httpClient *http.Client
 
 	mu               sync.RWMutex
 	codecsBySchemaID map[int]*cachedCodec
 }
 
-type transport struct {
+// NewSchemaCache returns a new Cache instance.
+// warnings are returned as non-fatal diagnostic messages.
+func NewSchemaCache(url string, username string, password string) (cache *SchemaCache, warnings []string, err error) {
+	var warns []string
+	var encodedCredentials string
+	if username != "" {
+		encodedCredentials = base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
+	}
+	if encodedCredentials != "" && strings.HasPrefix(url, "http://") {
+		warns = append(warns, "schema registry credentials sent over plaintext HTTP")
+	}
+
+	httpClient := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &authTransport{
+			underlyingTransport: http.DefaultTransport,
+			encodedCredentials:  encodedCredentials,
+		},
+	}
+
+	c := &SchemaCache{
+		baseURL:          strings.TrimRight(url, "/"),
+		httpClient:       httpClient,
+		codecsBySchemaID: make(map[int]*cachedCodec),
+	}
+	return c, warns, nil
+}
+
+type authTransport struct {
 	underlyingTransport http.RoundTripper
 	encodedCredentials  string
 }
 
 // RoundTrip wraps the underlying transport's RoundTripper and injects a
 // HTTP Basic authentication header if credentials are provided.
-func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
+func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if t.encodedCredentials != "" {
-		req.Header.Add("Authorization", "Basic "+t.encodedCredentials)
+		req.Header.Set("Authorization", "Basic "+t.encodedCredentials)
 	}
 	return t.underlyingTransport.RoundTrip(req)
 }
 
-// NewSchemaCache returns a new Cache instance
-func NewSchemaCache(url string, username string, password string) (*SchemaCache, error) {
-	var encodedCredentials string
-	if username != "" {
-		encodedCredentials = base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
-	}
-	httpClient := &http.Client{Transport: &transport{
-		underlyingTransport: http.DefaultTransport,
-		encodedCredentials:  encodedCredentials,
-	}}
-
-	client, err := schemaregistry.NewClient(url, schemaregistry.UsingClient(httpClient))
+// getSchemaByID fetches a schema string from the Confluent Schema Registry by ID.
+func (c *SchemaCache) getSchemaByID(id int) (string, error) {
+	url := fmt.Sprintf("%s/schemas/ids/%d", c.baseURL, id)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, err
+		return "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.schemaregistry.v1+json, application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("fetch schema id %d: %w", id, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read schema response: %w", err)
 	}
 
-	c := &SchemaCache{
-		codecsBySchemaID: make(map[int]*cachedCodec),
-		client:           client,
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("schema registry returned %d for id %d: %s", resp.StatusCode, id, body)
 	}
-	return c, nil
+
+	var result struct {
+		Schema string `json:"schema"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("decode schema response: %w", err)
+	}
+
+	return result.Schema, nil
 }
 
 // getCodecForSchemaID returns a goavro codec for transforming data.
@@ -89,12 +133,19 @@ func (c *SchemaCache) getCodecForSchemaID(schemaID int) (codec *goavro.Codec, er
 	c.mu.Unlock()
 
 	defer func() {
+		if err != nil {
+			// Don't cache failures -- a transient network blip should not
+			// permanently poison the cache for this schema ID.
+			c.mu.Lock()
+			delete(c.codecsBySchemaID, schemaID)
+			c.mu.Unlock()
+		}
 		cc.codec = codec
-		cc.err = err   // Any failure is permanent on a per-schema basis.
+		cc.err = err
 		close(cc.done) // Promise fulfilled.
 	}()
 
-	schema, err := c.client.GetSchemaById(schemaID)
+	schema, err := c.getSchemaByID(schemaID)
 	if err != nil {
 		return nil, err
 	}

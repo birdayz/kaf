@@ -13,17 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - name: Set up Go 1.x
-      uses: actions/setup-go@v2
-      with:
-        go-version: ^1.22
-      id: go
+    - name: Check out code
+      uses: actions/checkout@v4
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v2
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: ^1.24
+        cache: true
 
     - name: Build
-      run: go build -v -ldflags "-s -w -X main.version=$GITHUB_REF -X main.commit=${GITHUB_SHA::8}" ./cmd/kaf
+      run: go build -v -ldflags "-s -w -X main.version=${{ github.ref_name }} -X main.commit=${GITHUB_SHA::8}" ./cmd/kaf
+
+    - name: Vet
+      run: go vet ./...
 
     - name: Test
-      run: go test -v ./...
+      run: go test -v -short ./...

@@ -2,26 +2,25 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"os"
 
 	"github.com/magiconair/properties"
-	homedir "github.com/mitchellh/go-homedir"
 )
 
 // Default confluent cloud config file path
 var defaultCcloudSubpath = filepath.Join(".ccloud", "config")
 
 func TryFindCcloudConfigFile() (string, error) {
-	homedir, err := homedir.Dir()
+	home, err := os.UserHomeDir()
 	if err != nil {
-
 		return "", err
 	}
 
-	absoluteDefaultPath := filepath.Join(homedir, defaultCcloudSubpath)
+	absoluteDefaultPath := filepath.Join(home, defaultCcloudSubpath)
 
 	_, err = os.Stat(absoluteDefaultPath)
 	if err == nil {
@@ -32,15 +31,23 @@ func TryFindCcloudConfigFile() (string, error) {
 }
 
 func extractValue(key, input string) (unquoted string, ok bool) {
-	if strings.HasPrefix(input, key+"=") {
-		return strings.TrimRight(strings.Replace(strings.TrimPrefix(input, key+"="), "\"", "", -1), ";"), true
+	if after, found := strings.CutPrefix(input, key+"="); found {
+		v := strings.TrimRight(after, ";")
+		v = strings.TrimPrefix(v, "\"")
+		v = strings.TrimSuffix(v, "\"")
+		return v, true
 	}
 	return
 }
 
 // TODO return []string for brokers
 func ParseConfluentCloudConfig(path string) (username, password, broker string, err error) {
-	p := properties.MustLoadFile(path, properties.UTF8).Map()
+	props, loadErr := properties.LoadFile(path, properties.UTF8)
+	if loadErr != nil {
+		err = fmt.Errorf("failed to load confluent cloud config: %w", loadErr)
+		return
+	}
+	p := props.Map()
 	if _, ok := p["sasl.jaas.config"]; !ok {
 		err = errors.New("invalid or unsupported confluent cloud config")
 		return
@@ -52,21 +59,17 @@ func ParseConfluentCloudConfig(path string) (username, password, broker string, 
 
 	words := strings.Split(p["sasl.jaas.config"], " ")
 
-	jaasOk := true
 	for _, word := range words {
 		if result, ok := extractValue("username", word); ok {
 			username = result
-			jaasOk = jaasOk && ok
 		}
 		if result, ok := extractValue("password", word); ok {
 			password = result
-			jaasOk = jaasOk && ok
 		}
-
 	}
 
-	if !jaasOk {
-		return "", "", "", errors.New("Could not parse sasl.jaas.config from ccloud")
+	if username == "" || password == "" {
+		return "", "", "", errors.New("could not parse username/password from sasl.jaas.config")
 	}
 
 	broker = p["bootstrap.servers"]
