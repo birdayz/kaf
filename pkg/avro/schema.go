@@ -3,10 +3,15 @@ package avro
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"strings"
 	"sync"
+	"time"
 
-	schemaregistry "github.com/Landoop/schema-registry"
 	"github.com/linkedin/goavro/v2"
 )
 
@@ -19,24 +24,11 @@ type cachedCodec struct {
 // SchemaCache connects to the Confluent schema registry and maintains
 // a cached versions of Avro schemas and codecs.
 type SchemaCache struct {
-	client *schemaregistry.Client
+	baseURL    string
+	httpClient *http.Client
 
 	mu               sync.RWMutex
 	codecsBySchemaID map[int]*cachedCodec
-}
-
-type transport struct {
-	underlyingTransport http.RoundTripper
-	encodedCredentials  string
-}
-
-// RoundTrip wraps the underlying transport's RoundTripper and injects a
-// HTTP Basic authentication header if credentials are provided.
-func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if t.encodedCredentials != "" {
-		req.Header.Add("Authorization", "Basic "+t.encodedCredentials)
-	}
-	return t.underlyingTransport.RoundTrip(req)
 }
 
 // NewSchemaCache returns a new Cache instance
@@ -45,21 +37,72 @@ func NewSchemaCache(url string, username string, password string) (*SchemaCache,
 	if username != "" {
 		encodedCredentials = base64.StdEncoding.EncodeToString([]byte(username + ":" + password))
 	}
-	httpClient := &http.Client{Transport: &transport{
-		underlyingTransport: http.DefaultTransport,
-		encodedCredentials:  encodedCredentials,
-	}}
+	if encodedCredentials != "" && strings.HasPrefix(url, "http://") {
+		fmt.Fprintf(os.Stderr, "WARNING: schema registry credentials sent over plaintext HTTP\n")
+	}
 
-	client, err := schemaregistry.NewClient(url, schemaregistry.UsingClient(httpClient))
-	if err != nil {
-		return nil, err
+	httpClient := &http.Client{
+		Timeout: 10 * time.Second,
+		Transport: &authTransport{
+			underlyingTransport: http.DefaultTransport,
+			encodedCredentials:  encodedCredentials,
+		},
 	}
 
 	c := &SchemaCache{
+		baseURL:          strings.TrimRight(url, "/"),
+		httpClient:       httpClient,
 		codecsBySchemaID: make(map[int]*cachedCodec),
-		client:           client,
 	}
 	return c, nil
+}
+
+type authTransport struct {
+	underlyingTransport http.RoundTripper
+	encodedCredentials  string
+}
+
+// RoundTrip wraps the underlying transport's RoundTripper and injects a
+// HTTP Basic authentication header if credentials are provided.
+func (t *authTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.encodedCredentials != "" {
+		req.Header.Set("Authorization", "Basic "+t.encodedCredentials)
+	}
+	return t.underlyingTransport.RoundTrip(req)
+}
+
+// getSchemaByID fetches a schema string from the Confluent Schema Registry by ID.
+func (c *SchemaCache) getSchemaByID(id int) (string, error) {
+	url := fmt.Sprintf("%s/schemas/ids/%d", c.baseURL, id)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Accept", "application/vnd.schemaregistry.v1+json, application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("fetch schema id %d: %w", id, err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read schema response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("schema registry returned %d for id %d: %s", resp.StatusCode, id, body)
+	}
+
+	var result struct {
+		Schema string `json:"schema"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", fmt.Errorf("decode schema response: %w", err)
+	}
+
+	return result.Schema, nil
 }
 
 // getCodecForSchemaID returns a goavro codec for transforming data.
@@ -94,7 +137,7 @@ func (c *SchemaCache) getCodecForSchemaID(schemaID int) (codec *goavro.Codec, er
 		close(cc.done) // Promise fulfilled.
 	}()
 
-	schema, err := c.client.GetSchemaById(schemaID)
+	schema, err := c.getSchemaByID(schemaID)
 	if err != nil {
 		return nil, err
 	}

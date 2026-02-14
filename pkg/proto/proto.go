@@ -1,75 +1,74 @@
 package proto
 
 import (
-	"os"
+	"context"
+	"io/fs"
 	"path/filepath"
-
 	"strings"
 
-	"github.com/jhump/protoreflect/desc"
-	"github.com/jhump/protoreflect/desc/protoparse"
-	"github.com/jhump/protoreflect/dynamic"
+	"github.com/bufbuild/protocompile"
+	"github.com/bufbuild/protocompile/linker"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 type DescriptorRegistry struct {
-	descriptors []*desc.FileDescriptor
+	files linker.Files
 }
 
 func NewDescriptorRegistry(importPaths []string, exclusions []string) (*DescriptorRegistry, error) {
-	p := &protoparse.Parser{
-		ImportPaths: importPaths,
-	}
-
 	var protoFiles []string
 
 	for _, importPath := range importPaths {
-		err := filepath.Walk(importPath, func(path string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && strings.HasSuffix(path, ".proto") {
-				protoFiles = append(protoFiles, path)
+		err := filepath.WalkDir(importPath, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
 			}
-
+			if d.IsDir() || !strings.HasSuffix(path, ".proto") {
+				return nil
+			}
+			rel, err := filepath.Rel(importPath, path)
+			if err != nil {
+				return err
+			}
+			for _, exclusion := range exclusions {
+				if strings.HasPrefix(rel, exclusion) {
+					return nil
+				}
+			}
+			protoFiles = append(protoFiles, rel)
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-
 	}
 
-	resolved, err := protoparse.ResolveFilenames(importPaths, protoFiles...)
+	compiler := protocompile.Compiler{
+		Resolver: &protocompile.SourceResolver{
+			ImportPaths: importPaths,
+		},
+	}
+
+	files, err := compiler.Compile(context.Background(), protoFiles...)
 	if err != nil {
 		return nil, err
 	}
 
-	var deduped []string
-	for _, i := range resolved {
-
-		var exclusionFound bool
-		for _, exclusion := range exclusions {
-			if strings.HasPrefix(i, exclusion) {
-				exclusionFound = true
-				break
-			}
-		}
-
-		if !exclusionFound {
-			deduped = append(deduped, i)
-		}
-	}
-
-	descs, err := p.ParseFiles(deduped...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &DescriptorRegistry{descriptors: descs}, nil
+	return &DescriptorRegistry{files: files}, nil
 }
 
-func (d *DescriptorRegistry) MessageForType(_type string) *dynamic.Message {
-	for _, descriptor := range d.descriptors {
-		if messageDescriptor := descriptor.FindMessage(_type); messageDescriptor != nil {
-			return dynamic.NewMessage(messageDescriptor)
+func (d *DescriptorRegistry) MessageForType(_type string) *dynamicpb.Message {
+	for _, f := range d.files {
+		desc := f.FindDescriptorByName(protoreflect.FullName(_type))
+		if desc == nil {
+			continue
 		}
+		msgDesc, ok := desc.(protoreflect.MessageDescriptor)
+		if !ok {
+			continue
+		}
+		return dynamicpb.NewMessage(msgDesc)
 	}
 	return nil
 }

@@ -5,8 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	homedir "github.com/mitchellh/go-homedir"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type SASL struct {
@@ -46,8 +45,19 @@ type Cluster struct {
 
 type Config struct {
 	CurrentCluster  string `yaml:"current-cluster"`
-	ClusterOverride string
+	ClusterOverride string `yaml:"-"`
 	Clusters        []*Cluster `yaml:"clusters"`
+	// configPath is the file path used for reading and writing this config.
+	configPath string `yaml:"-"`
+}
+
+func (c *Config) HasCluster(name string) bool {
+	for _, cluster := range c.Clusters {
+		if cluster.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Config) SetCurrentCluster(name string) error {
@@ -70,7 +80,7 @@ func (c *Config) SetCurrentCluster(name string) error {
 
 		}
 	}
-	return fmt.Errorf("Could not find cluster with name %v", name)
+	return fmt.Errorf("could not find cluster with name %v", name)
 }
 
 func (c *Config) ActiveCluster() *Cluster {
@@ -100,62 +110,92 @@ func (c *Config) ActiveCluster() *Cluster {
 }
 
 func (c *Config) Write() error {
-	home, err := homedir.Dir()
-	if err != nil {
-		return err
+	configPath := c.configPath
+	if configPath == "" {
+		var err error
+		configPath, err = getDefaultConfigPath()
+		if err != nil {
+			return err
+		}
+	}
+	configDir := filepath.Dir(configPath)
+	if err := os.MkdirAll(configDir, 0700); err != nil {
+		return fmt.Errorf("create config directory: %w", err)
 	}
 
-	configDir := filepath.Join(home, ".kaf")
-	_ = os.MkdirAll(configDir, 0755)
-	configPath := filepath.Join(configDir, "config")
-
-	file, err := os.OpenFile(configPath, os.O_TRUNC|os.O_RDWR|os.O_CREATE, 0644)
+	tmpFile, err := os.CreateTemp(configDir, "config.*.tmp")
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("create temp config file: %w", err)
 	}
-	defer file.Close()
+	tmpPath := tmpFile.Name()
 
-	encoder := yaml.NewEncoder(file)
-	return encoder.Encode(&c)
+	encoder := yaml.NewEncoder(tmpFile)
+	if err := encoder.Encode(&c); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("encode config: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("close temp config file: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0600); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("chmod temp config file: %w", err)
+	}
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("rename temp config file: %w", err)
+	}
+	return nil
 }
 
 func ReadConfig(cfgPath string) (c Config, err error) {
-	file, err := os.OpenFile(getConfigPath(cfgPath), os.O_RDONLY, 0644)
+	resolvedPath, err := resolveConfigPath(cfgPath)
+	if err != nil {
+		return Config{}, err
+	}
+
+	file, err := os.OpenFile(resolvedPath, os.O_RDONLY, 0644)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return Config{}, nil
+			return Config{configPath: resolvedPath}, nil
 		}
-		return Config{}, err
+		return Config{}, fmt.Errorf("open config file: %w", err)
 	}
 	defer file.Close()
 	decoder := yaml.NewDecoder(file)
 	err = decoder.Decode(&c)
 	if err != nil {
-		return Config{}, err
+		return Config{}, fmt.Errorf("decode config: %w", err)
 	}
+	c.configPath = resolvedPath
 	return c, nil
 }
 
 func fileExists(filename string) bool {
 	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
+	if err != nil {
 		return false
 	}
 	return !info.IsDir()
 }
 
-func getConfigPath(cfgPath string) string {
-	if !fileExists(cfgPath) {
+func resolveConfigPath(cfgPath string) (string, error) {
+	if cfgPath == "" {
 		return getDefaultConfigPath()
 	}
-	return cfgPath
+	if !fileExists(cfgPath) {
+		return "", fmt.Errorf("config file %q does not exist", cfgPath)
+	}
+	return cfgPath, nil
 }
 
-func getDefaultConfigPath() string {
-	home, err := homedir.Dir()
+func getDefaultConfigPath() (string, error) {
+	home, err := os.UserHomeDir()
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("could not determine home directory: %w", err)
 	}
 
-	return filepath.Join(home, ".kaf", "config")
+	return filepath.Join(home, ".kaf", "config"), nil
 }
