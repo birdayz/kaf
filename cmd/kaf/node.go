@@ -32,6 +32,7 @@ var nodeLsCommand = &cobra.Command{
 	Short: "List nodes in a cluster",
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 
 		brokers, ctlID, err := admin.DescribeCluster()
 		if err != nil {
