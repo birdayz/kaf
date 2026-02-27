@@ -116,7 +116,9 @@ func TestFormatMessage(t *testing.T) {
 	for _, tt := range tests {
 		// NOTE: this test mutates global state (outputFormat), must not run in parallel.
 		t.Run(tt.name, func(t *testing.T) {
+			old := outputFormat
 			outputFormat = tt.outputFormat
+			defer func() { outputFormat = old }()
 			if got := formatMessage(&tt.kafkaMsg, tt.rawMessage, tt.keyToDisplay, &tt.stderr); !bytes.Equal(got, tt.want) {
 				t.Errorf("formatMessage() = %v, want %v", got, tt.want)
 			}
