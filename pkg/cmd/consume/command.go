@@ -70,9 +70,14 @@ func NewCommand(a *app.App) *cobra.Command {
 			}
 
 			var opts []kgo.Opt
-			opts = append(opts, kgo.ConsumeTopics(topic))
+
+			// Whether we'll use ConsumePartitions (explicit partitions or tail mode).
+			// ConsumeTopics and ConsumePartitions for the same topic are mutually
+			// exclusive in franz-go, so we must pick one.
+			useConsumePartitions := (len(flagPartitions) > 0 || tail > 0) && groupFlag == ""
 
 			if groupFlag != "" {
+				opts = append(opts, kgo.ConsumeTopics(topic))
 				opts = append(opts, kgo.ConsumerGroup(groupFlag))
 				if !groupCommitFlag {
 					opts = append(opts, kgo.DisableAutoCommit())
@@ -91,7 +96,8 @@ func NewCommand(a *app.App) *cobra.Command {
 					opts = append(opts, kgo.ConsumeResetOffset(kgo.NewOffset().At(o)))
 				}
 
-				if len(flagPartitions) > 0 {
+				if len(flagPartitions) > 0 && tail == 0 {
+					// Explicit partitions without tail: set up ConsumePartitions now.
 					partMap := make(map[string]map[int32]kgo.Offset)
 					offsets := make(map[int32]kgo.Offset, len(flagPartitions))
 					for _, p := range flagPartitions {
@@ -107,6 +113,10 @@ func NewCommand(a *app.App) *cobra.Command {
 					}
 					partMap[topic] = offsets
 					opts = append(opts, kgo.ConsumePartitions(partMap))
+				}
+
+				if !useConsumePartitions {
+					opts = append(opts, kgo.ConsumeTopics(topic))
 				}
 			}
 
@@ -151,6 +161,11 @@ func NewCommand(a *app.App) *cobra.Command {
 					})
 					partMap[topic] = offsets
 					opts = append(opts, kgo.ConsumePartitions(partMap))
+
+					// Tail mode also needs end offsets to know when to stop.
+					if !follow {
+						endOffsetMap = app.EndOffsetMapForTopic(endOffsets, topic)
+					}
 				}
 
 				if !follow && groupFlag == "" && tail == 0 {
