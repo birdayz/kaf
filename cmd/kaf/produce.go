@@ -98,7 +98,7 @@ var produceCmd = &cobra.Command{
 	Short:             "Produce record. Reads data from stdin.",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: validTopicArgs,
-	PreRun:            setupProtoDescriptorRegistry,
+	PreRun:            producePreRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		cfg := getConfig()
 		switch partitionerFlag {
@@ -327,4 +327,9 @@ func (e *InputFormat) Type() string {
 
 func completeInputFormat(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return []string{"default", "json-each-row", "hex"}, cobra.ShellCompDirectiveNoFileComp
+}
+
+func producePreRun(cmd *cobra.Command, args []string) {
+	loadProtoPathsFromConfig(cmd, args)
+	setupProtoDescriptorRegistry(cmd, args)
 }
