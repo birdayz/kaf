@@ -230,7 +230,7 @@ var describeTopicCmd = &cobra.Command{
 		for _, partition := range detail.Partitions {
 			partitions = append(partitions, partition.ID)
 		}
-		highWatermarks := getHighWatermarks(args[0], partitions)
+		highWatermarks := getHighWatermarks(admin, args[0], partitions)
 		highWatermarksSum := 0
 
 		for _, partition := range detail.Partitions {
@@ -361,6 +361,7 @@ var deleteTopicCmd = &cobra.Command{
 	ValidArgsFunction: validTopicArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		admin := getClusterAdmin()
+		defer admin.Close()
 
 		topicName := args[0]
 		err := admin.DeleteTopic(topicName)
@@ -392,7 +393,7 @@ var lagCmd = &cobra.Command{
 		for _, partition := range topicDetails[0].Partitions {
 			partitions = append(partitions, partition.ID)
 		}
-		highWatermarks := getHighWatermarks(topic, partitions)
+		highWatermarks := getHighWatermarks(admin, topic, partitions)
 
 		// List all consumer groups
 		consumerGroups, err := admin.ListConsumerGroups()
@@ -411,50 +412,50 @@ var lagCmd = &cobra.Command{
 			errorExit("Unable to describe consumer groups: %v\n", err)
 		}
 
-		// Calculate lag for each group
-		lagInfo := make(map[string]int64)
+		// Collect all groups that consume from this topic for batch processing
+		relevantGroups := make(map[string]map[string][]int32) // groupId -> topic -> partitions
 		groupStates := make(map[string]string) // To store the state of each group
+		
 		for _, group := range groupsInfo {
-			var sum int64
-			show := false
+			groupStates[group.GroupId] = group.State
 			for _, member := range group.Members {
 				assignment, err := member.GetMemberAssignment()
 				if err != nil || assignment == nil {
 					continue
 				}
 
-				metadata, err := member.GetMemberMetadata()
-				if err != nil || metadata == nil {
-					continue
-				}
-
 				if topicPartitions, exist := assignment.Topics[topic]; exist {
-					show = true
-					resp, err := admin.ListConsumerGroupOffsets(group.GroupId, map[string][]int32{topic: topicPartitions})
-					if err != nil {
-						fmt.Fprintf(os.Stderr, "Error fetching offsets for group %s: %v\n", group.GroupId, err)
-						continue
+					if relevantGroups[group.GroupId] == nil {
+						relevantGroups[group.GroupId] = make(map[string][]int32)
 					}
+					relevantGroups[group.GroupId][topic] = topicPartitions
+				}
+			}
+		}
 
-					if blocks, ok := resp.Blocks[topic]; ok {
-						for pid, block := range blocks {
-							if hwm, ok := highWatermarks[pid]; ok {
-								if block.Offset > hwm {
-									fmt.Fprintf(os.Stderr, "Warning: Consumer offset (%d) is greater than high watermark (%d) for partition %d in group %s\n", block.Offset, hwm, pid, group.GroupId)
-								} else if block.Offset < 0 {
-									// Skip partitions with negative offsets
-								} else {
-									sum += hwm - block.Offset
-								}
-							}
+		// Batch fetch all consumer group offsets
+		allGroupOffsets := batchListConsumerGroupOffsets(admin, relevantGroups)
+
+		// Calculate lag for each group
+		lagInfo := make(map[string]int64)
+		for groupId, offsets := range allGroupOffsets {
+			var sum int64
+			if blocks, ok := offsets.Blocks[topic]; ok {
+				for pid, block := range blocks {
+					if hwm, ok := highWatermarks[pid]; ok {
+						if block.Offset > hwm {
+							fmt.Fprintf(os.Stderr, "Warning: Consumer offset (%d) is greater than high watermark (%d) for partition %d in group %s\n", block.Offset, hwm, pid, groupId)
+						} else if block.Offset < 0 {
+							// Skip partitions with negative offsets
+						} else {
+							sum += hwm - block.Offset
 						}
 					}
 				}
 			}
-
-			if show && sum >= 0 {
-				lagInfo[group.GroupId] = sum
-				groupStates[group.GroupId] = group.State // Store the state of the group
+			
+			if sum >= 0 {
+				lagInfo[groupId] = sum
 			}
 		}
 
@@ -468,4 +469,21 @@ var lagCmd = &cobra.Command{
 		}
 		w.Flush()
 	},
+}
+
+// batchListConsumerGroupOffsets fetches offsets for multiple consumer groups in batched operations
+func batchListConsumerGroupOffsets(admin sarama.ClusterAdmin, groupTopicPartitions map[string]map[string][]int32) map[string]*sarama.OffsetFetchResponse {
+	results := make(map[string]*sarama.OffsetFetchResponse)
+	
+	// Process each group
+	for groupId, topicPartitions := range groupTopicPartitions {
+		resp, err := admin.ListConsumerGroupOffsets(groupId, topicPartitions)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error fetching offsets for group %s: %v\n", groupId, err)
+			continue
+		}
+		results[groupId] = resp
+	}
+	
+	return results
 }
