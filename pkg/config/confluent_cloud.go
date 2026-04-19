@@ -15,17 +15,15 @@ import (
 var defaultCcloudSubpath = filepath.Join(".ccloud", "config")
 
 func TryFindCcloudConfigFile() (string, error) {
-	homedir, err := homedir.Dir()
+	home, err := homedir.Dir()
 	if err != nil {
-
 		return "", err
 	}
 
-	absoluteDefaultPath := filepath.Join(homedir, defaultCcloudSubpath)
+	absoluteDefaultPath := filepath.Join(home, defaultCcloudSubpath)
 
 	_, err = os.Stat(absoluteDefaultPath)
 	if err == nil {
-
 		return absoluteDefaultPath, nil
 	}
 	return "", os.ErrNotExist
@@ -66,7 +64,7 @@ func ParseConfluentCloudConfig(path string) (username, password, broker string, 
 	}
 
 	if !jaasOk {
-		return "", "", "", errors.New("Could not parse sasl.jaas.config from ccloud")
+		return "", "", "", errors.New("could not parse sasl.jaas.config from ccloud")
 	}
 
 	broker = p["bootstrap.servers"]

@@ -21,9 +21,13 @@ type cachedCodec struct {
 type SchemaCache struct {
 	client *schemaregistry.Client
 
-	mu               sync.RWMutex
-	codecsBySchemaID map[int]*cachedCodec
+	mu                sync.RWMutex
+	codecsBySchemaID  map[int]*cachedCodec
 }
+
+// avroMagicByte is the first byte of an Avro-encoded message, used to identify
+// Avro data format in the schema registry protocol.
+const avroMagicByte = 0x00
 
 type transport struct {
 	underlyingTransport http.RoundTripper
@@ -110,7 +114,7 @@ func (c *SchemaCache) getCodecForSchemaID(schemaID int) (codec *goavro.Codec, er
 // DecodeMessage returns a text representation of an Avro-encoded message.
 func (c *SchemaCache) DecodeMessage(b []byte) (message []byte, err error) {
 	// Ensure avro header is present with the magic start-byte.
-	if len(b) < 5 || b[0] != 0x00 {
+	if len(b) < 5 || b[0] != avroMagicByte {
 		// The message does not contain Avro-encoded data
 		return b, nil
 	}
