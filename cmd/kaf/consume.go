@@ -44,6 +44,8 @@ var (
 
 	headerFilterFlag []string
 	headerFilter     = make(map[string]string)
+
+	readCommitted bool
 )
 
 func init() {
@@ -63,6 +65,7 @@ func init() {
 	consumeCmd.Flags().StringVarP(&groupFlag, "group", "g", "", "Consumer Group to use for consume")
 	consumeCmd.Flags().BoolVar(&groupCommitFlag, "commit", false, "Commit Group offset after receiving messages. Works only if consuming as Consumer Group")
 	consumeCmd.Flags().StringSliceVar(&headerFilterFlag, "header", []string{}, "Filter messages by header. Format: key:value. Multiple filters can be specified")
+	consumeCmd.Flags().BoolVar(&readCommitted, "read-committed", false, "Whether to set the isolation level to read committed (Kafka transactions), default is false (read uncommitted)")
 
 	if err := consumeCmd.RegisterFlagCompletionFunc("output", completeOutputFormat); err != nil {
 		errorExit("Failed to register flag completion: %v", err)
@@ -137,6 +140,10 @@ var consumeCmd = &cobra.Command{
 				errorExit("Invalid header filter format: %s. Expected format: key:value", f)
 			}
 			headerFilter[parts[0]] = parts[1]
+		}
+
+		if readCommitted {
+			cfg.Consumer.IsolationLevel = sarama.ReadCommitted
 		}
 
 		if groupFlag != "" {
