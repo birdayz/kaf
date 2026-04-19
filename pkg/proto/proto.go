@@ -16,7 +16,7 @@ type DescriptorRegistry struct {
 }
 
 func NewDescriptorRegistry(importPaths []string, exclusions []string) (*DescriptorRegistry, error) {
-	p := &protoparse.Parser{
+	parser := &protoparse.Parser{
 		ImportPaths: importPaths,
 	}
 
@@ -41,23 +41,24 @@ func NewDescriptorRegistry(importPaths []string, exclusions []string) (*Descript
 		return nil, err
 	}
 
+	exclusionSet := make(map[string]struct{}, len(exclusions))
+	for _, exclusion := range exclusions {
+		exclusionSet[exclusion] = struct{}{}
+	}
+
 	var deduped []string
+	seen := make(map[string]struct{})
 	for _, i := range resolved {
-
-		var exclusionFound bool
-		for _, exclusion := range exclusions {
-			if strings.HasPrefix(i, exclusion) {
-				exclusionFound = true
-				break
-			}
+		if _, excluded := exclusionSet[i]; excluded {
+			continue
 		}
-
-		if !exclusionFound {
+		if _, ok := seen[i]; !ok {
+			seen[i] = struct{}{}
 			deduped = append(deduped, i)
 		}
 	}
 
-	descs, err := p.ParseFiles(deduped...)
+	descs, err := parser.ParseFiles(deduped...)
 	if err != nil {
 		return nil, err
 	}

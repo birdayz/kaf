@@ -25,6 +25,9 @@ func (s *SubscriptionInfo) Decode(pd PacketDecoder) (err error) {
 	if err != nil {
 		return err
 	}
+	if numPrevs < 0 {
+		return errInvalidArrayLength
+	}
 
 	for i := 0; i < int(numPrevs); i++ {
 		t := TaskID{}
@@ -45,6 +48,9 @@ func (s *SubscriptionInfo) Decode(pd PacketDecoder) (err error) {
 	numStandby, err := pd.getInt32()
 	if err != nil {
 		return err
+	}
+	if numStandby < 0 {
+		return errInvalidArrayLength
 	}
 
 	for i := 0; i < int(numStandby); i++ {

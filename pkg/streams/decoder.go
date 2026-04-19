@@ -3,16 +3,11 @@ package streams
 import (
 	"encoding/binary"
 	"errors"
-	"math"
 )
 
 var errInvalidArrayLength = errors.New("invalid array length")
 var errInvalidByteSliceLength = errors.New("invalid byteslice length")
-
-//var errInvalidByteSliceLengthType = errors.New("invalid byteslice length type")
 var errInvalidStringLength = errors.New("invalid string length")
-
-//var errInvalidSubsetSize = errors.New("invalid subset size")
 var errVarintOverflow = errors.New("varint overflow")
 var errInvalidBool = errors.New("invalid bool")
 
@@ -122,11 +117,12 @@ func (rd *realDecoder) getArrayLength() (int, error) {
 	}
 	tmp := int(int32(binary.BigEndian.Uint32(rd.raw[rd.off:])))
 	rd.off += 4
+	if tmp < 0 {
+		return -1, errInvalidArrayLength
+	}
 	if tmp > rd.remaining() {
 		rd.off = len(rd.raw)
 		return -1, ErrInsufficientData
-	} else if tmp > 2*math.MaxUint16 {
-		return -1, errInvalidArrayLength
 	}
 	return tmp, nil
 }
