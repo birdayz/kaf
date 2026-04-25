@@ -107,7 +107,7 @@ var consumeCmd = &cobra.Command{
 	Short:             "Consume messages",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: validTopicArgs,
-	PreRun:            setupProtoDescriptorRegistry,
+	PreRun:            consumePreRun,
 	Run: func(cmd *cobra.Command, args []string) {
 		var offset int64
 		cfg := getConfig()
@@ -153,6 +153,11 @@ var consumeCmd = &cobra.Command{
 		}
 
 	},
+}
+
+func consumePreRun(cmd *cobra.Command, args []string) {
+	loadProtoPathsFromConfig(cmd, args)
+	setupProtoDescriptorRegistry(cmd, args)
 }
 
 type g struct{}
