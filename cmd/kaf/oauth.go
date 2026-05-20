@@ -47,11 +47,20 @@ func newTokenProvider() *tokenProvider {
 
 		// token either from tokenURL, static or AWS API
 		if cluster.SASL.Mechanism == "AWS_MSK_IAM" {
-			cfg, err := aws_config.LoadDefaultConfig(ctx)
+			var awsOpts []func(*aws_config.LoadOptions) error
+			if cluster.SASL.AWSProfile != "" {
+				awsOpts = append(awsOpts, aws_config.WithSharedConfigProfile(cluster.SASL.AWSProfile))
+			}
+			cfg, err := aws_config.LoadDefaultConfig(ctx, awsOpts...)
 			if err != nil {
 				errorExit("Could not load AWS config: " + err.Error())
 			}
-			token, _, err := aws_signer.GenerateAuthToken(ctx, cfg.Region)
+			var token string
+			if cluster.SASL.AWSProfile != "" {
+				token, _, err = aws_signer.GenerateAuthTokenFromProfile(ctx, cfg.Region, cluster.SASL.AWSProfile)
+			} else {
+				token, _, err = aws_signer.GenerateAuthToken(ctx, cfg.Region)
+			}
 			if err != nil {
 				errorExit("Could not generate auth token: " + err.Error())
 			}
