@@ -19,6 +19,7 @@ type SASL struct {
 	Scopes       []string `yaml:"scopes"`
 	Token        string   `yaml:"token"`
 	Version      int16    `yaml:"version"`
+	AWSProfile   string   `yaml:"awsProfile"`
 }
 
 type TLS struct {

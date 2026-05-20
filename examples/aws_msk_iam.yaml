@@ -4,6 +4,7 @@ clusters:
       - localhost:9092
     SASL:
       mechanism: AWS_MSK_IAM
+      # awsProfile: my-profile  # optional: use a named AWS profile instead of env vars or the default profile
     TLS: null
     security-protocol: SASL_SSL
 # set the region using the AWS_REGION envvar or saved profiles
